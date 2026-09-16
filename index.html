@@ -368,13 +368,11 @@
       cursor: pointer;
     }
 
-    /* MARCADORES CLICKABLES */
+    /* MARCADORES */
     .car-marker-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      cursor: pointer;
-      pointer-events: auto !important;
     }
 
     .car-marker-container.sos-active .car-badge {
@@ -414,7 +412,7 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
     }
 
-    /* MODAL DE HISTORIAL POR VEHÍCULO (SALTOS CADA 2 HORAS) */
+    /* TARJETA HISTORIAL EXCLUSIVA BASE */
     #vehicle-history-card {
       position: absolute;
       top: 65px;
@@ -481,19 +479,19 @@
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
-  <!-- BANNER SOS PARA LA BASE -->
+  <!-- BANNER SOS EN BASE -->
   <div id="sos-alert-banner">
     <span id="sos-banner-text">🚨 ¡ALERTA SOS ACTIVA!</span>
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
-  <!-- TARJETA DE AUDITORÍA HISTÓRICA (2 EN 2 HORAS) -->
+  <!-- TARJETA EXCLUSIVA MODULADOR -->
   <div id="vehicle-history-card">
     <div class="vh-header">
       <span id="vh-unit-name">Móvil</span>
       <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem;" onclick="closeVehicleHistory()">✕</span>
     </div>
-    <div style="font-size:0.75rem; color:#94a3b8;">Consultar recorrido histórico:</div>
+    <div style="font-size:0.75rem; color:#94a3b8;">Auditoría de recorrido:</div>
     <select id="vh-time-range" class="vh-select">
       <option value="1">Última 1 hora</option>
       <option value="2">Últimas 2 horas</option>
@@ -556,10 +554,8 @@
   <div id="map-container">
     <div id="map"></div>
 
-    <!-- BOTÓN SOS (SÓLO MOTORISTAS) -->
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
-    <!-- PANEL FLOTANTE LATERAL -->
     <div class="map-floating-controls">
       <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
@@ -597,7 +593,7 @@
   </div>
 
   <script>
-    // --- 1. Base de Datos IndexedDB (24 Horas de Ruta) ---
+    // --- 1. Base de Datos IndexedDB (24 Horas) ---
     let db = null;
     const DB_NAME = 'YadahFleetDB';
     const STORE_NAME = 'gps_points';
@@ -650,9 +646,10 @@
 
     initDatabase();
 
-    // --- 2. Perfil y Pantalla Siempre Activa ---
+    // --- 2. Perfil y Permisos Exclusivos ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
+    const isModulator = () => currentUnit === 'Modulador';
 
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
@@ -665,6 +662,7 @@
     const btnTrailMode = document.getElementById('btn-trail-mode');
     const btnSos = document.getElementById('btn-sos');
     const mapContainer = document.getElementById('map-container');
+    const vehicleHistoryCard = document.getElementById('vehicle-history-card');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
@@ -686,6 +684,7 @@
         lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
         btnSos.style.display = isDriver() ? 'flex' : 'none';
+        if (!isModulator()) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
         btnTrailMode.classList.toggle('active', showTrails);
@@ -703,6 +702,7 @@
       loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
       btnSos.style.display = isDriver() ? 'flex' : 'none';
+      if (!isModulator()) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
       btnTrailMode.classList.toggle('active', showTrails);
@@ -747,7 +747,7 @@
       }
     });
 
-    // --- 3. Audio y Sirena SOS ---
+    // --- 3. Audio y Sirena ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -879,22 +879,23 @@
       });
     }
 
-    // --- 5. Historial con Clic (Intervalos de 2 Horas) ---
+    // --- 5. Historial Bloqueado para Motoristas ---
     function openVehicleHistory(unitName) {
+      if (!isModulator()) return; // Solo la base tiene permiso de ver historial
       activeHistoryUnit = unitName;
       document.getElementById('vh-unit-name').textContent = unitName;
       document.getElementById('vh-status-info').textContent = '';
-      document.getElementById('vehicle-history-card').style.display = 'flex';
+      vehicleHistoryCard.style.display = 'flex';
     }
 
     function closeVehicleHistory() {
       activeHistoryUnit = null;
-      document.getElementById('vehicle-history-card').style.display = 'none';
+      vehicleHistoryCard.style.display = 'none';
       updateTrailsMap();
     }
 
     function applyVehicleHistory() {
-      if (!db || !activeHistoryUnit) return;
+      if (!isModulator() || !db || !activeHistoryUnit) return;
       const hours = parseInt(document.getElementById('vh-time-range').value);
       const startTime = Date.now() - (hours * 60 * 60 * 1000);
 
@@ -970,10 +971,21 @@
 
       container.appendChild(rotator);
 
+      // Clic interactivo exclusivo para Modulador
       container.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openVehicleHistory(unitName);
+        if (isModulator()) {
+          e.stopPropagation();
+          openVehicleHistory(unitName);
+        }
       });
+
+      if (isModulator()) {
+        container.style.cursor = 'pointer';
+        container.style.pointerEvents = 'auto';
+      } else {
+        container.style.cursor = 'default';
+        container.style.pointerEvents = 'none';
+      }
 
       return { container, rotator, badge };
     }
@@ -1007,7 +1019,6 @@
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
 
-      // Estilo de pánico si está en SOS
       if (isSos) {
         fleetMarkers[unitId].container.classList.add('sos-active');
       } else {
@@ -1058,7 +1069,7 @@
       }
     }
 
-    // --- 6. Red MQTT & Gestión de Pánico SOS ---
+    // --- 6. Red MQTT & Pánico SOS ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -1115,7 +1126,7 @@
           } else if (topic === TOPIC_PANIC) {
             const panic = JSON.parse(text);
             if (panic.active) {
-              if (currentUnit === 'Modulador') {
+              if (isModulator()) {
                 const banner = document.getElementById('sos-alert-banner');
                 document.getElementById('sos-banner-text').textContent = `🚨 ¡EMERGENCIA: ${panic.unit}!`;
                 banner.style.display = 'flex';
@@ -1149,7 +1160,7 @@
       });
     }
 
-    // --- 7. GPS y Velocidad Exacta ---
+    // --- 7. GPS y Velocidad ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -1168,7 +1179,6 @@
           let heading = pos.coords.heading;
           let speedKmh = 0;
 
-          // Cálculo inteligente de velocidad (Satélite o Desplazamiento en metros)
           if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.8) {
             speedKmh = pos.coords.speed * 3.6;
           } else if (myLastCoords) {
