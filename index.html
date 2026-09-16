@@ -150,7 +150,7 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* BARRA DE NAVEGACIÓN Y BÚSQUEDA TIPO GOOGLE MAPS */
+    /* BARRA DE NAVEGACIÓN */
     #nav-search-bar {
       position: absolute;
       top: 10px;
@@ -236,7 +236,6 @@
       color: #111827;
     }
 
-    /* BOTÓN SOS */
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -535,7 +534,6 @@
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
-  <!-- NAVEGADOR Y BÚSQUEDA DE DESTINO -->
   <div id="nav-search-bar">
     <div class="search-input-box">
       <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." />
@@ -620,7 +618,7 @@
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
-      <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
+      <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
     </div>
   </div>
@@ -654,7 +652,6 @@
   </div>
 
   <script>
-    // --- 1. Base de Datos IndexedDB ---
     let db = null;
     const DB_NAME = 'YadahFleetDB';
     const STORE_NAME = 'gps_points';
@@ -700,7 +697,6 @@
 
     initDatabase();
 
-    // --- 2. Perfil y Permisos ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
     const isModulator = () => currentUnit === 'Modulador';
@@ -744,6 +740,7 @@
         lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
         btnSos.style.display = isDriver() ? 'flex' : 'none';
+        navSearchBar.style.display = isDriver() ? 'flex' : 'none';
         if (!isModulator()) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
@@ -751,6 +748,7 @@
         btnTrailMode.classList.toggle('active', showTrails);
         requestWakeLock();
         connectNetwork();
+        applyCameraPerspective();
       } else {
         loginScreen.style.display = 'flex';
       }
@@ -763,6 +761,7 @@
       loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
       btnSos.style.display = isDriver() ? 'flex' : 'none';
+      navSearchBar.style.display = isDriver() ? 'flex' : 'none';
       if (!isModulator()) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
@@ -771,6 +770,7 @@
       requestWakeLock();
       unlockAudioHardware();
       connectNetwork();
+      applyCameraPerspective();
     }
 
     function logoutUnit() {
@@ -809,7 +809,6 @@
       }
     });
 
-    // Alternar capa de tráfico en vivo
     btnTrafficToggle.addEventListener('click', () => {
       showTraffic = !showTraffic;
       btnTrafficToggle.classList.toggle('active', showTraffic);
@@ -818,7 +817,6 @@
       }
     });
 
-    // --- 3. Audio y Sirena ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -868,7 +866,7 @@
       } catch (e) {}
     }
 
-    // --- 4. Google Maps 3D con Tráfico en Vivo ---
+    // Mapa base configurado para vista plana cenital
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -917,13 +915,12 @@
         ]
       },
       center: [-89.2182, 13.6929],
-      zoom: 17,
-      pitch: 50,
+      zoom: 14.5,
+      pitch: 0,
       bearing: 0
     });
 
     function ensureLayersExist() {
-      // Capa de Rastro Histórico
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
           type: 'geojson',
@@ -940,7 +937,6 @@
         });
       }
 
-      // Capa de Navegación GPS (Ruta de Destino)
       if (!map.getSource('nav-active-route')) {
         map.addSource('nav-active-route', {
           type: 'geojson',
@@ -969,14 +965,12 @@
 
     map.on('load', ensureLayersExist);
 
-    // Tocar el mapa directamente para fijar destino
     map.on('click', (e) => {
       if (isDriver() && !activeHistoryUnit) {
         requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
       }
     });
 
-    // --- 5. Motor de Navegación OSRM & Geocodificación ---
     let destinationMarker = null;
 
     async function searchAndRouteDestination() {
@@ -987,7 +981,6 @@
         lblRouteStats.textContent = 'Buscando lugar...';
         navRouteInfo.style.display = 'flex';
 
-        // Búsqueda geográfica gratuita vía Nominatim
         const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
         const results = await resp.json();
 
@@ -1022,7 +1015,6 @@
         lblRouteStats.textContent = 'Calculando trayecto...';
         navRouteInfo.style.display = 'flex';
 
-        // API de cálculo de ruta OSRM
         const url = `https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
         const res = await fetch(url);
         const data = await res.json();
@@ -1044,7 +1036,6 @@
             }]
           });
 
-          // Notificar a la base central la ruta de navegación activa
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({
               unit: currentUnit,
@@ -1079,7 +1070,6 @@
       }
     }
 
-    // --- 6. Rastro Histórico y Marcadores ---
     function updateTrailsMap() {
       if (activeHistoryUnit) return;
       ensureLayersExist();
@@ -1153,7 +1143,7 @@
             statusDiv.textContent = `Trazados ${historyCoords.length} puntos.`;
             statusDiv.style.color = '#10b981';
             const lastPt = historyCoords[historyCoords.length - 1];
-            map.flyTo({ center: lastPt, zoom: 16.5 });
+            map.flyTo({ center: lastPt, zoom: 15, pitch: 0, bearing: 0 });
           }
         }
       };
@@ -1263,10 +1253,24 @@
       applyCameraPerspective();
     });
 
+    // Control de cámara: Plano Cenital (Modulador o Motorista en 2D) vs Primera Persona
     function applyCameraPerspective() {
+      if (isModulator()) {
+        // La Base Central SIEMPRE ve el mapa plano 2D, amplio y orientado al Norte
+        map.easeTo({
+          zoom: 14.5,
+          pitch: 0,
+          bearing: 0,
+          offset: [0, 0],
+          duration: 600
+        });
+        return;
+      }
+
       if (!myLastCoords) return;
 
-      if (firstPersonMode && isDriver()) {
+      if (firstPersonMode) {
+        // Modo Primera Persona 3D rasante
         const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
@@ -1277,10 +1281,11 @@
           duration: 600
         });
       } else {
+        // Vista Plana 2D para el motorista (para ver tráfico y panorama general)
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 16.5,
-          pitch: 45,
+          zoom: 15.5,
+          pitch: 0,
           bearing: 0,
           offset: [0, 0],
           duration: 600
@@ -1288,7 +1293,6 @@
       }
     }
 
-    // --- 7. Red MQTT & Pánico SOS ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -1369,7 +1373,7 @@
                   sirenInterval = setInterval(playSiren, 1200);
                 }
                 if (panic.coords) {
-                  map.flyTo({ center: [panic.coords.lon, panic.coords.lat], zoom: 18 });
+                  map.flyTo({ center: [panic.coords.lon, panic.coords.lat], zoom: 16.5, pitch: 0 });
                 }
               }
             } else {
@@ -1394,7 +1398,6 @@
       });
     }
 
-    // --- 8. GPS en Marcha & Recalculación de Ruta ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -1475,7 +1478,6 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 9. Transmisión Walkie-Talkie ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -1627,7 +1629,6 @@
       if (e.code === 'Space') stopAudioRecording(e);
     });
 
-    // --- 10. Buzón 24 Horas ---
     let cachedAudios = [];
 
     function getStoredAudios() {
