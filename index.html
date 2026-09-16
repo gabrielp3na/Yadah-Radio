@@ -342,17 +342,10 @@
       background: #0f172a;
     }
 
-    .car-badge span {
-      display: block;
-      font-size: 0.58rem;
-      color: #38bdf8;
-      font-weight: 600;
-    }
-
     .car-svg-rotator {
       width: 42px;
       height: 42px;
-      transition: transform 0.2s linear;
+      transition: transform 0.25s linear;
       transform-origin: center center;
     }
 
@@ -450,6 +443,7 @@
 
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
+    const lblNet = document.getElementById('lbl-net');
     const lblSpeed = document.getElementById('lbl-speed');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
@@ -495,10 +489,12 @@
     let audioCtx = null;
 
     function unlockAudioHardware() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-      radioSpeaker.play().catch(() => {});
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        radioSpeaker.play().catch(() => {});
+      } catch (e) {}
     }
 
     window.addEventListener('touchstart', unlockAudioHardware, { passive: true });
@@ -520,10 +516,10 @@
       } catch (e) {}
     }
 
-    // --- 3. Google Maps en 3D con Perspectiva Forzada (maxPitch: 85) ---
+    // --- 3. Google Maps en 3D ---
     const map = new maplibregl.Map({
       container: 'map',
-      maxPitch: 85, // Permite inclinación rasante tipo videojuego / Google Navigation
+      maxPitch: 85,
       style: {
         version: 8,
         sources: {
@@ -547,12 +543,12 @@
         }]
       },
       center: [-89.2182, 13.6929],
-      zoom: 18,
-      pitch: 68, // Vista inclinada por defecto
+      zoom: 17,
+      pitch: 55,
       bearing: 0
     });
 
-    // --- 4. Marcadores ---
+    // --- 4. Marcadores Seguros (Sin errores de render) ---
     function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -561,7 +557,7 @@
 
       const badge = document.createElement('div');
       badge.className = isBase ? 'car-badge base-station' : 'car-badge';
-      badge.innerHTML = `<strong>${unitName}</strong><span id="speed-${unitName.replace(/\s+/g, '')}">${isBase ? 'Central' : '0 km/h'}</span>`;
+      badge.innerHTML = `<div><strong>${unitName}</strong></div><div class="unit-speed-txt" style="font-size:0.6rem; color:#38bdf8;">${isBase ? 'Central' : 'Detenido'}</div>`;
       container.appendChild(badge);
 
       const rotator = document.createElement('div');
@@ -591,34 +587,9 @@
     let myHeading = 0;
     let mySpeed = 0;
 
-    function animateVehicleMove(entry, targetLon, targetLat, duration = 1000) {
-      const startLon = entry.currentLon;
-      const startLat = entry.currentLat;
-      const startTime = performance.now();
-
-      if (entry.animFrame) cancelAnimationFrame(entry.animFrame);
-
-      function step(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-
-        const curLon = startLon + (targetLon - startLon) * ease;
-        const curLat = startLat + (targetLat - startLat) * ease;
-
-        entry.marker.setLngLat([curLon, curLat]);
-        entry.currentLon = curLon;
-        entry.currentLat = curLat;
-
-        if (progress < 1) {
-          entry.animFrame = requestAnimationFrame(step);
-        }
-      }
-
-      entry.animFrame = requestAnimationFrame(step);
-    }
-
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0) {
+      if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
+
       const isBase = unitId.includes('Modulador');
       const speedTxt = isBase ? 'Central' : (speed > 3 ? `${Math.round(speed)} km/h` : 'Detenido');
 
@@ -628,27 +599,20 @@
           .setLngLat([lon, lat])
           .addTo(map);
 
-        fleetMarkers[unitId] = {
-          marker,
-          rotator,
-          badge,
-          currentLon: lon,
-          currentLat: lat,
-          animFrame: null
-        };
+        fleetMarkers[unitId] = { marker, rotator, badge };
       } else {
-        animateVehicleMove(fleetMarkers[unitId], lon, lat);
+        fleetMarkers[unitId].marker.setLngLat([lon, lat]);
       }
 
-      const speedSpan = fleetMarkers[unitId].badge.querySelector('span');
-      if (speedSpan) speedSpan.textContent = speedTxt;
+      const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
+      if (speedDiv) speedDiv.textContent = speedTxt;
 
       if (!isBase && heading !== undefined && heading !== null) {
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
     }
 
-    // Cámara en Primera Persona / Cenital
+    // Perspectiva de Cámara
     btnViewMode.addEventListener('click', () => {
       firstPersonMode = !firstPersonMode;
       updateViewButtonUI();
@@ -658,23 +622,22 @@
     function applyCameraPerspective() {
       if (!myLastCoords) return;
 
-      if (firstPersonMode) {
-        // Modo Primera Persona: Auto en el tercio inferior, cámara a 68°
-        const offsetY = window.innerHeight ? window.innerHeight * 0.25 : 180;
+      if (firstPersonMode && isDriver()) {
+        // Primera Persona: Rasante y con el auto en la parte inferior
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 18.5,
-          pitch: 68,
+          pitch: 70,
           bearing: myHeading,
-          offset: [0, offsetY],
+          offset: [0, 150],
           duration: 600
         });
       } else {
-        // Modo Cenital Panorámico
+        // Vista Cenital (Despachador/Base)
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 16.5,
-          pitch: 30,
+          pitch: 45,
           bearing: 0,
           offset: [0, 0],
           duration: 600
@@ -682,24 +645,23 @@
       }
     }
 
-    // --- 5. Red Telemática ---
+    // --- 5. Red MQTT a prueba de fallos ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
     const TOPIC_ALERT = 'yadah/radio/flota/alert';
 
     function connectNetwork() {
-      if (mqttClient) return;
+      if (mqttClient && mqttClient.connected) return;
 
       mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-        clientId: 'yadah_' + Math.random().toString(16).substring(2, 8),
-        clean: true
+        clientId: 'yadah_' + Math.random().toString(16).substring(2, 9),
+        clean: true,
+        reconnectPeriod: 2000
       });
 
       mqttClient.on('connect', () => {
-        lblNet.textContent = 'En Línea';
-        lblNet.style.color = '#10b981';
-
+        console.log("MQTT Conectado con éxito");
         mqttClient.subscribe(TOPIC_GPS);
         mqttClient.subscribe(TOPIC_VOICE);
         mqttClient.subscribe(TOPIC_ALERT);
@@ -707,31 +669,34 @@
 
       mqttClient.on('message', (topic, message) => {
         try {
+          const text = message.toString();
           if (topic === TOPIC_GPS) {
-            const data = JSON.parse(message.toString());
+            const data = JSON.parse(text);
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed);
             }
           } else if (topic === TOPIC_ALERT) {
-            const alertData = JSON.parse(message.toString());
+            const alertData = JSON.parse(text);
             if (alertData.sender !== currentUnit) {
               channelStatus.className = 'channel-status receiving';
               channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
               playBeep(660, 0.06);
             }
           } else if (topic === TOPIC_VOICE) {
-            const voice = JSON.parse(message.toString());
+            const voice = JSON.parse(text);
             if (voice.sender !== currentUnit) {
               receiveVoiceWalkieTalkie(voice);
             }
           }
         } catch (e) {
-          console.error("Error telemático:", e);
+          console.error("Error al procesar mensaje MQTT:", e);
         }
       });
+
+      mqttClient.on('error', (err) => console.error("Error en MQTT:", err));
     }
 
-    // --- 6. GPS y Rastro de Navegación ---
+    // --- 6. GPS ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -747,7 +712,7 @@
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
           let heading = pos.coords.heading;
-          let speedKmh = pos.coords.speed !== null && !isNaN(pos.coords.speed) ? pos.coords.speed * 3.6 : 0;
+          let speedKmh = (pos.coords.speed !== null && !isNaN(pos.coords.speed)) ? pos.coords.speed * 3.6 : 0;
 
           if (heading === null || isNaN(heading)) {
             if (myLastCoords) {
@@ -781,14 +746,13 @@
           if (!initialCentering) {
             applyCameraPerspective();
             initialCentering = true;
-          } else if (firstPersonMode) {
-            const offsetY = window.innerHeight ? window.innerHeight * 0.25 : 180;
+          } else if (firstPersonMode && isDriver()) {
             map.easeTo({
               center: [lon, lat],
               bearing: myHeading,
-              pitch: 68,
-              offset: [0, offsetY],
-              duration: 900
+              pitch: 70,
+              offset: [0, 150],
+              duration: 800
             });
           }
         },
@@ -799,17 +763,17 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 7. PTT Transmisor ---
+    // --- 7. PTT (Transmisión Inmediata y Confiable) ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
     const btnPtt = document.getElementById('btn-ptt');
-    let isTransmitting = false;
+    let isRecording = false;
 
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
-      if (isTransmitting) return;
-      isTransmitting = true;
+      if (isRecording) return;
+      isRecording = true;
 
       unlockAudioHardware();
 
@@ -875,15 +839,15 @@
         channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
-        isTransmitting = false;
-        alert("Permite el micrófono para transmitir.");
+        isRecording = false;
+        alert("Por favor concede permisos de micrófono en el navegador.");
       }
     }
 
     function stopAudioRecording(e) {
       if (e) e.preventDefault();
-      if (!isTransmitting) return;
-      isTransmitting = false;
+      if (!isRecording) return;
+      isRecording = false;
 
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
@@ -893,7 +857,7 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // --- 8. Reproducción de Audio ---
+    // --- 8. Reproducción en Vivo ---
     function receiveVoiceWalkieTalkie(voiceData) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -904,34 +868,39 @@
         timestamp: voiceData.timestamp || Date.now()
       });
 
-      const parts = voiceData.payload.split(';base64,');
-      const contentType = parts[0].split(':')[1] || voiceData.type || 'audio/webm';
-      const raw = window.atob(parts[1]);
-      const uInt8Array = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; ++i) {
-        uInt8Array[i] = raw.charCodeAt(i);
+      try {
+        const parts = voiceData.payload.split(';base64,');
+        const contentType = parts[0].split(':')[1] || voiceData.type || 'audio/webm';
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) {
+          uInt8Array[i] = raw.charCodeAt(i);
+        }
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const audioUrl = URL.createObjectURL(blob);
+
+        radioSpeaker.src = audioUrl;
+        radioSpeaker.volume = 1.0;
+
+        radioSpeaker.play().then(() => {
+          playBeep(440, 0.04);
+        }).catch(() => {
+          const fallback = new Audio(audioUrl);
+          fallback.play().catch(() => {});
+        });
+
+        radioSpeaker.onended = () => {
+          channelStatus.className = 'channel-status';
+          channelStatus.textContent = '● CANAL LIBRE';
+          playBeep(600, 0.05);
+          URL.revokeObjectURL(audioUrl);
+        };
+      } catch (err) {
+        console.error("Error reproduciendo voz recibida:", err);
       }
-      const blob = new Blob([uInt8Array], { type: contentType });
-      const audioUrl = URL.createObjectURL(blob);
-
-      radioSpeaker.src = audioUrl;
-      radioSpeaker.volume = 1.0;
-
-      radioSpeaker.play().then(() => {
-        playBeep(440, 0.04);
-      }).catch(err => {
-        const fallbackAudio = new Audio(audioUrl);
-        fallbackAudio.play().catch(() => {});
-      });
-
-      radioSpeaker.onended = () => {
-        channelStatus.className = 'channel-status';
-        channelStatus.textContent = '● CANAL LIBRE';
-        playBeep(600, 0.05);
-        URL.revokeObjectURL(audioUrl);
-      };
     }
 
+    // Eventos táctiles y ratón
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -939,6 +908,7 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
+    // Barra Espaciadora
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
@@ -1030,6 +1000,7 @@
       }
     }
 
+    // Iniciar
     checkAuth();
   </script>
 </body>
