@@ -148,23 +148,34 @@
       height: 100%;
     }
 
-    .btn-recenter {
+    .map-floating-controls {
       position: absolute;
       bottom: 14px;
       right: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 500;
+    }
+
+    .btn-float-action {
       width: 44px;
       height: 44px;
       border-radius: 50%;
       background: #111827;
       border: 1.5px solid #f59e0b;
       color: #f59e0b;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
       cursor: pointer;
-      z-index: 500;
+    }
+
+    .btn-float-action.active {
+      background: #f59e0b;
+      color: #111827;
     }
 
     /* PANEL INFERIOR PTT */
@@ -304,13 +315,12 @@
       cursor: pointer;
     }
 
-    /* AUTO 3D */
+    /* AUTO 3D TOP-DOWN */
     .car-marker-container {
       display: flex;
       flex-direction: column;
       align-items: center;
       pointer-events: none;
-      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .car-badge {
@@ -319,17 +329,25 @@
       color: #f8fafc;
       font-size: 0.68rem;
       font-weight: 800;
-      padding: 1px 5px;
+      padding: 2px 6px;
       border-radius: 4px;
       margin-bottom: 2px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.6);
       white-space: nowrap;
+      text-align: center;
+    }
+
+    .car-badge span {
+      display: block;
+      font-size: 0.58rem;
+      color: #38bdf8;
+      font-weight: 600;
     }
 
     .car-svg-rotator {
       width: 36px;
       height: 36px;
-      transition: transform 0.4s ease-out;
+      transition: transform 0.25s linear;
       transform-origin: center center;
     }
   </style>
@@ -380,14 +398,17 @@
   <!-- MAPA GOOGLE MAPS 3D -->
   <div id="map-container">
     <div id="map"></div>
-    <button class="btn-recenter" id="btn-recenter" title="Re-centrar">🎯</button>
+    <div class="map-floating-controls">
+      <button class="btn-float-action" id="btn-follow" title="Modo Seguimiento/Navegación">🧭</button>
+      <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
+    </div>
   </div>
 
   <!-- PANEL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
-      <span>Red: <b class="status-active" id="lbl-net">Conectando...</b></span>
+      <span>Vel: <b class="status-active" id="lbl-speed">0 km/h</b></span>
       <span>Rumbo: <b class="status-active" id="lbl-heading">0°</b></span>
     </div>
 
@@ -396,7 +417,7 @@
     </div>
 
     <button class="btn-ptt" id="btn-ptt">
-      <span>🎙️</span> PULSAR PARA HABLAR
+      <span>🎙️</span> PULSAR PARA HABLAR (Espacio)
     </button>
   </div>
 
@@ -418,10 +439,13 @@
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
-    const lblNet = document.getElementById('lbl-net');
+    const lblSpeed = document.getElementById('lbl-speed');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
     const radioSpeaker = document.getElementById('radio-speaker');
+    const btnFollow = document.getElementById('btn-follow');
+
+    let followMode = false; // Modo seguimiento de cámara activo
 
     function checkAuth() {
       if (currentUnit) {
@@ -447,7 +471,7 @@
       location.reload();
     }
 
-    // --- 2. Desbloqueo y Generador de Tonos Radio (Roger Beep) ---
+    // --- 2. Desbloqueo y Tonos Roger Beep ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -457,7 +481,6 @@
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
-      // Reproducir sonido silencioso para activar el altavoz físico
       radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       radioSpeaker.play().catch(() => {});
     }
@@ -512,14 +535,14 @@
       bearing: 0
     });
 
-    // --- 4. Marcadores de Autos 3D ---
+    // --- 4. Marcadores de Autos 3D con Interpolación Suave ---
     function createCarElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
 
       const badge = document.createElement('div');
       badge.className = 'car-badge';
-      badge.textContent = unitName;
+      badge.innerHTML = `<strong>${unitName}</strong><span id="speed-${unitName}">0 km/h</span>`;
       container.appendChild(badge);
 
       const rotator = document.createElement('div');
@@ -536,29 +559,88 @@
         </svg>`;
       container.appendChild(rotator);
 
-      return { container, rotator };
+      return { container, rotator, badge };
     }
 
     const fleetMarkers = {};
     let myLastCoords = null;
     let myHeading = 0;
+    let mySpeed = 0;
 
-    function updateVehicleOnMap(unitId, lon, lat, heading) {
+    // Animación suave de movimiento continuo (Interpolación)
+    function animateVehicleMove(entry, targetLon, targetLat, duration = 1200) {
+      const startLon = entry.currentLon;
+      const startLat = entry.currentLat;
+      const startTime = performance.now();
+
+      if (entry.animFrame) cancelAnimationFrame(entry.animFrame);
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Función easing para desaceleración natural
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        const curLon = startLon + (targetLon - startLon) * ease;
+        const curLat = startLat + (targetLat - startLat) * ease;
+
+        entry.marker.setLngLat([curLon, curLat]);
+        entry.currentLon = curLon;
+        entry.currentLat = curLat;
+
+        if (progress < 1) {
+          entry.animFrame = requestAnimationFrame(step);
+        }
+      }
+
+      entry.animFrame = requestAnimationFrame(step);
+    }
+
+    function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0) {
+      const speedTxt = speed > 3 ? `${Math.round(speed)} km/h` : 'Detenido';
+
       if (!fleetMarkers[unitId]) {
-        const { container, rotator } = createCarElement(unitId);
+        const { container, rotator, badge } = createCarElement(unitId);
         const marker = new maplibregl.Marker({ element: container })
           .setLngLat([lon, lat])
           .addTo(map);
 
-        fleetMarkers[unitId] = { marker, rotator };
+        fleetMarkers[unitId] = {
+          marker,
+          rotator,
+          badge,
+          currentLon: lon,
+          currentLat: lat,
+          animFrame: null
+        };
       } else {
-        fleetMarkers[unitId].marker.setLngLat([lon, lat]);
+        animateVehicleMove(fleetMarkers[unitId], lon, lat);
       }
 
+      // Actualizar velocímetro en el auto
+      const speedSpan = fleetMarkers[unitId].badge.querySelector('span');
+      if (speedSpan) speedSpan.textContent = speedTxt;
+
+      // Rotar suavemente el vehículo
       if (heading !== undefined && heading !== null) {
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
     }
+
+    // Alternar modo de seguimiento de cámara
+    btnFollow.addEventListener('click', () => {
+      followMode = !followMode;
+      btnFollow.classList.toggle('active', followMode);
+      if (followMode && myLastCoords) {
+        map.easeTo({
+          center: [myLastCoords.lon, myLastCoords.lat],
+          zoom: 17.5,
+          pitch: 55,
+          bearing: myHeading,
+          duration: 1000
+        });
+      }
+    });
 
     // --- 5. Red Telemática (MQTT) ---
     let mqttClient = null;
@@ -575,9 +657,6 @@
       });
 
       mqttClient.on('connect', () => {
-        lblNet.textContent = 'En Línea';
-        lblNet.style.color = '#10b981';
-
         mqttClient.subscribe(TOPIC_GPS);
         mqttClient.subscribe(TOPIC_VOICE);
         mqttClient.subscribe(TOPIC_ALERT);
@@ -588,7 +667,7 @@
           if (topic === TOPIC_GPS) {
             const data = JSON.parse(message.toString());
             if (data.unit && data.unit !== currentUnit) {
-              updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading);
+              updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed);
             }
           } else if (topic === TOPIC_ALERT) {
             const alertData = JSON.parse(message.toString());
@@ -609,7 +688,7 @@
       });
     }
 
-    // --- 6. GPS ---
+    // --- 6. GPS y Cálculo de Orientación ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -625,6 +704,7 @@
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
           let heading = pos.coords.heading;
+          let speedKmh = pos.coords.speed !== null && !isNaN(pos.coords.speed) ? pos.coords.speed * 3.6 : 0;
 
           if (heading === null || isNaN(heading)) {
             if (myLastCoords) {
@@ -638,23 +718,32 @@
             myHeading = Math.round(heading);
           }
 
+          mySpeed = Math.round(speedKmh);
           myLastCoords = { lat, lon };
           lblHeading.textContent = `${myHeading}°`;
+          lblSpeed.textContent = `${mySpeed} km/h`;
 
-          updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading);
+          updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading, mySpeed);
 
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish(TOPIC_GPS, JSON.stringify({
               unit: currentUnit,
               lat: lat,
               lon: lon,
-              heading: myHeading
+              heading: myHeading,
+              speed: mySpeed
             }));
           }
 
           if (!initialCentering) {
             map.flyTo({ center: [lon, lat], zoom: 17, pitch: 50 });
             initialCentering = true;
+          } else if (followMode) {
+            map.easeTo({
+              center: [lon, lat],
+              bearing: myHeading,
+              duration: 800
+            });
           }
         },
         (err) => console.warn('GPS:', err.message),
@@ -668,14 +757,18 @@
       }
     });
 
-    // --- 7. Transmisor Walkie-Talkie (PTT Robusto) ---
+    // --- 7. Transmisor Walkie-Talkie (PTT) ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
     const btnPtt = document.getElementById('btn-ptt');
+    let isTransmitting = false;
 
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
+      if (isTransmitting) return;
+      isTransmitting = true;
+
       unlockAudioHardware();
 
       try {
@@ -719,12 +812,10 @@
               timestamp: Date.now()
             };
 
-            // Transmisión inmediata a todos los radios
             if (mqttClient && mqttClient.connected) {
               mqttClient.publish(TOPIC_VOICE, JSON.stringify(payload));
             }
 
-            // Guardar en el buzón local
             saveAudioToHistory({
               sender: `${currentUnit} (Tú)`,
               payload: base64,
@@ -733,11 +824,9 @@
           };
         };
 
-        // Iniciar grabación
         mediaRecorder.start();
-        playBeep(920, 0.05); // Bip local de inicio de transmisión
+        playBeep(920, 0.05);
 
-        // Notificar a la flota que se abrió el micrófono
         if (mqttClient && mqttClient.connected) {
           mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
         }
@@ -746,12 +835,16 @@
         channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
-        alert("Permite el micrófono para poder hablar por radio.");
+        isTransmitting = false;
+        alert("Permite el micrófono para hablar por radio.");
       }
     }
 
     function stopAudioRecording(e) {
       if (e) e.preventDefault();
+      if (!isTransmitting) return;
+      isTransmitting = false;
+
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
@@ -765,14 +858,12 @@
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
 
-      // Guardar en el buzón de 24 horas
       saveAudioToHistory({
         sender: voiceData.sender,
         payload: voiceData.payload,
         timestamp: voiceData.timestamp || Date.now()
       });
 
-      // Decodificar Base64 a Blob binario
       const parts = voiceData.payload.split(';base64,');
       const contentType = parts[0].split(':')[1] || voiceData.type || 'audio/webm';
       const raw = window.atob(parts[1]);
@@ -783,14 +874,12 @@
       const blob = new Blob([uInt8Array], { type: contentType });
       const audioUrl = URL.createObjectURL(blob);
 
-      // Reproducción instantánea
       radioSpeaker.src = audioUrl;
       radioSpeaker.volume = 1.0;
 
       radioSpeaker.play().then(() => {
-        playBeep(440, 0.04); // Bip de entrada de voz
+        playBeep(440, 0.04);
       }).catch(err => {
-        console.warn("Autoplay bloqueado. Disparando reproductor alterno:", err);
         const fallbackAudio = new Audio(audioUrl);
         fallbackAudio.play().catch(() => {});
       });
@@ -798,17 +887,30 @@
       radioSpeaker.onended = () => {
         channelStatus.className = 'channel-status';
         channelStatus.textContent = '● CANAL LIBRE';
-        playBeep(600, 0.05); // Roger beep al finalizar el mensaje
+        playBeep(600, 0.05);
         URL.revokeObjectURL(audioUrl);
       };
     }
 
+    // Eventos táctiles y ratón
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('mousedown', startAudioRecording);
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
+
+    // Atajo por Barra Espaciadora en PC / Teclado
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
+        startAudioRecording(e);
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        stopAudioRecording(e);
+      }
+    });
 
     // --- 9. Buzón 24 Horas ---
     let cachedAudios = [];
