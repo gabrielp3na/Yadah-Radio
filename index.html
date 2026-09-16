@@ -150,7 +150,6 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* CONTROLES FLOTANTES */
     .map-floating-controls {
       position: absolute;
       top: 65px;
@@ -182,7 +181,6 @@
       color: #111827;
     }
 
-    /* BOTÓN SOS FLOTANTE (MOTORISTAS) */
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -212,7 +210,6 @@
       to { transform: scale(1.15); background: #991b1b; }
     }
 
-    /* BANNER ALERTA SOS EN BASE */
     #sos-alert-banner {
       position: absolute;
       top: 10px;
@@ -368,7 +365,6 @@
       cursor: pointer;
     }
 
-    /* MARCADORES */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -401,8 +397,8 @@
     }
 
     .car-svg-rotator {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       transition: transform 0.25s linear;
       transform-origin: center center;
     }
@@ -412,7 +408,6 @@
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
     }
 
-    /* TARJETA HISTORIAL EXCLUSIVA BASE */
     #vehicle-history-card {
       position: absolute;
       top: 65px;
@@ -479,13 +474,11 @@
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
-  <!-- BANNER SOS EN BASE -->
   <div id="sos-alert-banner">
     <span id="sos-banner-text">🚨 ¡ALERTA SOS ACTIVA!</span>
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
-  <!-- TARJETA EXCLUSIVA MODULADOR -->
   <div id="vehicle-history-card">
     <div class="vh-header">
       <span id="vh-unit-name">Móvil</span>
@@ -514,7 +507,6 @@
     <div id="vh-status-info" style="font-size:0.7rem; color:#10b981; text-align:center;"></div>
   </div>
 
-  <!-- SELECTOR DE UNIDAD -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
@@ -646,7 +638,7 @@
 
     initDatabase();
 
-    // --- 2. Perfil y Permisos Exclusivos ---
+    // --- 2. Perfil y Permisos ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
     const isModulator = () => currentUnit === 'Modulador';
@@ -797,10 +789,12 @@
       } catch (e) {}
     }
 
-    // --- 4. Google Maps 3D ---
+    // --- 4. Google Maps 3D Configurado para Primera Persona Rasante ---
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
+      pitchWithRotate: true,
+      dragRotate: true,
       style: {
         version: 8,
         sources: {
@@ -820,12 +814,12 @@
           type: 'raster',
           source: 'google-roads',
           minzoom: 0,
-          maxzoom: 21
+          maxzoom: 22
         }]
       },
       center: [-89.2182, 13.6929],
       zoom: 17,
-      pitch: 55,
+      pitch: 50,
       bearing: 0
     });
 
@@ -879,9 +873,9 @@
       });
     }
 
-    // --- 5. Historial Bloqueado para Motoristas ---
+    // --- 5. Historial con Clic (Solo Modulador) ---
     function openVehicleHistory(unitName) {
-      if (!isModulator()) return; // Solo la base tiene permiso de ver historial
+      if (!isModulator()) return;
       activeHistoryUnit = unitName;
       document.getElementById('vh-unit-name').textContent = unitName;
       document.getElementById('vh-status-info').textContent = '';
@@ -958,7 +952,7 @@
         rotator.innerHTML = `<div class="base-icon">🏢</div>`;
       } else {
         rotator.innerHTML = `
-          <svg viewBox="0 0 48 48" width="42" height="42">
+          <svg viewBox="0 0 48 48" width="44" height="44">
             <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
             <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
             <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
@@ -971,7 +965,6 @@
 
       container.appendChild(rotator);
 
-      // Clic interactivo exclusivo para Modulador
       container.addEventListener('click', (e) => {
         if (isModulator()) {
           e.stopPropagation();
@@ -1045,19 +1038,24 @@
       applyCameraPerspective();
     });
 
+    // --- CÁMARA PRIMERA PERSONA REAL (RASANTE Y CERCA) ---
     function applyCameraPerspective() {
       if (!myLastCoords) return;
 
       if (firstPersonMode && isDriver()) {
+        // Altura proporcional: baja el auto al tercio inferior de la pantalla
+        const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
+
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 18.5,
-          pitch: 68,
-          bearing: myHeading,
-          offset: [0, 150],
+          zoom: 19.8,       // Zoom cercano real (nivel de calle)
+          pitch: 78,        // Ángulo muy rasante, efecto cabina
+          bearing: myHeading, // Hacia donde apunta el auto
+          offset: [0, screenOffset], // Ubica el carro abajo y la calle al frente
           duration: 600
         });
       } else {
+        // Modo Despacho Cenital
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 16.5,
@@ -1223,11 +1221,13 @@
             applyCameraPerspective();
             initialCentering = true;
           } else if (firstPersonMode && isDriver()) {
+            const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
             map.easeTo({
               center: [lon, lat],
               bearing: myHeading,
-              pitch: 68,
-              offset: [0, 150],
+              pitch: 78,
+              zoom: 19.8,
+              offset: [0, screenOffset],
               duration: 800
             });
           }
