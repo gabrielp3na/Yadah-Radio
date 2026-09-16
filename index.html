@@ -2,13 +2,14 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Yadah PTT & Despacho 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Yadah Radio 3D</title>
 
-  <!-- MapLibre GL CSS (Soporta vista inclinada / 3D estilo Uber) -->
+  <!-- MapLibre GL JS -->
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
-  <!-- MQTT para sincronización en tiempo real sin costo -->
+  <!-- MQTT WebSockets -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <style>
@@ -25,17 +26,18 @@
       color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       height: 100vh;
+      height: 100dvh; /* Altura dinámica que no oculta botones en celular */
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
-    /* PANTALLA SELECTOR DE UNIDAD */
+    /* PANTALLA DE SELECCIÓN DE UNIDAD */
     #login-screen {
       position: fixed;
       inset: 0;
       background: #0b0f19;
-      z-index: 3000;
+      z-index: 4000;
       display: flex;
       flex-direction: column;
       padding: 20px;
@@ -44,13 +46,13 @@
 
     .login-header {
       text-align: center;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .login-header h1 {
       color: #f59e0b;
-      font-size: 1.5rem;
-      margin-bottom: 6px;
+      font-size: 1.4rem;
+      margin-bottom: 4px;
     }
 
     .login-header p {
@@ -65,16 +67,16 @@
       max-width: 420px;
       margin: 0 auto;
       width: 100%;
-      padding-bottom: 24px;
+      padding-bottom: 30px;
     }
 
     .btn-unit-select {
       background: #1e293b;
       border: 1px solid #334155;
       color: #f8fafc;
-      padding: 14px 8px;
-      border-radius: 12px;
-      font-size: 0.9rem;
+      padding: 12px 6px;
+      border-radius: 10px;
+      font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
       display: flex;
@@ -88,41 +90,47 @@
       background: #1e3a8a;
       border-color: #3b82f6;
       color: #dbeafe;
-      font-size: 1.05rem;
+      font-size: 1rem;
     }
 
     .btn-unit-select:active {
       background: #f59e0b;
-      color: #0f172a;
+      color: #0b0f19;
     }
 
     /* BARRA SUPERIOR */
     header {
       background-color: #111827;
-      padding: 10px 14px;
+      padding: 8px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #1f2937;
       z-index: 1000;
+      flex-shrink: 0;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 1rem;
+      gap: 6px;
+      font-size: 0.95rem;
       font-weight: 700;
       color: #f59e0b;
     }
 
-    .btn-change-user {
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-header {
       background: #1f2937;
       border: 1px solid #374151;
       color: #cbd5e1;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 0.75rem;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
     }
@@ -132,6 +140,7 @@
       flex: 1;
       width: 100%;
       position: relative;
+      overflow: hidden;
     }
 
     #map {
@@ -139,46 +148,43 @@
       height: 100%;
     }
 
-    /* BOTÓN RE-CENTRAR FLOTANTE */
+    /* BOTÓN CENTRAR */
     .btn-recenter {
       position: absolute;
-      bottom: 16px;
-      right: 16px;
-      width: 46px;
-      height: 46px;
+      bottom: 14px;
+      right: 14px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: #111827;
       border: 1.5px solid #f59e0b;
       color: #f59e0b;
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
       cursor: pointer;
       z-index: 500;
-    }
-
-    .btn-recenter:active {
-      background: #f59e0b;
-      color: #111827;
     }
 
     /* PANEL INFERIOR PTT */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       display: flex;
       flex-direction: column;
       gap: 8px;
       border-top: 1px solid #1f2937;
       z-index: 1000;
+      flex-shrink: 0;
     }
 
     .status-bar {
       display: flex;
       justify-content: space-between;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       color: #94a3b8;
     }
 
@@ -192,19 +198,18 @@
       text-align: center;
       padding: 6px;
       border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.5px;
       color: #94a3b8;
       border: 1px solid #1f2937;
-      transition: all 0.2s ease;
     }
 
     .channel-status.transmitting {
       background-color: #dc2626;
       color: #ffffff;
       border-color: #ef4444;
-      animation: pulse 0.9s infinite alternate;
+      animation: pulse 0.8s infinite alternate;
     }
 
     .channel-status.receiving {
@@ -214,35 +219,91 @@
     }
 
     @keyframes pulse {
-      from { opacity: 0.85; }
+      from { opacity: 0.8; }
       to { opacity: 1; }
     }
 
     .btn-ptt {
       width: 100%;
-      height: 56px;
+      height: 54px;
       background-color: #030712;
       border: 2px solid #f59e0b;
       border-radius: 12px;
       color: #f59e0b;
-      font-size: 1.05rem;
+      font-size: 1rem;
       font-weight: 800;
       letter-spacing: 1px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: 8px;
       cursor: pointer;
       touch-action: none;
     }
 
-    .btn-ptt:active, .btn-ptt.active {
+    .btn-ptt.active {
       background-color: #f59e0b;
       color: #030712;
-      transform: scale(0.98);
     }
 
-    /* ESTILO DE VEHÍCULO VISTO DESDE ARRIBA */
+    /* MODAL DE HISTORIAL DE AUDIOS */
+    #history-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 3500;
+      display: none;
+      align-items: flex-end;
+    }
+
+    .history-card {
+      width: 100%;
+      background: #111827;
+      border-top: 2px solid #f59e0b;
+      border-radius: 16px 16px 0 0;
+      padding: 16px;
+      max-height: 60vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      color: #f59e0b;
+    }
+
+    .history-list {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      background: #1e293b;
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+
+    .history-item button {
+      background: #f59e0b;
+      border: none;
+      color: #111827;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* MARCADORES 3D UBER */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -254,19 +315,19 @@
       background: #030712;
       border: 1px solid #f59e0b;
       color: #f8fafc;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 800;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
       margin-bottom: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.6);
       white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
 
     .car-svg-rotator {
-      width: 38px;
-      height: 38px;
-      transition: transform 0.25s ease-out;
+      width: 36px;
+      height: 36px;
+      transition: transform 0.2s linear;
       transform-origin: center center;
     }
   </style>
@@ -277,7 +338,7 @@
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
-      <p>Selecciona tu terminal de trabajo</p>
+      <p>Selecciona tu terminal de despacho</p>
     </div>
     <div class="grid-units">
       <button class="btn-unit-select modulador" onclick="selectUnit('Modulador')">
@@ -300,19 +361,24 @@
     </div>
   </div>
 
-  <!-- INTERFAZ PRINCIPAL -->
+  <!-- BARRA PRINCIPAL -->
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT 3D
+      <span>📻</span> Yadah PTT
     </div>
-    <button class="btn-change-user" onclick="logoutUnit()">🔄 Cambiar Móvil</button>
+    <div class="header-actions">
+      <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón</button>
+      <button class="btn-header" onclick="logoutUnit()">🔄 Salir</button>
+    </div>
   </header>
 
+  <!-- MAPA GOOGLE MAPS EN 3D -->
   <div id="map-container">
     <div id="map"></div>
-    <button class="btn-recenter" id="btn-recenter" title="Centrar mi auto">🎯</button>
+    <button class="btn-recenter" id="btn-recenter" title="Re-centrar">🎯</button>
   </div>
 
+  <!-- CONTROL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -329,11 +395,21 @@
     </button>
   </div>
 
-  <!-- MapLibre JS -->
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <!-- MODAL BUZÓN / HISTORIAL (24 HORAS) -->
+  <div id="history-modal" onclick="toggleHistory(false)">
+    <div class="history-card" onclick="event.stopPropagation()">
+      <div class="history-head">
+        <span>Últimos Audios (24h)</span>
+        <span style="cursor:pointer; color:#94a3b8;" onclick="toggleHistory(false)">✕ Cerrar</span>
+      </div>
+      <div class="history-list" id="history-list">
+        <p style="color:#64748b; font-size:0.8rem;">No hay audios registrados todavía.</p>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // 1. Identidad de Terminal
+    // --- 1. Identidad de Usuario ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
@@ -356,6 +432,7 @@
       localStorage.setItem('yadah_terminal_id', id);
       lblUnit.textContent = id;
       loginScreen.style.display = 'none';
+      unlockAudioContext();
       connectNetwork();
     }
 
@@ -364,36 +441,52 @@
       location.reload();
     }
 
-    // 2. Mapa 3D con Perspectiva Inclinada (Estilo Uber / Life360)
+    // --- 2. Desbloqueo de Audio para Navegadores Móviles ---
+    let audioContext = null;
+    function unlockAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    }
+    window.addEventListener('touchstart', unlockAudioContext, { once: true });
+    window.addEventListener('click', unlockAudioContext, { once: true });
+
+    // --- 3. Mapa 3D con Google Maps (MapLibre GL + Google Tiles) ---
+    // mt0, mt1, mt2, mt3 proveen las calles, nombres, iglesias y comercios detallados
     const map = new maplibregl.Map({
       container: 'map',
       style: {
         version: 8,
         sources: {
-          'osm-tiles': {
+          'google-roads': {
             type: 'raster',
             tiles: [
-              'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+              'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
             ],
-            tileSize: 256,
-            attribution: '© OpenStreetMap'
+            tileSize: 256
           }
         },
         layers: [{
-          id: 'osm-tiles-layer',
+          id: 'google-layer',
           type: 'raster',
-          source: 'osm-tiles',
+          source: 'google-roads',
           minzoom: 0,
-          maxzoom: 19
+          maxzoom: 21
         }]
       },
       center: [-89.2182, 13.6929],
       zoom: 16.5,
-      pitch: 50, // Ángulo de inclinación 3D
+      pitch: 50, // Vista inclinada 3D
       bearing: 0
     });
 
-    // 3. Generador de Marcador de Auto Uber (SVG Top-Down)
+    // --- 4. Marcadores de Autos 3D estilo Uber ---
     function createCarElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -406,7 +499,7 @@
       const rotator = document.createElement('div');
       rotator.className = 'car-svg-rotator';
       rotator.innerHTML = `
-        <svg viewBox="0 0 48 48" width="38" height="38">
+        <svg viewBox="0 0 48 48" width="36" height="36">
           <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
           <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
           <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
@@ -420,7 +513,6 @@
       return { container, rotator };
     }
 
-    // Almacén de marcadores de la flota
     const fleetMarkers = {};
     let myLastCoords = null;
     let myHeading = 0;
@@ -442,7 +534,7 @@
       }
     }
 
-    // 4. Conexión en Tiempo Real (Red de Flota y Audio)
+    // --- 5. Red de Flota (MQTT en Vivo) ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_AUDIO = 'yadah/radio/flota/audio';
@@ -450,7 +542,10 @@
     function connectNetwork() {
       if (mqttClient) return;
 
-      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+        clientId: 'yadah_' + Math.random().toString(16).substring(2, 8),
+        clean: true
+      });
 
       mqttClient.on('connect', () => {
         lblNet.textContent = 'En Línea';
@@ -464,23 +559,22 @@
         try {
           if (topic === TOPIC_GPS) {
             const data = JSON.parse(message.toString());
-            // Si el mensaje viene de otro auto, lo pintamos en el mapa
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading);
             }
           } else if (topic === TOPIC_AUDIO) {
             const audioData = JSON.parse(message.toString());
             if (audioData.sender !== currentUnit) {
-              playIncomingAudio(audioData.payload, audioData.sender);
+              receiveIncomingAudio(audioData.payload, audioData.sender, audioData.timestamp);
             }
           }
         } catch (e) {
-          console.error("Error procesando datos:", e);
+          console.error("Error en datos recibidos:", e);
         }
       });
     }
 
-    // 5. GPS Local y Rumbo
+    // --- 6. GPS y Rumbo en tiempo real ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -500,7 +594,7 @@
           if (heading === null || isNaN(heading)) {
             if (myLastCoords) {
               const dist = Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon);
-              if (dist > 0.00003) {
+              if (dist > 0.00002) {
                 heading = calculateBearing(myLastCoords.lat, myLastCoords.lon, lat, lon);
                 myHeading = Math.round(heading);
               }
@@ -512,10 +606,10 @@
           myLastCoords = { lat, lon };
           lblHeading.textContent = `${myHeading}°`;
 
-          // Pintar mi propio auto
+          // Actualizar mi auto en pantalla
           updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading);
 
-          // Transmitir mi ubicación a toda la flota si hay red
+          // Transmitir mi ubicación
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish(TOPIC_GPS, JSON.stringify({
               unit: currentUnit,
@@ -525,7 +619,6 @@
             }));
           }
 
-          // Centrado inicial
           if (!initialCentering) {
             map.flyTo({ center: [lon, lat], zoom: 17, pitch: 50 });
             initialCentering = true;
@@ -536,50 +629,73 @@
       );
     }
 
-    // Botón de re-centrado
     document.getElementById('btn-recenter').addEventListener('click', () => {
       if (myLastCoords) {
         map.flyTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 17, pitch: 50, bearing: myHeading });
       }
     });
 
-    // 6. Transmisión Walkie-Talkie (PTT)
+    // --- 7. Transmisión PTT Corregida (Micrófono optimizado) ---
     let mediaRecorder = null;
     let audioChunks = [];
+    let audioStream = null;
     const btnPtt = document.getElementById('btn-ptt');
 
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
+      unlockAudioContext();
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        if (!audioStream) {
+          audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+        }
+
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/mp4';
+
+        mediaRecorder = new MediaRecorder(audioStream, { mimeType });
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) audioChunks.push(event.data);
+          if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
         };
 
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          if (audioChunks.length === 0) return;
+
+          const audioBlob = new Blob(audioChunks, { type: mimeType });
           const reader = new FileReader();
           reader.readAsDataURL(audioBlob);
           reader.onloadend = () => {
             if (mqttClient && mqttClient.connected) {
-              mqttClient.publish(TOPIC_AUDIO, JSON.stringify({
+              const payloadData = {
                 sender: currentUnit,
-                payload: reader.result
-              }));
+                payload: reader.result,
+                timestamp: Date.now()
+              };
+              mqttClient.publish(TOPIC_AUDIO, JSON.stringify(payloadData));
+              // Guardar mi propio audio en el buzón
+              saveAudioToHistory(payloadData);
             }
           };
-          stream.getTracks().forEach(track => track.stop());
         };
 
-        mediaRecorder.start();
+        mediaRecorder.start(250); // Enviar fragmentos cada 250ms
         btnPtt.classList.add('active');
         channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
-        alert("Permite el acceso al micrófono en el navegador para usar el radio.");
+        alert("Error al acceder al micrófono: asegúrate de otorgar los permisos.");
+        console.error(err);
       }
     }
 
@@ -593,19 +709,23 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    function playIncomingAudio(base64Data, sender) {
+    function receiveIncomingAudio(base64Data, sender, timestamp) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ ENTRANTE: ${sender}`;
 
+      saveAudioToHistory({ sender, payload: base64Data, timestamp: timestamp || Date.now() });
+
       const audio = new Audio(base64Data);
-      audio.play();
+      audio.play().catch(e => {
+        console.warn("Reproducción automática esperando toque de usuario:", e);
+      });
+
       audio.onended = () => {
         channelStatus.className = 'channel-status';
         channelStatus.textContent = '● CANAL LIBRE';
       };
     }
 
-    // Eventos táctiles para el botón PTT
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -613,7 +733,64 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // Arrancar verificación
+    // --- 8. Historial de Audios (Últimas 24 Horas) ---
+    function getStoredAudios() {
+      try {
+        const audios = JSON.parse(localStorage.getItem('yadah_audio_history') || '[]');
+        const now = Date.now();
+        const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 horas
+        // Filtrar audios mayores a 24 horas para no llenar la memoria
+        const validAudios = audios.filter(item => item.timestamp > oneDayAgo);
+        localStorage.setItem('yadah_audio_history', JSON.stringify(validAudios));
+        return validAudios;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveAudioToHistory(audioItem) {
+      const audios = getStoredAudios();
+      audios.unshift(audioItem); // Añadir al inicio
+      if (audios.length > 20) audios.pop(); // Mantener máximo los 20 más recientes
+      localStorage.setItem('yadah_audio_history', JSON.stringify(audios));
+    }
+
+    function toggleHistory(show) {
+      const modal = document.getElementById('history-modal');
+      modal.style.display = show ? 'flex' : 'none';
+      if (show) renderHistory();
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      const audios = getStoredAudios();
+
+      if (audios.length === 0) {
+        list.innerHTML = '<p style="color:#64748b; font-size:0.8rem;">No hay audios registrados en las últimas 24 horas.</p>';
+        return;
+      }
+
+      list.innerHTML = audios.map((item, index) => {
+        const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `
+          <div class="history-item">
+            <div>
+              <b style="color:#f59e0b;">${item.sender}</b>
+              <div style="font-size:0.7rem; color:#94a3b8;">${time}</div>
+            </div>
+            <button onclick="playSavedAudio('${item.payload}')">▶ Oír</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function playSavedAudio(payload) {
+      unlockAudioContext();
+      const audio = new Audio(payload);
+      audio.play();
+    }
+
+    // Inicializar
     checkAuth();
   </script>
 </body>
