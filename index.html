@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Yadah Radio 3D</title>
+  <title>Yadah Radio 3D Flota</title>
 
   <!-- MapLibre GL JS -->
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
@@ -26,7 +26,7 @@
       color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       height: 100vh;
-      height: 100dvh; /* Altura dinámica que no oculta botones en celular */
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -148,7 +148,6 @@
       height: 100%;
     }
 
-    /* BOTÓN CENTRAR */
     .btn-recenter {
       position: absolute;
       bottom: 14px;
@@ -168,7 +167,7 @@
       z-index: 500;
     }
 
-    /* PANEL INFERIOR PTT */
+    /* CONTROLES PTT INFERIORES */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
@@ -246,7 +245,7 @@
       color: #030712;
     }
 
-    /* MODAL DE HISTORIAL DE AUDIOS */
+    /* HISTORIAL */
     #history-modal {
       position: fixed;
       inset: 0;
@@ -262,7 +261,7 @@
       border-top: 2px solid #f59e0b;
       border-radius: 16px 16px 0 0;
       padding: 16px;
-      max-height: 60vh;
+      max-height: 65vh;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -281,34 +280,37 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      padding-bottom: 20px;
     }
 
     .history-item {
       background: #1e293b;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border-radius: 8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
+      border: 1px solid #334155;
     }
 
-    .history-item button {
+    .btn-play-audio {
       background: #f59e0b;
       border: none;
       color: #111827;
-      padding: 5px 12px;
+      padding: 8px 14px;
       border-radius: 6px;
       font-weight: bold;
       cursor: pointer;
     }
 
-    /* MARCADORES 3D UBER */
+    /* AUTO 3D TOP-DOWN */
     .car-marker-container {
       display: flex;
       flex-direction: column;
       align-items: center;
       pointer-events: none;
+      transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .car-badge {
@@ -327,14 +329,17 @@
     .car-svg-rotator {
       width: 36px;
       height: 36px;
-      transition: transform 0.2s linear;
+      transition: transform 0.4s ease-out;
       transform-origin: center center;
     }
   </style>
 </head>
 <body>
 
-  <!-- SELECTOR DE UNIDAD -->
+  <!-- ELEMENTO REPRODUCTOR AUXILIAR -->
+  <audio id="remote-player" playsinline preload="auto"></audio>
+
+  <!-- PANTALLA DE ACCESO -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
@@ -361,10 +366,10 @@
     </div>
   </div>
 
-  <!-- BARRA PRINCIPAL -->
+  <!-- CABECERA -->
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT
+      <span>📻</span> Yadah PTT Live
     </div>
     <div class="header-actions">
       <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón</button>
@@ -372,13 +377,13 @@
     </div>
   </header>
 
-  <!-- MAPA GOOGLE MAPS EN 3D -->
+  <!-- MAPA 3D CON GOOGLE MAPS -->
   <div id="map-container">
     <div id="map"></div>
     <button class="btn-recenter" id="btn-recenter" title="Re-centrar">🎯</button>
   </div>
 
-  <!-- CONTROL PTT -->
+  <!-- PANEL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -395,27 +400,28 @@
     </button>
   </div>
 
-  <!-- MODAL BUZÓN / HISTORIAL (24 HORAS) -->
+  <!-- BUZÓN 24 HORAS -->
   <div id="history-modal" onclick="toggleHistory(false)">
     <div class="history-card" onclick="event.stopPropagation()">
       <div class="history-head">
-        <span>Últimos Audios (24h)</span>
-        <span style="cursor:pointer; color:#94a3b8;" onclick="toggleHistory(false)">✕ Cerrar</span>
+        <span>Últimas Transmisiones (24h)</span>
+        <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem; padding:4px;" onclick="toggleHistory(false)">✕</span>
       </div>
       <div class="history-list" id="history-list">
-        <p style="color:#64748b; font-size:0.8rem;">No hay audios registrados todavía.</p>
+        <p style="color:#64748b; font-size:0.8rem;">No hay registros en el canal.</p>
       </div>
     </div>
   </div>
 
   <script>
-    // --- 1. Identidad de Usuario ---
+    // --- 1. Autenticación e Identidad ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
     const lblNet = document.getElementById('lbl-net');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
+    const remotePlayer = document.getElementById('remote-player');
 
     function checkAuth() {
       if (currentUnit) {
@@ -432,7 +438,7 @@
       localStorage.setItem('yadah_terminal_id', id);
       lblUnit.textContent = id;
       loginScreen.style.display = 'none';
-      unlockAudioContext();
+      unlockHardwareAudio();
       connectNetwork();
     }
 
@@ -441,21 +447,27 @@
       location.reload();
     }
 
-    // --- 2. Desbloqueo de Audio para Navegadores Móviles ---
-    let audioContext = null;
-    function unlockAudioContext() {
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // --- 2. Desbloqueo Seguro de Audio en Móvil ---
+    let audioUnlocked = false;
+    let audioCtx = null;
+
+    function unlockHardwareAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      if (audioContext.state === 'suspended') {
-        audioContext.resume();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      if (!audioUnlocked) {
+        remotePlayer.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        remotePlayer.play().then(() => { audioUnlocked = true; }).catch(() => {});
       }
     }
-    window.addEventListener('touchstart', unlockAudioContext, { once: true });
-    window.addEventListener('click', unlockAudioContext, { once: true });
 
-    // --- 3. Mapa 3D con Google Maps (MapLibre GL + Google Tiles) ---
-    // mt0, mt1, mt2, mt3 proveen las calles, nombres, iglesias y comercios detallados
+    window.addEventListener('touchstart', unlockHardwareAudio, { passive: true });
+    window.addEventListener('click', unlockHardwareAudio, { passive: true });
+
+    // --- 3. Google Maps 3D en MapLibre ---
     const map = new maplibregl.Map({
       container: 'map',
       style: {
@@ -482,11 +494,11 @@
       },
       center: [-89.2182, 13.6929],
       zoom: 16.5,
-      pitch: 50, // Vista inclinada 3D
+      pitch: 50,
       bearing: 0
     });
 
-    // --- 4. Marcadores de Autos 3D estilo Uber ---
+    // --- 4. Marcadores de Autos con Interpolación Suave ---
     function createCarElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -524,7 +536,7 @@
           .setLngLat([lon, lat])
           .addTo(map);
 
-        fleetMarkers[unitId] = { marker, rotator };
+        fleetMarkers[unitId] = { marker, rotator, element: container };
       } else {
         fleetMarkers[unitId].marker.setLngLat([lon, lat]);
       }
@@ -534,10 +546,11 @@
       }
     }
 
-    // --- 5. Red de Flota (MQTT en Vivo) ---
+    // --- 5. Red Telemática y Control de Canal ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
-    const TOPIC_AUDIO = 'yadah/radio/flota/audio';
+    const TOPIC_STREAM = 'yadah/radio/flota/stream';
+    const TOPIC_CONTROL = 'yadah/radio/flota/control';
 
     function connectNetwork() {
       if (mqttClient) return;
@@ -552,7 +565,8 @@
         lblNet.style.color = '#10b981';
 
         mqttClient.subscribe(TOPIC_GPS);
-        mqttClient.subscribe(TOPIC_AUDIO);
+        mqttClient.subscribe(TOPIC_STREAM);
+        mqttClient.subscribe(TOPIC_CONTROL);
       });
 
       mqttClient.on('message', (topic, message) => {
@@ -562,19 +576,30 @@
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading);
             }
-          } else if (topic === TOPIC_AUDIO) {
-            const audioData = JSON.parse(message.toString());
-            if (audioData.sender !== currentUnit) {
-              receiveIncomingAudio(audioData.payload, audioData.sender, audioData.timestamp);
+          } else if (topic === TOPIC_CONTROL) {
+            const ctrl = JSON.parse(message.toString());
+            if (ctrl.action === 'start' && ctrl.sender !== currentUnit) {
+              channelStatus.className = 'channel-status receiving';
+              channelStatus.textContent = `▼ ENTRANTE: ${ctrl.sender}`;
+              prepareIncomingStream(ctrl.sender);
+            } else if (ctrl.action === 'stop' && ctrl.sender !== currentUnit) {
+              channelStatus.className = 'channel-status';
+              channelStatus.textContent = '● CANAL LIBRE';
+              finalizeIncomingStream(ctrl.sender);
+            }
+          } else if (topic === TOPIC_STREAM) {
+            const chunk = JSON.parse(message.toString());
+            if (chunk.sender !== currentUnit) {
+              pushStreamChunk(chunk.payload);
             }
           }
         } catch (e) {
-          console.error("Error en datos recibidos:", e);
+          console.error("Error telemático:", e);
         }
       });
     }
 
-    // --- 6. GPS y Rumbo en tiempo real ---
+    // --- 6. GPS y Cálculo de Orientación ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -606,10 +631,8 @@
           myLastCoords = { lat, lon };
           lblHeading.textContent = `${myHeading}°`;
 
-          // Actualizar mi auto en pantalla
           updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading);
 
-          // Transmitir mi ubicación
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish(TOPIC_GPS, JSON.stringify({
               unit: currentUnit,
@@ -624,7 +647,7 @@
             initialCentering = true;
           }
         },
-        (err) => console.warn('GPS Error:', err.message),
+        (err) => console.warn('GPS Warning:', err.message),
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
     }
@@ -635,15 +658,24 @@
       }
     });
 
-    // --- 7. Transmisión PTT Corregida (Micrófono optimizado) ---
+    // --- 7. Motor de Transmisión Directa de Voz ---
     let mediaRecorder = null;
-    let audioChunks = [];
     let audioStream = null;
     const btnPtt = document.getElementById('btn-ptt');
 
+    function getSupportedMimeType() {
+      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac'];
+      for (let t of types) {
+        if (MediaRecorder.isTypeSupported(t)) return t;
+      }
+      return '';
+    }
+
+    let outgoingChunks = [];
+
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
-      unlockAudioContext();
+      unlockHardwareAudio();
 
       try {
         if (!audioStream) {
@@ -656,46 +688,56 @@
           });
         }
 
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/mp4';
+        const mimeType = getSupportedMimeType();
+        mediaRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
+        outgoingChunks = [];
 
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType });
-        audioChunks = [];
+        // Aviso inmediato de ocupación de canal
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.publish(TOPIC_CONTROL, JSON.stringify({ action: 'start', sender: currentUnit }));
+        }
 
         mediaRecorder.ondataavailable = (event) => {
           if (event.data && event.data.size > 0) {
-            audioChunks.push(event.data);
+            outgoingChunks.push(event.data);
+            // Transmisión inmediata en paquetes
+            const reader = new FileReader();
+            reader.readAsDataURL(event.data);
+            reader.onloadend = () => {
+              if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(TOPIC_STREAM, JSON.stringify({
+                  sender: currentUnit,
+                  payload: reader.result
+                }));
+              }
+            };
           }
         };
 
         mediaRecorder.onstop = () => {
-          if (audioChunks.length === 0) return;
-
-          const audioBlob = new Blob(audioChunks, { type: mimeType });
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            if (mqttClient && mqttClient.connected) {
-              const payloadData = {
-                sender: currentUnit,
-                payload: reader.result,
+          if (outgoingChunks.length > 0) {
+            const finalBlob = new Blob(outgoingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            const finalReader = new FileReader();
+            finalReader.readAsDataURL(finalBlob);
+            finalReader.onloadend = () => {
+              saveAudioToHistory({
+                sender: `${currentUnit} (Tú)`,
+                payload: finalReader.result,
                 timestamp: Date.now()
-              };
-              mqttClient.publish(TOPIC_AUDIO, JSON.stringify(payloadData));
-              // Guardar mi propio audio en el buzón
-              saveAudioToHistory(payloadData);
-            }
-          };
+              });
+            };
+          }
+          if (mqttClient && mqttClient.connected) {
+            mqttClient.publish(TOPIC_CONTROL, JSON.stringify({ action: 'stop', sender: currentUnit }));
+          }
         };
 
-        mediaRecorder.start(250); // Enviar fragmentos cada 250ms
+        mediaRecorder.start(120); // Ventanas ultrarrápidas de 120ms para baja latencia
         btnPtt.classList.add('active');
         channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
-        alert("Error al acceder al micrófono: asegúrate de otorgar los permisos.");
-        console.error(err);
+        alert("Permite el acceso al micrófono en el navegador.");
       }
     }
 
@@ -709,21 +751,50 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    function receiveIncomingAudio(base64Data, sender, timestamp) {
-      channelStatus.className = 'channel-status receiving';
-      channelStatus.textContent = `▼ ENTRANTE: ${sender}`;
+    // --- 8. Receptor y Reproducción Continua ---
+    let incomingChunks = [];
+    let currentSender = '';
 
-      saveAudioToHistory({ sender, payload: base64Data, timestamp: timestamp || Date.now() });
+    function prepareIncomingStream(sender) {
+      incomingChunks = [];
+      currentSender = sender;
+    }
 
-      const audio = new Audio(base64Data);
-      audio.play().catch(e => {
-        console.warn("Reproducción automática esperando toque de usuario:", e);
-      });
+    function pushStreamChunk(base64Chunk) {
+      try {
+        const parts = base64Chunk.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) {
+          uInt8Array[i] = raw.charCodeAt(i);
+        }
+        const blob = new Blob([uInt8Array], { type: contentType });
+        incomingChunks.push(blob);
 
-      audio.onended = () => {
-        channelStatus.className = 'channel-status';
-        channelStatus.textContent = '● CANAL LIBRE';
-      };
+        // Reproducción de paquetes continuos
+        const chunkUrl = URL.createObjectURL(blob);
+        const tempPlayer = new Audio(chunkUrl);
+        tempPlayer.play().catch(() => {});
+        tempPlayer.onended = () => URL.revokeObjectURL(chunkUrl);
+      } catch (e) {
+        console.error("Error decodificando paquete:", e);
+      }
+    }
+
+    function finalizeIncomingStream(sender) {
+      if (incomingChunks.length > 0) {
+        const fullBlob = new Blob(incomingChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(fullBlob);
+        reader.onloadend = () => {
+          saveAudioToHistory({
+            sender: sender || currentSender || 'Móvil',
+            payload: reader.result,
+            timestamp: Date.now()
+          });
+        };
+      }
     }
 
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
@@ -733,26 +804,35 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // --- 8. Historial de Audios (Últimas 24 Horas) ---
+    // --- 9. Buzón 24 Horas & Memoria Auto-Gestionada ---
+    let cachedAudios = [];
+
     function getStoredAudios() {
       try {
-        const audios = JSON.parse(localStorage.getItem('yadah_audio_history') || '[]');
-        const now = Date.now();
-        const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 horas
-        // Filtrar audios mayores a 24 horas para no llenar la memoria
-        const validAudios = audios.filter(item => item.timestamp > oneDayAgo);
+        const stored = JSON.parse(localStorage.getItem('yadah_audio_history') || '[]');
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        const validAudios = stored.filter(item => item && item.timestamp && item.timestamp > oneDayAgo);
         localStorage.setItem('yadah_audio_history', JSON.stringify(validAudios));
+        cachedAudios = validAudios;
         return validAudios;
       } catch (e) {
+        cachedAudios = [];
         return [];
       }
     }
 
     function saveAudioToHistory(audioItem) {
-      const audios = getStoredAudios();
-      audios.unshift(audioItem); // Añadir al inicio
-      if (audios.length > 20) audios.pop(); // Mantener máximo los 20 más recientes
-      localStorage.setItem('yadah_audio_history', JSON.stringify(audios));
+      const list = getStoredAudios();
+      list.unshift(audioItem);
+      if (list.length > 25) list.pop();
+      try {
+        localStorage.setItem('yadah_audio_history', JSON.stringify(list));
+        cachedAudios = list;
+      } catch (e) {
+        list.splice(10);
+        localStorage.setItem('yadah_audio_history', JSON.stringify(list));
+        cachedAudios = list;
+      }
     }
 
     function toggleHistory(show) {
@@ -762,35 +842,51 @@
     }
 
     function renderHistory() {
-      const list = document.getElementById('history-list');
+      const listContainer = document.getElementById('history-list');
       const audios = getStoredAudios();
 
       if (audios.length === 0) {
-        list.innerHTML = '<p style="color:#64748b; font-size:0.8rem;">No hay audios registrados en las últimas 24 horas.</p>';
+        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones en las últimas 24 horas.</p>';
         return;
       }
 
-      list.innerHTML = audios.map((item, index) => {
+      listContainer.innerHTML = audios.map((item, index) => {
         const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         return `
           <div class="history-item">
             <div>
               <b style="color:#f59e0b;">${item.sender}</b>
-              <div style="font-size:0.7rem; color:#94a3b8;">${time}</div>
+              <div style="font-size:0.72rem; color:#94a3b8;">${time}</div>
             </div>
-            <button onclick="playSavedAudio('${item.payload}')">▶ Oír</button>
+            <button class="btn-play-audio" onclick="playAudioByIndex(${index})">▶ Oír</button>
           </div>
         `;
       }).join('');
     }
 
-    function playSavedAudio(payload) {
-      unlockAudioContext();
-      const audio = new Audio(payload);
-      audio.play();
+    function playAudioByIndex(index) {
+      unlockHardwareAudio();
+      const item = cachedAudios[index];
+      if (!item || !item.payload) return;
+
+      try {
+        const parts = item.payload.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) {
+          uInt8Array[i] = raw.charCodeAt(i);
+        }
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        remotePlayer.src = url;
+        remotePlayer.play();
+      } catch (err) {
+        console.error("Error reproduciendo audio:", err);
+      }
     }
 
-    // Inicializar
+    // Inicialización del sistema
     checkAuth();
   </script>
 </body>
