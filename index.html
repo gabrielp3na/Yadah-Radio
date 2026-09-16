@@ -20,14 +20,80 @@
     body {
       background-color: #0f172a;
       color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
-    /* Barra Superior */
+    /* PANTALLA SELECTOR DE UNIDAD */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background: #0f172a;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .login-header h1 {
+      color: #f59e0b;
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+    }
+
+    .login-header p {
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    .grid-units {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 420px;
+      margin: 0 auto;
+      width: 100%;
+      padding-bottom: 20px;
+    }
+
+    .btn-unit-select {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 14px 8px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-unit-select.modulador {
+      grid-column: span 2;
+      background: #1e3a8a;
+      border-color: #3b82f6;
+      color: #bfdbfe;
+      font-size: 1rem;
+    }
+
+    .btn-unit-select:active {
+      background: #f59e0b;
+      color: #0f172a;
+    }
+
+    /* INTERFAZ DEL MAPA Y RADIO */
     header {
       background-color: #1e293b;
       padding: 10px 14px;
@@ -42,21 +108,22 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 1.05rem;
+      font-size: 1rem;
       font-weight: 700;
       color: #f59e0b;
     }
 
-    .channel-tag {
+    .btn-change-user {
       background: #0f172a;
+      border: 1px solid #475569;
+      color: #cbd5e1;
       padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      color: #94a3b8;
-      border: 1px solid #334155;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
     }
 
-    /* Contenedor del Mapa */
     #map-container {
       flex: 1;
       width: 100%;
@@ -69,7 +136,6 @@
       height: 100%;
     }
 
-    /* Consola Inferior */
     .controls-panel {
       background-color: #1e293b;
       padding: 12px 16px;
@@ -80,7 +146,6 @@
       z-index: 1000;
     }
 
-    /* Barra de Estado */
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -94,7 +159,6 @@
       font-weight: 600;
     }
 
-    /* Estado del Canal */
     .channel-status {
       background-color: #0f172a;
       text-align: center;
@@ -120,15 +184,13 @@
       to { opacity: 1; }
     }
 
-    /* Botón PTT Principal */
     .ptt-wrapper {
       width: 100%;
     }
 
     .btn-ptt {
       width: 100%;
-      height: 62px;
-      background: linear-space-gradient;
+      height: 60px;
       background-color: #0f172a;
       border: 2px solid #f59e0b;
       border-radius: 12px;
@@ -141,19 +203,15 @@
       justify-content: center;
       gap: 10px;
       cursor: pointer;
-      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
       touch-action: none;
-      transition: background-color 0.1s, transform 0.05s;
     }
 
     .btn-ptt:active, .btn-ptt.active {
       background-color: #f59e0b;
       color: #0f172a;
       transform: scale(0.98);
-      box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
     }
 
-    /* Barra de Botones Auxiliares */
     .aux-bar {
       display: flex;
       gap: 10px;
@@ -181,7 +239,6 @@
       color: #fca5a5;
     }
 
-    /* Tooltip de Marcadores */
     .unit-tag {
       background: #0f172a !important;
       border: 1px solid #f59e0b !important;
@@ -190,64 +247,115 @@
       font-size: 0.75rem !important;
       padding: 2px 6px !important;
       border-radius: 4px !important;
-    }
-    .leaflet-tooltip-top:before {
-      border-top-color: #f59e0b !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
   </style>
 </head>
 <body>
 
-  <!-- Barra Superior -->
+  <!-- SELECTOR DE UNIDAD -->
+  <div id="login-screen">
+    <div class="login-header">
+      <h1>📻 Yadah Radio</h1>
+      <p>Selecciona tu terminal de trabajo</p>
+    </div>
+    <div class="grid-units">
+      <button class="btn-unit-select modulador" onclick="selectUnit('Modulador')">
+        <span>🏢</span> Modulador / Base Central
+      </button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 01')"><span>🚘</span> Móvil 01</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 02')"><span>🚘</span> Móvil 02</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 03')"><span>🚘</span> Móvil 03</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 04')"><span>🚘</span> Móvil 04</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 05')"><span>🚘</span> Móvil 05</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 06')"><span>🚘</span> Móvil 06</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 07')"><span>🚘</span> Móvil 07</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 08')"><span>🚘</span> Móvil 08</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 09')"><span>🚘</span> Móvil 09</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 10')"><span>🚘</span> Móvil 10</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 11')"><span>🚘</span> Móvil 11</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 12')"><span>🚘</span> Móvil 12</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 13')"><span>🚘</span> Móvil 13</button>
+      <button class="btn-unit-select" onclick="selectUnit('Móvil 14')"><span>🚘</span> Móvil 14</button>
+    </div>
+  </div>
+
+  <!-- INTERFAZ PRINCIPAL -->
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT & Despacho
+      <span>📻</span> Yadah PTT
     </div>
-    <div class="channel-tag">Canal: General</div>
+    <button class="btn-change-user" onclick="logoutUnit()">🔄 Cambiar Móvil</button>
   </header>
 
-  <!-- Mapa Interactivo -->
   <div id="map-container">
     <div id="map"></div>
   </div>
 
-  <!-- Consola de Control Inferior -->
   <div class="controls-panel">
-    <!-- Barra de Estado -->
     <div class="status-bar">
-      <span>Terminal: <b style="color:#f8fafc;" id="lbl-unit">Modulador</b></span>
+      <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">No asignado</b></span>
       <span>GPS: <b class="status-active">Activo</b></span>
       <span>Audio: <b class="status-active" id="lbl-audio-status">Abierto</b></span>
     </div>
 
-    <!-- Indicador de Tráfico de Radio -->
     <div class="channel-status" id="channel-status">
       ● CANAL LIBRE
     </div>
 
-    <!-- Botón Pulsar para Hablar (PTT) -->
     <div class="ptt-wrapper">
       <button class="btn-ptt" id="btn-ptt">
         <span>🎙️</span> PULSAR PARA HABLAR
       </button>
     </div>
 
-    <!-- Botones Auxiliares: Muteo y Cambio de Capa -->
     <div class="aux-bar">
       <button class="btn-aux" id="btn-mute">
         <span>🔊</span> Silencio Cabina
       </button>
       <button class="btn-aux" id="btn-layer">
-        <span>🛰️</span> Modo Satélite
+        <span>🛰️</span> Vista Satélite
       </button>
     </div>
   </div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    // 1. Capas de Google Maps
+    // Gestión de Identidad Local
+    let currentUnit = localStorage.getItem('yadah_terminal_id');
+    const loginScreen = document.getElementById('login-screen');
+    const lblUnit = document.getElementById('lbl-unit');
+
+    function checkAuth() {
+      if (currentUnit) {
+        loginScreen.style.display = 'none';
+        lblUnit.textContent = currentUnit;
+        if (selfMarker) {
+          selfMarker.bindTooltip(currentUnit + " (Tú)", { permanent: true, direction: 'top', className: 'unit-tag' });
+        }
+      } else {
+        loginScreen.style.display = 'flex';
+      }
+    }
+
+    function selectUnit(unitId) {
+      currentUnit = unitId;
+      localStorage.setItem('yadah_terminal_id', unitId);
+      lblUnit.textContent = unitId;
+      loginScreen.style.display = 'none';
+      if (selfMarker) {
+        selfMarker.bindTooltip(unitId + " (Tú)", { permanent: true, direction: 'top', className: 'unit-tag' });
+      }
+    }
+
+    function logoutUnit() {
+      localStorage.removeItem('yadah_terminal_id');
+      currentUnit = null;
+      loginScreen.style.display = 'flex';
+    }
+
+    // Google Maps Capas
     const googleRoads = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
       maxZoom: 20,
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
@@ -260,66 +368,65 @@
       attribution: 'Google Maps Satellite'
     });
 
-    // Inicializar mapa centrado por defecto
     const map = L.map('map', {
       center: [13.6929, -89.2182],
-      zoom: 14,
+      zoom: 16,
       zoomControl: false,
       layers: [googleRoads]
     });
 
-    // Reposicionar controles de zoom arriba a la derecha
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // 2. Iconos personalizados
-    const carIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
-      tooltipAnchor: [0, -18]
+    // ICONO DE AUTO VISTO DESDE ARRIBA (TIPO UBER PROFESIONAL)
+    const uberCarSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">
+        <!-- Sombra realista -->
+        <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.35)"/>
+        <!-- Carrocería oscura estilizada -->
+        <rect x="13" y="6" width="22" height="36" rx="8" fill="#18181b" stroke="#f59e0b" stroke-width="1.5"/>
+        <!-- Parabrisas delantero -->
+        <path d="M16 16 L32 16 L29 21 L19 21 Z" fill="#38bdf8"/>
+        <!-- Parabrisas trasero -->
+        <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
+        <!-- Techo del auto -->
+        <rect x="16" y="22" width="16" height="11" rx="2" fill="#27272a"/>
+        <!-- Luces delanteras -->
+        <circle cx="16" cy="7" r="1.5" fill="#fef08a"/>
+        <circle cx="32" cy="7" r="1.5" fill="#fef08a"/>
+      </svg>`;
+
+    const carIcon = L.divIcon({
+      html: uberCarSvg,
+      className: '',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      tooltipAnchor: [0, -22]
     });
 
-    const baseIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/1670/1670080.png',
-      iconSize: [34, 34],
-      iconAnchor: [17, 17],
-      tooltipAnchor: [0, -17]
-    });
-
-    // Marcador local
     let selfMarker = null;
-    let initialLock = false;
 
-    // 3. Geolocalización continua en segundo plano del navegador
+    // GPS con auto-centrado inmediato
     if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
+          const label = (currentUnit || "Móvil") + " (Tú)";
 
           if (!selfMarker) {
             selfMarker = L.marker([lat, lon], { icon: carIcon }).addTo(map);
-            selfMarker.bindTooltip("Móvil (Tú)", { permanent: true, direction: 'top', className: 'unit-tag' });
+            selfMarker.bindTooltip(label, { permanent: true, direction: 'top', className: 'unit-tag' });
+            map.setView([lat, lon], 17); // Auto-centrado con zoom nítido
           } else {
             selfMarker.setLatLng([lat, lon]);
           }
-
-          // Centrado inicial automático
-          if (!initialLock) {
-            map.setView([lat, lon], 16);
-            initialLock = true;
-          }
         },
-        (err) => console.warn('Error GPS:', err.message),
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 10000
-        }
+        (err) => console.warn('GPS Error:', err.message),
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
     }
 
-    // 4. Modo Silencio de Cabina (Mute sin apagar rastreo)
+    // Silencio de Cabina
     let isMuted = false;
     const btnMute = document.getElementById('btn-mute');
     const lblAudioStatus = document.getElementById('lbl-audio-status');
@@ -330,18 +437,16 @@
         btnMute.classList.add('active-mute');
         btnMute.innerHTML = '<span>🔇</span> Silencio Activo';
         lblAudioStatus.textContent = 'Muteado';
-        lblAudioStatus.className = '';
         lblAudioStatus.style.color = '#ef4444';
       } else {
         btnMute.classList.remove('active-mute');
         btnMute.innerHTML = '<span>🔊</span> Silencio Cabina';
         lblAudioStatus.textContent = 'Abierto';
-        lblAudioStatus.className = 'status-active';
         lblAudioStatus.style.color = '#10b981';
       }
     });
 
-    // 5. Alternar Vista Satélite / Calles
+    // Alternar Satélite
     let isSatellite = false;
     const btnLayer = document.getElementById('btn-layer');
 
@@ -349,17 +454,17 @@
       if (isSatellite) {
         map.removeLayer(googleSatellite);
         map.addLayer(googleRoads);
-        btnLayer.innerHTML = '<span>🛰️</span> Modo Satélite';
+        btnLayer.innerHTML = '<span>🛰️</span> Vista Satélite';
         isSatellite = false;
       } else {
         map.removeLayer(googleRoads);
         map.addLayer(googleSatellite);
-        btnLayer.innerHTML = '<span>🗺️</span> Modo Calles';
+        btnLayer.innerHTML = '<span>🗺️</span> Vista Calles';
         isSatellite = true;
       }
     });
 
-    // 6. Eventos Táctiles y de Ratón para Botón PTT
+    // PTT Events
     const btnPtt = document.getElementById('btn-ptt');
     const channelStatus = document.getElementById('channel-status');
 
@@ -377,15 +482,15 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // Eventos táctiles móviles
     btnPtt.addEventListener('touchstart', startTalking, { passive: false });
     btnPtt.addEventListener('touchend', stopTalking, { passive: false });
     btnPtt.addEventListener('touchcancel', stopTalking, { passive: false });
-
-    // Eventos mouse PC
     btnPtt.addEventListener('mousedown', startTalking);
     btnPtt.addEventListener('mouseup', stopTalking);
     btnPtt.addEventListener('mouseleave', stopTalking);
+
+    // Iniciar comprobación de usuario
+    checkAuth();
   </script>
 </body>
 </html>
