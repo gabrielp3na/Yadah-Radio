@@ -141,11 +141,17 @@
       width: 100%;
       position: relative;
       overflow: hidden;
+      background-color: #0f172a;
     }
 
     #map {
       width: 100%;
       height: 100%;
+    }
+
+    /* MODO NOCHE APLICADO AL MAPA (Filtro visual ultra-optimizado) */
+    .map-night-mode .maplibregl-canvas {
+      filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
     .map-floating-controls {
@@ -401,6 +407,7 @@
   <div id="map-container">
     <div id="map"></div>
     <div class="map-floating-controls">
+      <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
     </div>
@@ -443,14 +450,16 @@
 
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
-    const lblNet = document.getElementById('lbl-net');
     const lblSpeed = document.getElementById('lbl-speed');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
     const radioSpeaker = document.getElementById('radio-speaker');
     const btnViewMode = document.getElementById('btn-view-mode');
+    const btnThemeMode = document.getElementById('btn-theme-mode');
+    const mapContainer = document.getElementById('map-container');
 
     let firstPersonMode = true;
+    let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
 
     function checkAuth() {
       if (currentUnit) {
@@ -458,6 +467,7 @@
         lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
         updateViewButtonUI();
+        applyNightModeTheme();
         connectNetwork();
       } else {
         loginScreen.style.display = 'flex';
@@ -471,6 +481,7 @@
       loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
       updateViewButtonUI();
+      applyNightModeTheme();
       unlockAudioHardware();
       connectNetwork();
     }
@@ -484,6 +495,25 @@
       btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
       btnViewMode.classList.toggle('active', firstPersonMode);
     }
+
+    // --- Control Modo Noche / Día ---
+    function applyNightModeTheme() {
+      if (isNightMode) {
+        mapContainer.classList.add('map-night-mode');
+        btnThemeMode.textContent = '☀️';
+        btnThemeMode.classList.add('active');
+      } else {
+        mapContainer.classList.remove('map-night-mode');
+        btnThemeMode.textContent = '🌙';
+        btnThemeMode.classList.remove('active');
+      }
+      localStorage.setItem('yadah_night_mode', isNightMode);
+    }
+
+    btnThemeMode.addEventListener('click', () => {
+      isNightMode = !isNightMode;
+      applyNightModeTheme();
+    });
 
     // --- 2. Desbloqueo y Tonos ---
     let audioCtx = null;
@@ -548,7 +578,7 @@
       bearing: 0
     });
 
-    // --- 4. Marcadores Seguros (Sin errores de render) ---
+    // --- 4. Marcadores ---
     function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -623,7 +653,6 @@
       if (!myLastCoords) return;
 
       if (firstPersonMode && isDriver()) {
-        // Primera Persona: Rasante y con el auto en la parte inferior
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 18.5,
@@ -633,7 +662,6 @@
           duration: 600
         });
       } else {
-        // Vista Cenital (Despachador/Base)
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 16.5,
@@ -645,7 +673,7 @@
       }
     }
 
-    // --- 5. Red MQTT a prueba de fallos ---
+    // --- 5. Red MQTT ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -661,7 +689,6 @@
       });
 
       mqttClient.on('connect', () => {
-        console.log("MQTT Conectado con éxito");
         mqttClient.subscribe(TOPIC_GPS);
         mqttClient.subscribe(TOPIC_VOICE);
         mqttClient.subscribe(TOPIC_ALERT);
@@ -692,8 +719,6 @@
           console.error("Error al procesar mensaje MQTT:", e);
         }
       });
-
-      mqttClient.on('error', (err) => console.error("Error en MQTT:", err));
     }
 
     // --- 6. GPS ---
@@ -763,7 +788,7 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 7. PTT (Transmisión Inmediata y Confiable) ---
+    // --- 7. PTT Transmisor ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -900,7 +925,7 @@
       }
     }
 
-    // Eventos táctiles y ratón
+    // Eventos PTT
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -908,7 +933,7 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // Barra Espaciadora
+    // Barra Espaciadora en Teclado
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
@@ -1000,7 +1025,6 @@
       }
     }
 
-    // Iniciar
     checkAuth();
   </script>
 </body>
