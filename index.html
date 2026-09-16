@@ -256,7 +256,7 @@
       color: #030712;
     }
 
-    /* BUZON */
+    /* BUZÓN */
     #history-modal {
       position: fixed;
       inset: 0;
@@ -315,7 +315,7 @@
       cursor: pointer;
     }
 
-    /* MARCADORES 3D */
+    /* MARCADORES */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -350,13 +350,12 @@
     }
 
     .car-svg-rotator {
-      width: 38px;
-      height: 38px;
+      width: 42px;
+      height: 42px;
       transition: transform 0.2s linear;
       transform-origin: center center;
     }
 
-    /* Ícono exclusivo para la base modulador */
     .base-icon {
       font-size: 1.8rem;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
@@ -414,7 +413,7 @@
     </div>
   </div>
 
-  <!-- PANEL INFERIOR PTT -->
+  <!-- PANEL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -457,8 +456,7 @@
     const radioSpeaker = document.getElementById('radio-speaker');
     const btnViewMode = document.getElementById('btn-view-mode');
 
-    // Los móviles inician por defecto en 1ª persona; el Modulador en vista libre cenital
-    let firstPersonMode = false;
+    let firstPersonMode = true;
 
     function checkAuth() {
       if (currentUnit) {
@@ -493,7 +491,7 @@
       btnViewMode.classList.toggle('active', firstPersonMode);
     }
 
-    // --- 2. Desbloqueo y Tonos Roger Beep ---
+    // --- 2. Desbloqueo y Tonos ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -522,9 +520,10 @@
       } catch (e) {}
     }
 
-    // --- 3. Google Maps en 3D ---
+    // --- 3. Google Maps en 3D con Perspectiva Forzada (maxPitch: 85) ---
     const map = new maplibregl.Map({
       container: 'map',
+      maxPitch: 85, // Permite inclinación rasante tipo videojuego / Google Navigation
       style: {
         version: 8,
         sources: {
@@ -548,12 +547,12 @@
         }]
       },
       center: [-89.2182, 13.6929],
-      zoom: 16.5,
-      pitch: 50,
+      zoom: 18,
+      pitch: 68, // Vista inclinada por defecto
       bearing: 0
     });
 
-    // --- 4. Marcadores Diferenciados (Base vs Móviles) ---
+    // --- 4. Marcadores ---
     function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -572,7 +571,7 @@
         rotator.innerHTML = `<div class="base-icon">🏢</div>`;
       } else {
         rotator.innerHTML = `
-          <svg viewBox="0 0 48 48" width="38" height="38">
+          <svg viewBox="0 0 48 48" width="42" height="42">
             <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
             <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
             <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
@@ -649,7 +648,7 @@
       }
     }
 
-    // Alternador manual de vista (1ª persona vs Vista Libre)
+    // Cámara en Primera Persona / Cenital
     btnViewMode.addEventListener('click', () => {
       firstPersonMode = !firstPersonMode;
       updateViewButtonUI();
@@ -660,29 +659,30 @@
       if (!myLastCoords) return;
 
       if (firstPersonMode) {
-        // Modo Primera Persona: Auto en tercio inferior, cámara detrás orientada al rumbo
+        // Modo Primera Persona: Auto en el tercio inferior, cámara a 68°
+        const offsetY = window.innerHeight ? window.innerHeight * 0.25 : 180;
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 18,
-          pitch: 62, // Perspectiva rasante de calle
+          zoom: 18.5,
+          pitch: 68,
           bearing: myHeading,
-          offset: [0, 160], // Desplaza el vehículo hacia abajo dejando ver el camino frontal
+          offset: [0, offsetY],
           duration: 600
         });
       } else {
-        // Modo Cenital / Despacho
+        // Modo Cenital Panorámico
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 16.5,
-          pitch: 45,
+          pitch: 30,
           bearing: 0,
           offset: [0, 0],
-          duration: 800
+          duration: 600
         });
       }
     }
 
-    // --- 5. Red Telemática (MQTT) ---
+    // --- 5. Red Telemática ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -731,7 +731,7 @@
       });
     }
 
-    // --- 6. GPS y Modo Primera Persona Continuo ---
+    // --- 6. GPS y Rastro de Navegación ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -782,12 +782,12 @@
             applyCameraPerspective();
             initialCentering = true;
           } else if (firstPersonMode) {
-            // Actualización fluida continua del parabrisas
+            const offsetY = window.innerHeight ? window.innerHeight * 0.25 : 180;
             map.easeTo({
               center: [lon, lat],
               bearing: myHeading,
-              pitch: 62,
-              offset: [0, 160],
+              pitch: 68,
+              offset: [0, offsetY],
               duration: 900
             });
           }
@@ -799,7 +799,7 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 7. Transmisor Walkie-Talkie (PTT) ---
+    // --- 7. PTT Transmisor ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -893,7 +893,7 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // --- 8. Reproducción en Vivo ---
+    // --- 8. Reproducción de Audio ---
     function receiveVoiceWalkieTalkie(voiceData) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -939,7 +939,6 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // Barra espaciadora en PC
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
