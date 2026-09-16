@@ -32,7 +32,6 @@
       overflow: hidden;
     }
 
-    /* PANTALLA SELECTOR */
     #login-screen {
       position: fixed;
       inset: 0;
@@ -98,7 +97,6 @@
       color: #0b0f19;
     }
 
-    /* BARRA SUPERIOR */
     header {
       background-color: #111827;
       padding: 8px 12px;
@@ -135,7 +133,6 @@
       cursor: pointer;
     }
 
-    /* MAPA */
     #map-container {
       flex: 1;
       width: 100%;
@@ -153,7 +150,6 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* BOTONES FLOTANTES LATERALES BIEN VISIBLES */
     .map-floating-controls {
       position: absolute;
       top: 65px;
@@ -185,7 +181,6 @@
       color: #111827;
     }
 
-    /* CONTROLES PTT INFERIORES */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
@@ -263,7 +258,6 @@
       color: #030712;
     }
 
-    /* BUZÓN */
     #history-modal {
       position: fixed;
       inset: 0;
@@ -322,7 +316,6 @@
       cursor: pointer;
     }
 
-    /* MARCADORES */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -366,7 +359,6 @@
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
-  <!-- SELECTOR DE UNIDAD -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
@@ -393,7 +385,6 @@
     </div>
   </div>
 
-  <!-- CABECERA -->
   <header>
     <div class="brand">
       <span>📻</span> Yadah PTT Live
@@ -404,10 +395,8 @@
     </div>
   </header>
 
-  <!-- MAPA GOOGLE 3D -->
   <div id="map-container">
     <div id="map"></div>
-    <!-- BOTONES FLOTANTES A LA DERECHA -->
     <div class="map-floating-controls">
       <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
@@ -416,7 +405,6 @@
     </div>
   </div>
 
-  <!-- PANEL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -433,7 +421,6 @@
     </button>
   </div>
 
-  <!-- BUZÓN -->
   <div id="history-modal" onclick="toggleHistory(false)">
     <div class="history-card" onclick="event.stopPropagation()">
       <div class="history-head">
@@ -447,7 +434,6 @@
   </div>
 
   <script>
-    // --- 1. Autenticación y Perfil ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
 
@@ -466,8 +452,16 @@
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTrails = true;
 
-    // Almacén de coordenadas por unidad: { "Móvil 14": [[lon, lat], ...] }
     const unitTrails = {};
+
+    // Mantener la pantalla encendida (Wake Lock API)
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {}
+    }
 
     function checkAuth() {
       if (currentUnit) {
@@ -477,6 +471,7 @@
         updateViewButtonUI();
         applyNightModeTheme();
         btnTrailMode.classList.toggle('active', showTrails);
+        requestWakeLock();
         connectNetwork();
       } else {
         loginScreen.style.display = 'flex';
@@ -492,6 +487,7 @@
       updateViewButtonUI();
       applyNightModeTheme();
       btnTrailMode.classList.toggle('active', showTrails);
+      requestWakeLock();
       unlockAudioHardware();
       connectNetwork();
     }
@@ -532,7 +528,6 @@
       }
     });
 
-    // --- 2. Desbloqueo y Tonos ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -563,7 +558,6 @@
       } catch (e) {}
     }
 
-    // --- 3. Google Maps en 3D ---
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -595,7 +589,6 @@
       bearing: 0
     });
 
-    // Inicializador garantizado de la capa de rutas
     function ensureTrailLayerExists() {
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
@@ -645,7 +638,6 @@
       });
     }
 
-    // --- 4. Marcadores ---
     function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -708,7 +700,6 @@
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
 
-      // Registro del rastro de recorrido
       if (!isBase) {
         if (!unitTrails[unitId]) unitTrails[unitId] = [];
         const trail = unitTrails[unitId];
@@ -751,7 +742,6 @@
       }
     }
 
-    // --- 5. Red MQTT ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -799,7 +789,6 @@
       });
     }
 
-    // --- 6. GPS ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -814,8 +803,20 @@
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
+          const now = Date.now();
           let heading = pos.coords.heading;
-          let speedKmh = (pos.coords.speed !== null && !isNaN(pos.coords.speed)) ? pos.coords.speed * 3.6 : 0;
+          let speedKmh = 0;
+
+          // Cálculo de velocidad robusto: si el satélite no la manda, la calculamos por distancia
+          if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.8) {
+            speedKmh = pos.coords.speed * 3.6;
+          } else if (myLastCoords) {
+            const distMeters = Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon) * 111139;
+            const timeSeconds = (now - myLastCoords.timestamp) / 1000;
+            if (timeSeconds > 0 && distMeters > 2.5) {
+              speedKmh = (distMeters / timeSeconds) * 3.6;
+            }
+          }
 
           if (heading === null || isNaN(heading)) {
             if (myLastCoords) {
@@ -830,7 +831,7 @@
           }
 
           mySpeed = Math.round(speedKmh);
-          myLastCoords = { lat, lon };
+          myLastCoords = { lat, lon, timestamp: now };
           lblHeading.textContent = `${myHeading}°`;
           lblSpeed.textContent = `${mySpeed} km/h`;
 
@@ -866,7 +867,6 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 7. PTT Transmisor ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -960,7 +960,6 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // --- 8. Reproducción de Audio ---
     function receiveVoiceWalkieTalkie(voiceData) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -1003,7 +1002,6 @@
       }
     }
 
-    // Eventos PTT
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -1011,7 +1009,6 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // Tecla Espacio
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
@@ -1021,7 +1018,6 @@
       if (e.code === 'Space') stopAudioRecording(e);
     });
 
-    // --- 9. Buzón 24 Horas ---
     let cachedAudios = [];
 
     function getStoredAudios() {
