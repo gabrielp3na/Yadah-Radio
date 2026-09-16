@@ -150,9 +150,64 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
+    /* BARRA DE NAVEGACIÓN Y BÚSQUEDA TIPO GOOGLE MAPS */
+    #nav-search-bar {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      z-index: 2400;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 400px;
+    }
+
+    .search-input-box {
+      display: flex;
+      background: #111827;
+      border: 2px solid #38bdf8;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .search-input-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 10px 12px;
+      color: #f8fafc;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .search-input-box button {
+      background: #38bdf8;
+      border: none;
+      color: #0b0f19;
+      font-weight: 800;
+      padding: 0 14px;
+      cursor: pointer;
+    }
+
+    .nav-route-info {
+      background: #030712;
+      border: 1px solid #38bdf8;
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* CONTROLES FLOTANTES LATERALES */
     .map-floating-controls {
       position: absolute;
-      top: 65px;
+      top: 75px;
       right: 12px;
       display: flex;
       flex-direction: column;
@@ -181,6 +236,7 @@
       color: #111827;
     }
 
+    /* BOTÓN SOS */
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -479,6 +535,18 @@
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
+  <!-- NAVEGADOR Y BÚSQUEDA DE DESTINO -->
+  <div id="nav-search-bar">
+    <div class="search-input-box">
+      <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." />
+      <button onclick="searchAndRouteDestination()">Ir 🚀</button>
+    </div>
+    <div class="nav-route-info" id="nav-route-info">
+      <span id="lbl-route-stats">Calculando...</span>
+      <button style="background:transparent; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" onclick="cancelNavigation()">✕ Cancelar</button>
+    </div>
+  </div>
+
   <div id="vehicle-history-card">
     <div class="vh-header">
       <span id="vh-unit-name">Móvil</span>
@@ -549,6 +617,7 @@
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
+      <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
@@ -585,7 +654,7 @@
   </div>
 
   <script>
-    // --- 1. Base de Datos IndexedDB (24 Horas) ---
+    // --- 1. Base de Datos IndexedDB ---
     let db = null;
     const DB_NAME = 'YadahFleetDB';
     const STORE_NAME = 'gps_points';
@@ -610,14 +679,7 @@
       if (!db) return;
       const tx = db.transaction([STORE_NAME], 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      store.add({
-        unit,
-        lon,
-        lat,
-        speed,
-        heading,
-        timestamp: Date.now()
-      });
+      store.add({ unit, lon, lat, speed, heading, timestamp: Date.now() });
     }
 
     function cleanOldTelemetry() {
@@ -652,17 +714,23 @@
     const btnViewMode = document.getElementById('btn-view-mode');
     const btnThemeMode = document.getElementById('btn-theme-mode');
     const btnTrailMode = document.getElementById('btn-trail-mode');
+    const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
     const btnSos = document.getElementById('btn-sos');
     const mapContainer = document.getElementById('map-container');
     const vehicleHistoryCard = document.getElementById('vehicle-history-card');
+    const navSearchBar = document.getElementById('nav-search-bar');
+    const navRouteInfo = document.getElementById('nav-route-info');
+    const lblRouteStats = document.getElementById('lbl-route-stats');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTrails = true;
+    let showTraffic = true;
     const unitTrails = {};
     let activeHistoryUnit = null;
     let isSosActive = false;
     let sirenInterval = null;
+    let currentDestinationCoords = null;
 
     async function requestWakeLock() {
       try {
@@ -679,6 +747,7 @@
         if (!isModulator()) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
+        btnTrafficToggle.classList.toggle('active', showTraffic);
         btnTrailMode.classList.toggle('active', showTrails);
         requestWakeLock();
         connectNetwork();
@@ -697,6 +766,7 @@
       if (!isModulator()) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
+      btnTrafficToggle.classList.toggle('active', showTraffic);
       btnTrailMode.classList.toggle('active', showTrails);
       requestWakeLock();
       unlockAudioHardware();
@@ -736,6 +806,15 @@
       btnTrailMode.classList.toggle('active', showTrails);
       if (map.getLayer('route-trails-layer')) {
         map.setLayoutProperty('route-trails-layer', 'visibility', showTrails ? 'visible' : 'none');
+      }
+    });
+
+    // Alternar capa de tráfico en vivo
+    btnTrafficToggle.addEventListener('click', () => {
+      showTraffic = !showTraffic;
+      btnTrafficToggle.classList.toggle('active', showTraffic);
+      if (map.getLayer('google-traffic-layer')) {
+        map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
       }
     });
 
@@ -789,7 +868,7 @@
       } catch (e) {}
     }
 
-    // --- 4. Google Maps 3D Configurado para Primera Persona Rasante ---
+    // --- 4. Google Maps 3D con Tráfico en Vivo ---
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -798,7 +877,7 @@
       style: {
         version: 8,
         sources: {
-          'google-roads': {
+          'google-base': {
             type: 'raster',
             tiles: [
               'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
@@ -807,15 +886,35 @@
               'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
             ],
             tileSize: 256
+          },
+          'google-traffic': {
+            type: 'raster',
+            tiles: [
+              'https://mt0.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+              'https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+              'https://mt2.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+              'https://mt3.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}'
+            ],
+            tileSize: 256
           }
         },
-        layers: [{
-          id: 'google-layer',
-          type: 'raster',
-          source: 'google-roads',
-          minzoom: 0,
-          maxzoom: 22
-        }]
+        layers: [
+          {
+            id: 'google-base-layer',
+            type: 'raster',
+            source: 'google-base',
+            minzoom: 0,
+            maxzoom: 22
+          },
+          {
+            id: 'google-traffic-layer',
+            type: 'raster',
+            source: 'google-traffic',
+            minzoom: 0,
+            maxzoom: 22,
+            layout: { visibility: 'visible' }
+          }
+        ]
       },
       center: [-89.2182, 13.6929],
       zoom: 17,
@@ -823,7 +922,8 @@
       bearing: 0
     });
 
-    function ensureTrailLayerExists() {
+    function ensureLayersExist() {
+      // Capa de Rastro Histórico
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
           type: 'geojson',
@@ -835,25 +935,154 @@
           id: 'route-trails-layer',
           type: 'line',
           source: 'route-trails',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
-            'visibility': showTrails ? 'visible' : 'none'
-          },
-          paint: {
-            'line-color': '#0284c7',
-            'line-width': 6,
-            'line-opacity': 0.85
-          }
+          layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': showTrails ? 'visible' : 'none' },
+          paint: { 'line-color': '#0284c7', 'line-width': 6, 'line-opacity': 0.85 }
+        });
+      }
+
+      // Capa de Navegación GPS (Ruta de Destino)
+      if (!map.getSource('nav-active-route')) {
+        map.addSource('nav-active-route', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      if (!map.getLayer('nav-active-route-casing')) {
+        map.addLayer({
+          id: 'nav-active-route-casing',
+          type: 'line',
+          source: 'nav-active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#0369a1', 'line-width': 10, 'line-opacity': 0.9 }
+        });
+      }
+      if (!map.getLayer('nav-active-route-layer')) {
+        map.addLayer({
+          id: 'nav-active-route-layer',
+          type: 'line',
+          source: 'nav-active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#38bdf8', 'line-width': 6, 'line-opacity': 1.0 }
         });
       }
     }
 
-    map.on('load', ensureTrailLayerExists);
+    map.on('load', ensureLayersExist);
 
+    // Tocar el mapa directamente para fijar destino
+    map.on('click', (e) => {
+      if (isDriver() && !activeHistoryUnit) {
+        requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
+      }
+    });
+
+    // --- 5. Motor de Navegación OSRM & Geocodificación ---
+    let destinationMarker = null;
+
+    async function searchAndRouteDestination() {
+      const query = document.getElementById('input-destination').value.trim();
+      if (!query) return;
+
+      try {
+        lblRouteStats.textContent = 'Buscando lugar...';
+        navRouteInfo.style.display = 'flex';
+
+        // Búsqueda geográfica gratuita vía Nominatim
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const results = await resp.json();
+
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          requestRouteToDestination(lon, lat, results[0].display_name.split(',')[0]);
+        } else {
+          alert("Lugar no encontrado. Intenta con un nombre más específico o toca directamente el mapa.");
+          navRouteInfo.style.display = 'none';
+        }
+      } catch (err) {
+        console.error("Error buscando:", err);
+      }
+    }
+
+    async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
+      if (!myLastCoords) {
+        alert("Esperando señal de GPS para trazar navegación...");
+        return;
+      }
+
+      currentDestinationCoords = [destLon, destLat];
+
+      if (destinationMarker) destinationMarker.remove();
+      const el = document.createElement('div');
+      el.style.fontSize = '2.2rem';
+      el.innerHTML = '🏁';
+      destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
+
+      try {
+        lblRouteStats.textContent = 'Calculando trayecto...';
+        navRouteInfo.style.display = 'flex';
+
+        // API de cálculo de ruta OSRM
+        const url = `https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const distKm = (route.distance / 1000).toFixed(1);
+          const mins = Math.round(route.duration / 60);
+
+          lblRouteStats.textContent = `🏁 ${label}: ${distKm} km (~${mins} min)`;
+
+          ensureLayersExist();
+          map.getSource('nav-active-route').setData({
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              geometry: route.geometry,
+              properties: {}
+            }]
+          });
+
+          // Notificar a la base central la ruta de navegación activa
+          if (mqttClient && mqttClient.connected && currentUnit) {
+            mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({
+              unit: currentUnit,
+              geometry: route.geometry,
+              label: label,
+              distKm: distKm,
+              mins: mins
+            }));
+          }
+        }
+      } catch (e) {
+        console.error("Error calculando ruta:", e);
+      }
+    }
+
+    function cancelNavigation() {
+      currentDestinationCoords = null;
+      if (destinationMarker) {
+        destinationMarker.remove();
+        destinationMarker = null;
+      }
+      navRouteInfo.style.display = 'none';
+      document.getElementById('input-destination').value = '';
+      if (map.getSource('nav-active-route')) {
+        map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({
+          unit: currentUnit,
+          canceled: true
+        }));
+      }
+    }
+
+    // --- 6. Rastro Histórico y Marcadores ---
     function updateTrailsMap() {
       if (activeHistoryUnit) return;
-      ensureTrailLayerExists();
+      ensureLayersExist();
       const source = map.getSource('route-trails');
       if (!source) return;
 
@@ -867,13 +1096,9 @@
         };
       }).filter(Boolean);
 
-      source.setData({
-        type: 'FeatureCollection',
-        features: features
-      });
+      source.setData({ type: 'FeatureCollection', features });
     }
 
-    // --- 5. Historial con Clic (Solo Modulador) ---
     function openVehicleHistory(unitName) {
       if (!isModulator()) return;
       activeHistoryUnit = unitName;
@@ -907,7 +1132,7 @@
           }
           cursor.continue();
         } else {
-          ensureTrailLayerExists();
+          ensureLayersExist();
           const source = map.getSource('route-trails');
           if (source) {
             source.setData({
@@ -1038,24 +1263,20 @@
       applyCameraPerspective();
     });
 
-    // --- CÁMARA PRIMERA PERSONA REAL (RASANTE Y CERCA) ---
     function applyCameraPerspective() {
       if (!myLastCoords) return;
 
       if (firstPersonMode && isDriver()) {
-        // Altura proporcional: baja el auto al tercio inferior de la pantalla
         const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
-
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 19.8,       // Zoom cercano real (nivel de calle)
-          pitch: 78,        // Ángulo muy rasante, efecto cabina
-          bearing: myHeading, // Hacia donde apunta el auto
-          offset: [0, screenOffset], // Ubica el carro abajo y la calle al frente
+          zoom: 19.8,
+          pitch: 78,
+          bearing: myHeading,
+          offset: [0, screenOffset],
           duration: 600
         });
       } else {
-        // Modo Despacho Cenital
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 16.5,
@@ -1067,12 +1288,13 @@
       }
     }
 
-    // --- 6. Red MQTT & Pánico SOS ---
+    // --- 7. Red MQTT & Pánico SOS ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
     const TOPIC_ALERT = 'yadah/radio/flota/alert';
     const TOPIC_PANIC = 'yadah/radio/flota/panic';
+    const TOPIC_NAV = 'yadah/radio/flota/navigation';
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -1111,6 +1333,7 @@
         mqttClient.subscribe(TOPIC_VOICE);
         mqttClient.subscribe(TOPIC_ALERT);
         mqttClient.subscribe(TOPIC_PANIC);
+        mqttClient.subscribe(TOPIC_NAV);
       });
 
       mqttClient.on('message', (topic, message) => {
@@ -1120,6 +1343,19 @@
             const data = JSON.parse(text);
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
+            }
+          } else if (topic === TOPIC_NAV) {
+            const nav = JSON.parse(text);
+            if (isModulator()) {
+              ensureLayersExist();
+              if (nav.canceled) {
+                map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
+              } else if (nav.geometry) {
+                map.getSource('nav-active-route').setData({
+                  type: 'FeatureCollection',
+                  features: [{ type: 'Feature', geometry: nav.geometry, properties: {} }]
+                });
+              }
             }
           } else if (topic === TOPIC_PANIC) {
             const panic = JSON.parse(text);
@@ -1158,7 +1394,7 @@
       });
     }
 
-    // --- 7. GPS y Velocidad ---
+    // --- 8. GPS en Marcha & Recalculación de Ruta ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -1239,7 +1475,7 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- 8. Transmisión Walkie-Talkie ---
+    // --- 9. Transmisión Walkie-Talkie ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -1391,7 +1627,7 @@
       if (e.code === 'Space') stopAudioRecording(e);
     });
 
-    // --- 9. Buzón 24 Horas ---
+    // --- 10. Buzón 24 Horas ---
     let cachedAudios = [];
 
     function getStoredAudios() {
