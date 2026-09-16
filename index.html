@@ -32,7 +32,7 @@
       overflow: hidden;
     }
 
-    /* PANTALLA DE SELECCIÓN DE UNIDAD */
+    /* PANTALLA SELECTOR */
     #login-screen {
       position: fixed;
       inset: 0;
@@ -167,7 +167,7 @@
       z-index: 500;
     }
 
-    /* CONTROLES PTT INFERIORES */
+    /* PANEL INFERIOR PTT */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
@@ -245,7 +245,7 @@
       color: #030712;
     }
 
-    /* HISTORIAL */
+    /* BUZON */
     #history-modal {
       position: fixed;
       inset: 0;
@@ -304,7 +304,7 @@
       cursor: pointer;
     }
 
-    /* AUTO 3D TOP-DOWN */
+    /* AUTO 3D */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -336,14 +336,14 @@
 </head>
 <body>
 
-  <!-- ELEMENTO REPRODUCTOR AUXILIAR -->
-  <audio id="remote-player" playsinline preload="auto"></audio>
+  <!-- ELEMENTO REPRODUCTOR FIJO DE RADIO -->
+  <audio id="radio-speaker" playsinline preload="auto"></audio>
 
   <!-- PANTALLA DE ACCESO -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
-      <p>Selecciona tu terminal de despacho</p>
+      <p>Selecciona tu terminal</p>
     </div>
     <div class="grid-units">
       <button class="btn-unit-select modulador" onclick="selectUnit('Modulador')">
@@ -377,7 +377,7 @@
     </div>
   </header>
 
-  <!-- MAPA 3D CON GOOGLE MAPS -->
+  <!-- MAPA GOOGLE MAPS 3D -->
   <div id="map-container">
     <div id="map"></div>
     <button class="btn-recenter" id="btn-recenter" title="Re-centrar">🎯</button>
@@ -408,20 +408,20 @@
         <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem; padding:4px;" onclick="toggleHistory(false)">✕</span>
       </div>
       <div class="history-list" id="history-list">
-        <p style="color:#64748b; font-size:0.8rem;">No hay registros en el canal.</p>
+        <p style="color:#64748b; font-size:0.8rem;">No hay transmisiones registradas.</p>
       </div>
     </div>
   </div>
 
   <script>
-    // --- 1. Autenticación e Identidad ---
+    // --- 1. Identidad ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
     const lblNet = document.getElementById('lbl-net');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
-    const remotePlayer = document.getElementById('remote-player');
+    const radioSpeaker = document.getElementById('radio-speaker');
 
     function checkAuth() {
       if (currentUnit) {
@@ -438,7 +438,7 @@
       localStorage.setItem('yadah_terminal_id', id);
       lblUnit.textContent = id;
       loginScreen.style.display = 'none';
-      unlockHardwareAudio();
+      unlockAudioHardware();
       connectNetwork();
     }
 
@@ -447,27 +447,41 @@
       location.reload();
     }
 
-    // --- 2. Desbloqueo Seguro de Audio en Móvil ---
-    let audioUnlocked = false;
+    // --- 2. Desbloqueo y Generador de Tonos Radio (Roger Beep) ---
     let audioCtx = null;
 
-    function unlockHardwareAudio() {
+    function unlockAudioHardware() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
-      if (!audioUnlocked) {
-        remotePlayer.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-        remotePlayer.play().then(() => { audioUnlocked = true; }).catch(() => {});
-      }
+      // Reproducir sonido silencioso para activar el altavoz físico
+      radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+      radioSpeaker.play().catch(() => {});
     }
 
-    window.addEventListener('touchstart', unlockHardwareAudio, { passive: true });
-    window.addEventListener('click', unlockHardwareAudio, { passive: true });
+    window.addEventListener('touchstart', unlockAudioHardware, { passive: true });
+    window.addEventListener('click', unlockAudioHardware, { passive: true });
 
-    // --- 3. Google Maps 3D en MapLibre ---
+    function playBeep(freq = 880, duration = 0.08) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    // --- 3. Google Maps en 3D ---
     const map = new maplibregl.Map({
       container: 'map',
       style: {
@@ -498,7 +512,7 @@
       bearing: 0
     });
 
-    // --- 4. Marcadores de Autos con Interpolación Suave ---
+    // --- 4. Marcadores de Autos 3D ---
     function createCarElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -536,7 +550,7 @@
           .setLngLat([lon, lat])
           .addTo(map);
 
-        fleetMarkers[unitId] = { marker, rotator, element: container };
+        fleetMarkers[unitId] = { marker, rotator };
       } else {
         fleetMarkers[unitId].marker.setLngLat([lon, lat]);
       }
@@ -546,11 +560,11 @@
       }
     }
 
-    // --- 5. Red Telemática y Control de Canal ---
+    // --- 5. Red Telemática (MQTT) ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
-    const TOPIC_STREAM = 'yadah/radio/flota/stream';
-    const TOPIC_CONTROL = 'yadah/radio/flota/control';
+    const TOPIC_VOICE = 'yadah/radio/flota/voice';
+    const TOPIC_ALERT = 'yadah/radio/flota/alert';
 
     function connectNetwork() {
       if (mqttClient) return;
@@ -565,8 +579,8 @@
         lblNet.style.color = '#10b981';
 
         mqttClient.subscribe(TOPIC_GPS);
-        mqttClient.subscribe(TOPIC_STREAM);
-        mqttClient.subscribe(TOPIC_CONTROL);
+        mqttClient.subscribe(TOPIC_VOICE);
+        mqttClient.subscribe(TOPIC_ALERT);
       });
 
       mqttClient.on('message', (topic, message) => {
@@ -576,21 +590,17 @@
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading);
             }
-          } else if (topic === TOPIC_CONTROL) {
-            const ctrl = JSON.parse(message.toString());
-            if (ctrl.action === 'start' && ctrl.sender !== currentUnit) {
+          } else if (topic === TOPIC_ALERT) {
+            const alertData = JSON.parse(message.toString());
+            if (alertData.sender !== currentUnit) {
               channelStatus.className = 'channel-status receiving';
-              channelStatus.textContent = `▼ ENTRANTE: ${ctrl.sender}`;
-              prepareIncomingStream(ctrl.sender);
-            } else if (ctrl.action === 'stop' && ctrl.sender !== currentUnit) {
-              channelStatus.className = 'channel-status';
-              channelStatus.textContent = '● CANAL LIBRE';
-              finalizeIncomingStream(ctrl.sender);
+              channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
+              playBeep(660, 0.06);
             }
-          } else if (topic === TOPIC_STREAM) {
-            const chunk = JSON.parse(message.toString());
-            if (chunk.sender !== currentUnit) {
-              pushStreamChunk(chunk.payload);
+          } else if (topic === TOPIC_VOICE) {
+            const voice = JSON.parse(message.toString());
+            if (voice.sender !== currentUnit) {
+              receiveVoiceWalkieTalkie(voice);
             }
           }
         } catch (e) {
@@ -599,7 +609,7 @@
       });
     }
 
-    // --- 6. GPS y Cálculo de Orientación ---
+    // --- 6. GPS ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -647,7 +657,7 @@
             initialCentering = true;
           }
         },
-        (err) => console.warn('GPS Warning:', err.message),
+        (err) => console.warn('GPS:', err.message),
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
     }
@@ -658,24 +668,15 @@
       }
     });
 
-    // --- 7. Motor de Transmisión Directa de Voz ---
+    // --- 7. Transmisor Walkie-Talkie (PTT Robusto) ---
     let mediaRecorder = null;
+    let audioChunks = [];
     let audioStream = null;
     const btnPtt = document.getElementById('btn-ptt');
 
-    function getSupportedMimeType() {
-      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac'];
-      for (let t of types) {
-        if (MediaRecorder.isTypeSupported(t)) return t;
-      }
-      return '';
-    }
-
-    let outgoingChunks = [];
-
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
-      unlockHardwareAudio();
+      unlockAudioHardware();
 
       try {
         if (!audioStream) {
@@ -688,56 +689,64 @@
           });
         }
 
-        const mimeType = getSupportedMimeType();
-        mediaRecorder = mimeType ? new MediaRecorder(audioStream, { mimeType }) : new MediaRecorder(audioStream);
-        outgoingChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
 
-        // Aviso inmediato de ocupación de canal
-        if (mqttClient && mqttClient.connected) {
-          mqttClient.publish(TOPIC_CONTROL, JSON.stringify({ action: 'start', sender: currentUnit }));
-        }
+        mediaRecorder = mime ? new MediaRecorder(audioStream, { mimeType: mime }) : new MediaRecorder(audioStream);
+        audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
           if (event.data && event.data.size > 0) {
-            outgoingChunks.push(event.data);
-            // Transmisión inmediata en paquetes
-            const reader = new FileReader();
-            reader.readAsDataURL(event.data);
-            reader.onloadend = () => {
-              if (mqttClient && mqttClient.connected) {
-                mqttClient.publish(TOPIC_STREAM, JSON.stringify({
-                  sender: currentUnit,
-                  payload: reader.result
-                }));
-              }
-            };
+            audioChunks.push(event.data);
           }
         };
 
         mediaRecorder.onstop = () => {
-          if (outgoingChunks.length > 0) {
-            const finalBlob = new Blob(outgoingChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-            const finalReader = new FileReader();
-            finalReader.readAsDataURL(finalBlob);
-            finalReader.onloadend = () => {
-              saveAudioToHistory({
-                sender: `${currentUnit} (Tú)`,
-                payload: finalReader.result,
-                timestamp: Date.now()
-              });
+          if (audioChunks.length === 0) return;
+
+          const recordedType = mediaRecorder.mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunks, { type: recordedType });
+
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            const base64 = reader.result;
+            const payload = {
+              sender: currentUnit,
+              payload: base64,
+              type: recordedType,
+              timestamp: Date.now()
             };
-          }
-          if (mqttClient && mqttClient.connected) {
-            mqttClient.publish(TOPIC_CONTROL, JSON.stringify({ action: 'stop', sender: currentUnit }));
-          }
+
+            // Transmisión inmediata a todos los radios
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_VOICE, JSON.stringify(payload));
+            }
+
+            // Guardar en el buzón local
+            saveAudioToHistory({
+              sender: `${currentUnit} (Tú)`,
+              payload: base64,
+              timestamp: Date.now()
+            });
+          };
         };
 
-        mediaRecorder.start(120); // Ventanas ultrarrápidas de 120ms para baja latencia
+        // Iniciar grabación
+        mediaRecorder.start();
+        playBeep(920, 0.05); // Bip local de inicio de transmisión
+
+        // Notificar a la flota que se abrió el micrófono
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
+        }
+
         btnPtt.classList.add('active');
         channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
-        alert("Permite el acceso al micrófono en el navegador.");
+        alert("Permite el micrófono para poder hablar por radio.");
       }
     }
 
@@ -751,50 +760,47 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // --- 8. Receptor y Reproducción Continua ---
-    let incomingChunks = [];
-    let currentSender = '';
+    // --- 8. Reproducción Forzada por Altavoz en Vivo ---
+    function receiveVoiceWalkieTalkie(voiceData) {
+      channelStatus.className = 'channel-status receiving';
+      channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
 
-    function prepareIncomingStream(sender) {
-      incomingChunks = [];
-      currentSender = sender;
-    }
+      // Guardar en el buzón de 24 horas
+      saveAudioToHistory({
+        sender: voiceData.sender,
+        payload: voiceData.payload,
+        timestamp: voiceData.timestamp || Date.now()
+      });
 
-    function pushStreamChunk(base64Chunk) {
-      try {
-        const parts = base64Chunk.split(';base64,');
-        const contentType = parts[0].split(':')[1];
-        const raw = window.atob(parts[1]);
-        const uInt8Array = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; ++i) {
-          uInt8Array[i] = raw.charCodeAt(i);
-        }
-        const blob = new Blob([uInt8Array], { type: contentType });
-        incomingChunks.push(blob);
-
-        // Reproducción de paquetes continuos
-        const chunkUrl = URL.createObjectURL(blob);
-        const tempPlayer = new Audio(chunkUrl);
-        tempPlayer.play().catch(() => {});
-        tempPlayer.onended = () => URL.revokeObjectURL(chunkUrl);
-      } catch (e) {
-        console.error("Error decodificando paquete:", e);
+      // Decodificar Base64 a Blob binario
+      const parts = voiceData.payload.split(';base64,');
+      const contentType = parts[0].split(':')[1] || voiceData.type || 'audio/webm';
+      const raw = window.atob(parts[1]);
+      const uInt8Array = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
       }
-    }
+      const blob = new Blob([uInt8Array], { type: contentType });
+      const audioUrl = URL.createObjectURL(blob);
 
-    function finalizeIncomingStream(sender) {
-      if (incomingChunks.length > 0) {
-        const fullBlob = new Blob(incomingChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(fullBlob);
-        reader.onloadend = () => {
-          saveAudioToHistory({
-            sender: sender || currentSender || 'Móvil',
-            payload: reader.result,
-            timestamp: Date.now()
-          });
-        };
-      }
+      // Reproducción instantánea
+      radioSpeaker.src = audioUrl;
+      radioSpeaker.volume = 1.0;
+
+      radioSpeaker.play().then(() => {
+        playBeep(440, 0.04); // Bip de entrada de voz
+      }).catch(err => {
+        console.warn("Autoplay bloqueado. Disparando reproductor alterno:", err);
+        const fallbackAudio = new Audio(audioUrl);
+        fallbackAudio.play().catch(() => {});
+      });
+
+      radioSpeaker.onended = () => {
+        channelStatus.className = 'channel-status';
+        channelStatus.textContent = '● CANAL LIBRE';
+        playBeep(600, 0.05); // Roger beep al finalizar el mensaje
+        URL.revokeObjectURL(audioUrl);
+      };
     }
 
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
@@ -804,7 +810,7 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // --- 9. Buzón 24 Horas & Memoria Auto-Gestionada ---
+    // --- 9. Buzón 24 Horas ---
     let cachedAudios = [];
 
     function getStoredAudios() {
@@ -846,7 +852,7 @@
       const audios = getStoredAudios();
 
       if (audios.length === 0) {
-        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones en las últimas 24 horas.</p>';
+        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones registradas en las últimas 24 horas.</p>';
         return;
       }
 
@@ -865,13 +871,13 @@
     }
 
     function playAudioByIndex(index) {
-      unlockHardwareAudio();
+      unlockAudioHardware();
       const item = cachedAudios[index];
       if (!item || !item.payload) return;
 
       try {
         const parts = item.payload.split(';base64,');
-        const contentType = parts[0].split(':')[1];
+        const contentType = parts[0].split(':')[1] || 'audio/webm';
         const raw = window.atob(parts[1]);
         const uInt8Array = new Uint8Array(raw.length);
         for (let i = 0; i < raw.length; ++i) {
@@ -879,14 +885,13 @@
         }
         const blob = new Blob([uInt8Array], { type: contentType });
         const url = URL.createObjectURL(blob);
-        remotePlayer.src = url;
-        remotePlayer.play();
+        radioSpeaker.src = url;
+        radioSpeaker.play();
       } catch (err) {
         console.error("Error reproduciendo audio:", err);
       }
     }
 
-    // Inicialización del sistema
     checkAuth();
   </script>
 </body>
