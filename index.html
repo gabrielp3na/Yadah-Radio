@@ -32,6 +32,7 @@
       overflow: hidden;
     }
 
+    /* PANTALLA SELECTOR */
     #login-screen {
       position: fixed;
       inset: 0;
@@ -97,6 +98,7 @@
       color: #0b0f19;
     }
 
+    /* BARRA SUPERIOR */
     header {
       background-color: #111827;
       padding: 8px 12px;
@@ -133,6 +135,7 @@
       cursor: pointer;
     }
 
+    /* MAPA */
     #map-container {
       flex: 1;
       width: 100%;
@@ -150,29 +153,31 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
+    /* BOTONES FLOTANTES LATERALES BIEN VISIBLES */
     .map-floating-controls {
       position: absolute;
-      top: 14px;
-      right: 14px;
+      top: 65px;
+      right: 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      z-index: 500;
+      gap: 10px;
+      z-index: 2500;
     }
 
     .btn-float-action {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
       background: #111827;
-      border: 1.5px solid #f59e0b;
+      border: 2px solid #f59e0b;
       color: #f59e0b;
-      font-size: 1.1rem;
+      font-size: 1.25rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .btn-float-action.active {
@@ -180,6 +185,7 @@
       color: #111827;
     }
 
+    /* CONTROLES PTT INFERIORES */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
@@ -257,6 +263,7 @@
       color: #030712;
     }
 
+    /* BUZÓN */
     #history-modal {
       position: fixed;
       inset: 0;
@@ -315,6 +322,7 @@
       cursor: pointer;
     }
 
+    /* MARCADORES */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -358,6 +366,7 @@
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
+  <!-- SELECTOR DE UNIDAD -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
@@ -384,6 +393,7 @@
     </div>
   </div>
 
+  <!-- CABECERA -->
   <header>
     <div class="brand">
       <span>📻</span> Yadah PTT Live
@@ -394,16 +404,19 @@
     </div>
   </header>
 
+  <!-- MAPA GOOGLE 3D -->
   <div id="map-container">
     <div id="map"></div>
+    <!-- BOTONES FLOTANTES A LA DERECHA -->
     <div class="map-floating-controls">
-      <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
+      <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
     </div>
   </div>
 
+  <!-- PANEL PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -420,6 +433,7 @@
     </button>
   </div>
 
+  <!-- BUZÓN -->
   <div id="history-modal" onclick="toggleHistory(false)">
     <div class="history-card" onclick="event.stopPropagation()">
       <div class="history-head">
@@ -433,6 +447,7 @@
   </div>
 
   <script>
+    // --- 1. Autenticación y Perfil ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
 
@@ -451,7 +466,7 @@
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTrails = true;
 
-    // Almacén de coordenadas para rastreo de ruta { unitId: [[lon, lat], ...] }
+    // Almacén de coordenadas por unidad: { "Móvil 14": [[lon, lat], ...] }
     const unitTrails = {};
 
     function checkAuth() {
@@ -461,6 +476,7 @@
         firstPersonMode = isDriver();
         updateViewButtonUI();
         applyNightModeTheme();
+        btnTrailMode.classList.toggle('active', showTrails);
         connectNetwork();
       } else {
         loginScreen.style.display = 'flex';
@@ -475,6 +491,7 @@
       firstPersonMode = isDriver();
       updateViewButtonUI();
       applyNightModeTheme();
+      btnTrailMode.classList.toggle('active', showTrails);
       unlockAudioHardware();
       connectNetwork();
     }
@@ -515,6 +532,7 @@
       }
     });
 
+    // --- 2. Desbloqueo y Tonos ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
@@ -545,6 +563,7 @@
       } catch (e) {}
     }
 
+    // --- 3. Google Maps en 3D ---
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -576,54 +595,57 @@
       bearing: 0
     });
 
-    // Inicializar capas vectoriales para el rastreo de ruta
-    map.on('load', () => {
-      map.addSource('route-trails', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      });
+    // Inicializador garantizado de la capa de rutas
+    function ensureTrailLayerExists() {
+      if (!map.getSource('route-trails')) {
+        map.addSource('route-trails', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      if (!map.getLayer('route-trails-layer')) {
+        map.addLayer({
+          id: 'route-trails-layer',
+          type: 'line',
+          source: 'route-trails',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+            'visibility': showTrails ? 'visible' : 'none'
+          },
+          paint: {
+            'line-color': '#0284c7',
+            'line-width': 6,
+            'line-opacity': 0.85
+          }
+        });
+      }
+    }
 
-      map.addLayer({
-        id: 'route-trails-layer',
-        type: 'line',
-        source: 'route-trails',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': '#38bdf8',
-          'line-width': 5,
-          'line-opacity': 0.75
-        }
-      });
-    });
+    map.on('load', ensureTrailLayerExists);
 
     function updateTrailsMap() {
-      if (!map.getSource('route-trails')) return;
+      ensureTrailLayerExists();
+      const source = map.getSource('route-trails');
+      if (!source) return;
 
       const features = Object.keys(unitTrails).map(unitId => {
         const coords = unitTrails[unitId];
         if (coords.length < 2) return null;
         return {
           type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: coords
-          },
+          geometry: { type: 'LineString', coordinates: coords },
           properties: { unit: unitId }
         };
       }).filter(Boolean);
 
-      map.getSource('route-trails').setData({
+      source.setData({
         type: 'FeatureCollection',
         features: features
       });
     }
 
+    // --- 4. Marcadores ---
     function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -686,14 +708,14 @@
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
 
-      // Registro de puntos para el rastro
+      // Registro del rastro de recorrido
       if (!isBase) {
         if (!unitTrails[unitId]) unitTrails[unitId] = [];
         const trail = unitTrails[unitId];
         const last = trail[trail.length - 1];
-        if (!last || Math.hypot(last[0] - lon, last[1] - lat) > 0.00003) {
+        if (!last || Math.hypot(last[0] - lon, last[1] - lat) > 0.00002) {
           trail.push([lon, lat]);
-          if (trail.length > 80) trail.shift();
+          if (trail.length > 100) trail.shift();
           updateTrailsMap();
         }
       }
@@ -729,6 +751,7 @@
       }
     }
 
+    // --- 5. Red MQTT ---
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
@@ -776,6 +799,7 @@
       });
     }
 
+    // --- 6. GPS ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -842,6 +866,7 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
+    // --- 7. PTT Transmisor ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -935,6 +960,7 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
+    // --- 8. Reproducción de Audio ---
     function receiveVoiceWalkieTalkie(voiceData) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -977,6 +1003,7 @@
       }
     }
 
+    // Eventos PTT
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -984,6 +1011,7 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
+    // Tecla Espacio
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
@@ -993,6 +1021,7 @@
       if (e.code === 'Space') stopAudioRecording(e);
     });
 
+    // --- 9. Buzón 24 Horas ---
     let cachedAudios = [];
 
     function getStoredAudios() {
