@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Yadah PTT & Despacho</title>
+  <title>Yadah PTT & Despacho 3D</title>
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- MapLibre GL CSS (Soporta vista inclinada / 3D estilo Uber) -->
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <!-- MQTT para sincronización en tiempo real sin costo -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <style>
     * {
@@ -18,7 +21,7 @@
     }
 
     body {
-      background-color: #0f172a;
+      background-color: #0b0f19;
       color: #f8fafc;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       height: 100vh;
@@ -31,8 +34,8 @@
     #login-screen {
       position: fixed;
       inset: 0;
-      background: #0f172a;
-      z-index: 2000;
+      background: #0b0f19;
+      z-index: 3000;
       display: flex;
       flex-direction: column;
       padding: 20px;
@@ -41,12 +44,12 @@
 
     .login-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     .login-header h1 {
       color: #f59e0b;
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       margin-bottom: 6px;
     }
 
@@ -58,11 +61,11 @@
     .grid-units {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 10px;
       max-width: 420px;
       margin: 0 auto;
       width: 100%;
-      padding-bottom: 20px;
+      padding-bottom: 24px;
     }
 
     .btn-unit-select {
@@ -70,9 +73,9 @@
       border: 1px solid #334155;
       color: #f8fafc;
       padding: 14px 8px;
-      border-radius: 10px;
+      border-radius: 12px;
       font-size: 0.9rem;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: flex;
       flex-direction: column;
@@ -84,8 +87,8 @@
       grid-column: span 2;
       background: #1e3a8a;
       border-color: #3b82f6;
-      color: #bfdbfe;
-      font-size: 1rem;
+      color: #dbeafe;
+      font-size: 1.05rem;
     }
 
     .btn-unit-select:active {
@@ -93,14 +96,14 @@
       color: #0f172a;
     }
 
-    /* INTERFAZ DEL MAPA Y RADIO */
+    /* BARRA SUPERIOR */
     header {
-      background-color: #1e293b;
+      background-color: #111827;
       padding: 10px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #334155;
+      border-bottom: 1px solid #1f2937;
       z-index: 1000;
     }
 
@@ -114,21 +117,21 @@
     }
 
     .btn-change-user {
-      background: #0f172a;
-      border: 1px solid #475569;
+      background: #1f2937;
+      border: 1px solid #374151;
       color: #cbd5e1;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.72rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
     }
 
+    /* MAPA */
     #map-container {
       flex: 1;
       width: 100%;
       position: relative;
-      background: #1e293b;
     }
 
     #map {
@@ -136,22 +139,47 @@
       height: 100%;
     }
 
+    /* BOTÓN RE-CENTRAR FLOTANTE */
+    .btn-recenter {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #111827;
+      border: 1.5px solid #f59e0b;
+      color: #f59e0b;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      cursor: pointer;
+      z-index: 500;
+    }
+
+    .btn-recenter:active {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    /* PANEL INFERIOR PTT */
     .controls-panel {
-      background-color: #1e293b;
-      padding: 12px 16px;
+      background-color: #111827;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      border-top: 1px solid #334155;
+      gap: 8px;
+      border-top: 1px solid #1f2937;
       z-index: 1000;
     }
 
     .status-bar {
       display: flex;
       justify-content: space-between;
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: #94a3b8;
-      padding: 0 4px;
     }
 
     .status-active {
@@ -160,15 +188,15 @@
     }
 
     .channel-status {
-      background-color: #0f172a;
+      background-color: #030712;
       text-align: center;
-      padding: 7px;
+      padding: 6px;
       border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: 0.8rem;
+      font-weight: 700;
       letter-spacing: 0.5px;
       color: #94a3b8;
-      border: 1px solid #334155;
+      border: 1px solid #1f2937;
       transition: all 0.2s ease;
     }
 
@@ -176,7 +204,13 @@
       background-color: #dc2626;
       color: #ffffff;
       border-color: #ef4444;
-      animation: pulse 1s infinite alternate;
+      animation: pulse 0.9s infinite alternate;
+    }
+
+    .channel-status.receiving {
+      background-color: #059669;
+      color: #ffffff;
+      border-color: #10b981;
     }
 
     @keyframes pulse {
@@ -184,19 +218,15 @@
       to { opacity: 1; }
     }
 
-    .ptt-wrapper {
-      width: 100%;
-    }
-
     .btn-ptt {
       width: 100%;
-      height: 60px;
-      background-color: #0f172a;
+      height: 56px;
+      background-color: #030712;
       border: 2px solid #f59e0b;
       border-radius: 12px;
       color: #f59e0b;
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: 1.05rem;
+      font-weight: 800;
       letter-spacing: 1px;
       display: flex;
       align-items: center;
@@ -208,46 +238,36 @@
 
     .btn-ptt:active, .btn-ptt.active {
       background-color: #f59e0b;
-      color: #0f172a;
+      color: #030712;
       transform: scale(0.98);
     }
 
-    .aux-bar {
+    /* ESTILO DE VEHÍCULO VISTO DESDE ARRIBA */
+    .car-marker-container {
       display: flex;
-      gap: 10px;
-    }
-
-    .btn-aux {
-      flex: 1;
-      padding: 8px;
-      background-color: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      color: #94a3b8;
-      font-size: 0.78rem;
-      font-weight: 600;
-      display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
-      cursor: pointer;
+      pointer-events: none;
     }
 
-    .btn-aux.active-mute {
-      background-color: #7f1d1d;
-      border-color: #ef4444;
-      color: #fca5a5;
+    .car-badge {
+      background: #030712;
+      border: 1px solid #f59e0b;
+      color: #f8fafc;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
     }
 
-    .unit-tag {
-      background: #0f172a !important;
-      border: 1px solid #f59e0b !important;
-      color: #f8fafc !important;
-      font-weight: bold !important;
-      font-size: 0.75rem !important;
-      padding: 2px 6px !important;
-      border-radius: 4px !important;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    .car-svg-rotator {
+      width: 38px;
+      height: 38px;
+      transition: transform 0.25s ease-out;
+      transform-origin: center center;
     }
   </style>
 </head>
@@ -256,7 +276,7 @@
   <!-- SELECTOR DE UNIDAD -->
   <div id="login-screen">
     <div class="login-header">
-      <h1>📻 Yadah Radio</h1>
+      <h1>📻 Yadah Radio Flota</h1>
       <p>Selecciona tu terminal de trabajo</p>
     </div>
     <div class="grid-units">
@@ -283,142 +303,232 @@
   <!-- INTERFAZ PRINCIPAL -->
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT
+      <span>📻</span> Yadah PTT 3D
     </div>
     <button class="btn-change-user" onclick="logoutUnit()">🔄 Cambiar Móvil</button>
   </header>
 
   <div id="map-container">
     <div id="map"></div>
+    <button class="btn-recenter" id="btn-recenter" title="Centrar mi auto">🎯</button>
   </div>
 
   <div class="controls-panel">
     <div class="status-bar">
-      <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">No asignado</b></span>
-      <span>GPS: <b class="status-active">Activo</b></span>
-      <span>Audio: <b class="status-active" id="lbl-audio-status">Abierto</b></span>
+      <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
+      <span>Red: <b class="status-active" id="lbl-net">Conectando...</b></span>
+      <span>Rumbo: <b class="status-active" id="lbl-heading">0°</b></span>
     </div>
 
     <div class="channel-status" id="channel-status">
       ● CANAL LIBRE
     </div>
 
-    <div class="ptt-wrapper">
-      <button class="btn-ptt" id="btn-ptt">
-        <span>🎙️</span> PULSAR PARA HABLAR
-      </button>
-    </div>
-
-    <div class="aux-bar">
-      <button class="btn-aux" id="btn-mute">
-        <span>🔊</span> Silencio Cabina
-      </button>
-      <button class="btn-aux" id="btn-layer">
-        <span>🛰️</span> Vista Satélite
-      </button>
-    </div>
+    <button class="btn-ptt" id="btn-ptt">
+      <span>🎙️</span> PULSAR PARA HABLAR
+    </button>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MapLibre JS -->
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 
   <script>
-    // Gestión de Identidad Local
+    // 1. Identidad de Terminal
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
+    const lblNet = document.getElementById('lbl-net');
+    const lblHeading = document.getElementById('lbl-heading');
+    const channelStatus = document.getElementById('channel-status');
 
     function checkAuth() {
       if (currentUnit) {
         loginScreen.style.display = 'none';
         lblUnit.textContent = currentUnit;
-        if (selfMarker) {
-          selfMarker.bindTooltip(currentUnit + " (Tú)", { permanent: true, direction: 'top', className: 'unit-tag' });
-        }
+        connectNetwork();
       } else {
         loginScreen.style.display = 'flex';
       }
     }
 
-    function selectUnit(unitId) {
-      currentUnit = unitId;
-      localStorage.setItem('yadah_terminal_id', unitId);
-      lblUnit.textContent = unitId;
+    function selectUnit(id) {
+      currentUnit = id;
+      localStorage.setItem('yadah_terminal_id', id);
+      lblUnit.textContent = id;
       loginScreen.style.display = 'none';
-      if (selfMarker) {
-        selfMarker.bindTooltip(unitId + " (Tú)", { permanent: true, direction: 'top', className: 'unit-tag' });
-      }
+      connectNetwork();
     }
 
     function logoutUnit() {
       localStorage.removeItem('yadah_terminal_id');
-      currentUnit = null;
-      loginScreen.style.display = 'flex';
+      location.reload();
     }
 
-    // Google Maps Capas
-    const googleRoads = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: 'Google Maps'
+    // 2. Mapa 3D con Perspectiva Inclinada (Estilo Uber / Life360)
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: {
+          'osm-tiles': {
+            type: 'raster',
+            tiles: [
+              'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256,
+            attribution: '© OpenStreetMap'
+          }
+        },
+        layers: [{
+          id: 'osm-tiles-layer',
+          type: 'raster',
+          source: 'osm-tiles',
+          minzoom: 0,
+          maxzoom: 19
+        }]
+      },
+      center: [-89.2182, 13.6929],
+      zoom: 16.5,
+      pitch: 50, // Ángulo de inclinación 3D
+      bearing: 0
     });
 
-    const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: 'Google Maps Satellite'
-    });
+    // 3. Generador de Marcador de Auto Uber (SVG Top-Down)
+    function createCarElement(unitName) {
+      const container = document.createElement('div');
+      container.className = 'car-marker-container';
 
-    const map = L.map('map', {
-      center: [13.6929, -89.2182],
-      zoom: 16,
-      zoomControl: false,
-      layers: [googleRoads]
-    });
+      const badge = document.createElement('div');
+      badge.className = 'car-badge';
+      badge.textContent = unitName;
+      container.appendChild(badge);
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
+      const rotator = document.createElement('div');
+      rotator.className = 'car-svg-rotator';
+      rotator.innerHTML = `
+        <svg viewBox="0 0 48 48" width="38" height="38">
+          <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
+          <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
+          <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
+          <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
+          <circle cx="16" cy="7" r="2" fill="#fef08a"/>
+          <circle cx="32" cy="7" r="2" fill="#fef08a"/>
+        </svg>`;
+      container.appendChild(rotator);
 
-    // ICONO DE AUTO VISTO DESDE ARRIBA (TIPO UBER PROFESIONAL)
-    const uberCarSvg = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="40" height="40">
-        <!-- Sombra realista -->
-        <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.35)"/>
-        <!-- Carrocería oscura estilizada -->
-        <rect x="13" y="6" width="22" height="36" rx="8" fill="#18181b" stroke="#f59e0b" stroke-width="1.5"/>
-        <!-- Parabrisas delantero -->
-        <path d="M16 16 L32 16 L29 21 L19 21 Z" fill="#38bdf8"/>
-        <!-- Parabrisas trasero -->
-        <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
-        <!-- Techo del auto -->
-        <rect x="16" y="22" width="16" height="11" rx="2" fill="#27272a"/>
-        <!-- Luces delanteras -->
-        <circle cx="16" cy="7" r="1.5" fill="#fef08a"/>
-        <circle cx="32" cy="7" r="1.5" fill="#fef08a"/>
-      </svg>`;
+      return { container, rotator };
+    }
 
-    const carIcon = L.divIcon({
-      html: uberCarSvg,
-      className: '',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-      tooltipAnchor: [0, -22]
-    });
+    // Almacén de marcadores de la flota
+    const fleetMarkers = {};
+    let myLastCoords = null;
+    let myHeading = 0;
 
-    let selfMarker = null;
+    function updateVehicleOnMap(unitId, lon, lat, heading) {
+      if (!fleetMarkers[unitId]) {
+        const { container, rotator } = createCarElement(unitId);
+        const marker = new maplibregl.Marker({ element: container })
+          .setLngLat([lon, lat])
+          .addTo(map);
 
-    // GPS con auto-centrado inmediato
+        fleetMarkers[unitId] = { marker, rotator };
+      } else {
+        fleetMarkers[unitId].marker.setLngLat([lon, lat]);
+      }
+
+      if (heading !== undefined && heading !== null) {
+        fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
+      }
+    }
+
+    // 4. Conexión en Tiempo Real (Red de Flota y Audio)
+    let mqttClient = null;
+    const TOPIC_GPS = 'yadah/radio/flota/gps';
+    const TOPIC_AUDIO = 'yadah/radio/flota/audio';
+
+    function connectNetwork() {
+      if (mqttClient) return;
+
+      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+
+      mqttClient.on('connect', () => {
+        lblNet.textContent = 'En Línea';
+        lblNet.style.color = '#10b981';
+
+        mqttClient.subscribe(TOPIC_GPS);
+        mqttClient.subscribe(TOPIC_AUDIO);
+      });
+
+      mqttClient.on('message', (topic, message) => {
+        try {
+          if (topic === TOPIC_GPS) {
+            const data = JSON.parse(message.toString());
+            // Si el mensaje viene de otro auto, lo pintamos en el mapa
+            if (data.unit && data.unit !== currentUnit) {
+              updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading);
+            }
+          } else if (topic === TOPIC_AUDIO) {
+            const audioData = JSON.parse(message.toString());
+            if (audioData.sender !== currentUnit) {
+              playIncomingAudio(audioData.payload, audioData.sender);
+            }
+          }
+        } catch (e) {
+          console.error("Error procesando datos:", e);
+        }
+      });
+    }
+
+    // 5. GPS Local y Rumbo
+    function calculateBearing(startLat, startLng, destLat, destLng) {
+      const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
+      const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
+                Math.sin(startLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) * Math.cos((destLng - startLng) * Math.PI / 180);
+      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+
+    let initialCentering = false;
+
     if (navigator.geolocation) {
       navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
-          const label = (currentUnit || "Móvil") + " (Tú)";
+          let heading = pos.coords.heading;
 
-          if (!selfMarker) {
-            selfMarker = L.marker([lat, lon], { icon: carIcon }).addTo(map);
-            selfMarker.bindTooltip(label, { permanent: true, direction: 'top', className: 'unit-tag' });
-            map.setView([lat, lon], 17); // Auto-centrado con zoom nítido
+          if (heading === null || isNaN(heading)) {
+            if (myLastCoords) {
+              const dist = Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon);
+              if (dist > 0.00003) {
+                heading = calculateBearing(myLastCoords.lat, myLastCoords.lon, lat, lon);
+                myHeading = Math.round(heading);
+              }
+            }
           } else {
-            selfMarker.setLatLng([lat, lon]);
+            myHeading = Math.round(heading);
+          }
+
+          myLastCoords = { lat, lon };
+          lblHeading.textContent = `${myHeading}°`;
+
+          // Pintar mi propio auto
+          updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading);
+
+          // Transmitir mi ubicación a toda la flota si hay red
+          if (mqttClient && mqttClient.connected && currentUnit) {
+            mqttClient.publish(TOPIC_GPS, JSON.stringify({
+              unit: currentUnit,
+              lat: lat,
+              lon: lon,
+              heading: myHeading
+            }));
+          }
+
+          // Centrado inicial
+          if (!initialCentering) {
+            map.flyTo({ center: [lon, lat], zoom: 17, pitch: 50 });
+            initialCentering = true;
           }
         },
         (err) => console.warn('GPS Error:', err.message),
@@ -426,70 +536,84 @@
       );
     }
 
-    // Silencio de Cabina
-    let isMuted = false;
-    const btnMute = document.getElementById('btn-mute');
-    const lblAudioStatus = document.getElementById('lbl-audio-status');
-
-    btnMute.addEventListener('click', () => {
-      isMuted = !isMuted;
-      if (isMuted) {
-        btnMute.classList.add('active-mute');
-        btnMute.innerHTML = '<span>🔇</span> Silencio Activo';
-        lblAudioStatus.textContent = 'Muteado';
-        lblAudioStatus.style.color = '#ef4444';
-      } else {
-        btnMute.classList.remove('active-mute');
-        btnMute.innerHTML = '<span>🔊</span> Silencio Cabina';
-        lblAudioStatus.textContent = 'Abierto';
-        lblAudioStatus.style.color = '#10b981';
+    // Botón de re-centrado
+    document.getElementById('btn-recenter').addEventListener('click', () => {
+      if (myLastCoords) {
+        map.flyTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 17, pitch: 50, bearing: myHeading });
       }
     });
 
-    // Alternar Satélite
-    let isSatellite = false;
-    const btnLayer = document.getElementById('btn-layer');
-
-    btnLayer.addEventListener('click', () => {
-      if (isSatellite) {
-        map.removeLayer(googleSatellite);
-        map.addLayer(googleRoads);
-        btnLayer.innerHTML = '<span>🛰️</span> Vista Satélite';
-        isSatellite = false;
-      } else {
-        map.removeLayer(googleRoads);
-        map.addLayer(googleSatellite);
-        btnLayer.innerHTML = '<span>🗺️</span> Vista Calles';
-        isSatellite = true;
-      }
-    });
-
-    // PTT Events
+    // 6. Transmisión Walkie-Talkie (PTT)
+    let mediaRecorder = null;
+    let audioChunks = [];
     const btnPtt = document.getElementById('btn-ptt');
-    const channelStatus = document.getElementById('channel-status');
 
-    function startTalking(e) {
+    async function startAudioRecording(e) {
       if (e) e.preventDefault();
-      btnPtt.classList.add('active');
-      channelStatus.classList.add('transmitting');
-      channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_AUDIO, JSON.stringify({
+                sender: currentUnit,
+                payload: reader.result
+              }));
+            }
+          };
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        btnPtt.classList.add('active');
+        channelStatus.className = 'channel-status transmitting';
+        channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
+      } catch (err) {
+        alert("Permite el acceso al micrófono en el navegador para usar el radio.");
+      }
     }
 
-    function stopTalking(e) {
+    function stopAudioRecording(e) {
       if (e) e.preventDefault();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
       btnPtt.classList.remove('active');
-      channelStatus.classList.remove('transmitting');
+      channelStatus.className = 'channel-status';
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    btnPtt.addEventListener('touchstart', startTalking, { passive: false });
-    btnPtt.addEventListener('touchend', stopTalking, { passive: false });
-    btnPtt.addEventListener('touchcancel', stopTalking, { passive: false });
-    btnPtt.addEventListener('mousedown', startTalking);
-    btnPtt.addEventListener('mouseup', stopTalking);
-    btnPtt.addEventListener('mouseleave', stopTalking);
+    function playIncomingAudio(base64Data, sender) {
+      channelStatus.className = 'channel-status receiving';
+      channelStatus.textContent = `▼ ENTRANTE: ${sender}`;
 
-    // Iniciar comprobación de usuario
+      const audio = new Audio(base64Data);
+      audio.play();
+      audio.onended = () => {
+        channelStatus.className = 'channel-status';
+        channelStatus.textContent = '● CANAL LIBRE';
+      };
+    }
+
+    // Eventos táctiles para el botón PTT
+    btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
+    btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
+    btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
+    btnPtt.addEventListener('mousedown', startAudioRecording);
+    btnPtt.addEventListener('mouseup', stopAudioRecording);
+    btnPtt.addEventListener('mouseleave', stopAudioRecording);
+
+    // Arrancar verificación
     checkAuth();
   </script>
 </body>
