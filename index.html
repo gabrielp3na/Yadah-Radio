@@ -150,7 +150,7 @@
 
     .map-floating-controls {
       position: absolute;
-      bottom: 14px;
+      top: 14px;
       right: 14px;
       display: flex;
       flex-direction: column;
@@ -178,7 +178,7 @@
       color: #111827;
     }
 
-    /* PANEL INFERIOR PTT */
+    /* CONTROLES PTT INFERIORES */
     .controls-panel {
       background-color: #111827;
       padding: 10px 14px;
@@ -315,7 +315,7 @@
       cursor: pointer;
     }
 
-    /* AUTO 3D TOP-DOWN */
+    /* MARCADORES 3D */
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -337,6 +337,11 @@
       text-align: center;
     }
 
+    .car-badge.base-station {
+      border-color: #38bdf8;
+      background: #0f172a;
+    }
+
     .car-badge span {
       display: block;
       font-size: 0.58rem;
@@ -345,23 +350,28 @@
     }
 
     .car-svg-rotator {
-      width: 36px;
-      height: 36px;
-      transition: transform 0.25s linear;
+      width: 38px;
+      height: 38px;
+      transition: transform 0.2s linear;
       transform-origin: center center;
+    }
+
+    /* Ícono exclusivo para la base modulador */
+    .base-icon {
+      font-size: 1.8rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
     }
   </style>
 </head>
 <body>
 
-  <!-- ELEMENTO REPRODUCTOR FIJO DE RADIO -->
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
-  <!-- PANTALLA DE ACCESO -->
+  <!-- SELECTOR DE UNIDAD -->
   <div id="login-screen">
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
-      <p>Selecciona tu terminal</p>
+      <p>Selecciona tu terminal de despacho</p>
     </div>
     <div class="grid-units">
       <button class="btn-unit-select modulador" onclick="selectUnit('Modulador')">
@@ -395,16 +405,16 @@
     </div>
   </header>
 
-  <!-- MAPA GOOGLE MAPS 3D -->
+  <!-- MAPA GOOGLE 3D -->
   <div id="map-container">
     <div id="map"></div>
     <div class="map-floating-controls">
-      <button class="btn-float-action" id="btn-follow" title="Modo Seguimiento/Navegación">🧭</button>
+      <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
     </div>
   </div>
 
-  <!-- PANEL PTT -->
+  <!-- PANEL INFERIOR PTT -->
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
@@ -421,7 +431,7 @@
     </button>
   </div>
 
-  <!-- BUZÓN 24 HORAS -->
+  <!-- BUZÓN -->
   <div id="history-modal" onclick="toggleHistory(false)">
     <div class="history-card" onclick="event.stopPropagation()">
       <div class="history-head">
@@ -435,22 +445,27 @@
   </div>
 
   <script>
-    // --- 1. Identidad ---
+    // --- 1. Autenticación y Perfil ---
     let currentUnit = localStorage.getItem('yadah_terminal_id');
+    const isDriver = () => currentUnit && currentUnit !== 'Modulador';
+
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
     const lblSpeed = document.getElementById('lbl-speed');
     const lblHeading = document.getElementById('lbl-heading');
     const channelStatus = document.getElementById('channel-status');
     const radioSpeaker = document.getElementById('radio-speaker');
-    const btnFollow = document.getElementById('btn-follow');
+    const btnViewMode = document.getElementById('btn-view-mode');
 
-    let followMode = false; // Modo seguimiento de cámara activo
+    // Los móviles inician por defecto en 1ª persona; el Modulador en vista libre cenital
+    let firstPersonMode = false;
 
     function checkAuth() {
       if (currentUnit) {
         loginScreen.style.display = 'none';
         lblUnit.textContent = currentUnit;
+        firstPersonMode = isDriver();
+        updateViewButtonUI();
         connectNetwork();
       } else {
         loginScreen.style.display = 'flex';
@@ -462,6 +477,8 @@
       localStorage.setItem('yadah_terminal_id', id);
       lblUnit.textContent = id;
       loginScreen.style.display = 'none';
+      firstPersonMode = isDriver();
+      updateViewButtonUI();
       unlockAudioHardware();
       connectNetwork();
     }
@@ -471,16 +488,17 @@
       location.reload();
     }
 
+    function updateViewButtonUI() {
+      btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
+      btnViewMode.classList.toggle('active', firstPersonMode);
+    }
+
     // --- 2. Desbloqueo y Tonos Roger Beep ---
     let audioCtx = null;
 
     function unlockAudioHardware() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       radioSpeaker.play().catch(() => {});
     }
@@ -535,30 +553,37 @@
       bearing: 0
     });
 
-    // --- 4. Marcadores de Autos 3D con Interpolación Suave ---
-    function createCarElement(unitName) {
+    // --- 4. Marcadores Diferenciados (Base vs Móviles) ---
+    function createMarkerElement(unitName) {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
 
+      const isBase = unitName.includes('Modulador');
+
       const badge = document.createElement('div');
-      badge.className = 'car-badge';
-      badge.innerHTML = `<strong>${unitName}</strong><span id="speed-${unitName}">0 km/h</span>`;
+      badge.className = isBase ? 'car-badge base-station' : 'car-badge';
+      badge.innerHTML = `<strong>${unitName}</strong><span id="speed-${unitName.replace(/\s+/g, '')}">${isBase ? 'Central' : '0 km/h'}</span>`;
       container.appendChild(badge);
 
       const rotator = document.createElement('div');
       rotator.className = 'car-svg-rotator';
-      rotator.innerHTML = `
-        <svg viewBox="0 0 48 48" width="36" height="36">
-          <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
-          <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
-          <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
-          <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
-          <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
-          <circle cx="16" cy="7" r="2" fill="#fef08a"/>
-          <circle cx="32" cy="7" r="2" fill="#fef08a"/>
-        </svg>`;
-      container.appendChild(rotator);
 
+      if (isBase) {
+        rotator.innerHTML = `<div class="base-icon">🏢</div>`;
+      } else {
+        rotator.innerHTML = `
+          <svg viewBox="0 0 48 48" width="38" height="38">
+            <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
+            <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
+            <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
+            <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
+            <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
+            <circle cx="16" cy="7" r="2" fill="#fef08a"/>
+            <circle cx="32" cy="7" r="2" fill="#fef08a"/>
+          </svg>`;
+      }
+
+      container.appendChild(rotator);
       return { container, rotator, badge };
     }
 
@@ -567,8 +592,7 @@
     let myHeading = 0;
     let mySpeed = 0;
 
-    // Animación suave de movimiento continuo (Interpolación)
-    function animateVehicleMove(entry, targetLon, targetLat, duration = 1200) {
+    function animateVehicleMove(entry, targetLon, targetLat, duration = 1000) {
       const startLon = entry.currentLon;
       const startLat = entry.currentLat;
       const startTime = performance.now();
@@ -578,7 +602,6 @@
       function step(now) {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        // Función easing para desaceleración natural
         const ease = 1 - Math.pow(1 - progress, 3);
 
         const curLon = startLon + (targetLon - startLon) * ease;
@@ -597,10 +620,11 @@
     }
 
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0) {
-      const speedTxt = speed > 3 ? `${Math.round(speed)} km/h` : 'Detenido';
+      const isBase = unitId.includes('Modulador');
+      const speedTxt = isBase ? 'Central' : (speed > 3 ? `${Math.round(speed)} km/h` : 'Detenido');
 
       if (!fleetMarkers[unitId]) {
-        const { container, rotator, badge } = createCarElement(unitId);
+        const { container, rotator, badge } = createMarkerElement(unitId);
         const marker = new maplibregl.Marker({ element: container })
           .setLngLat([lon, lat])
           .addTo(map);
@@ -617,30 +641,46 @@
         animateVehicleMove(fleetMarkers[unitId], lon, lat);
       }
 
-      // Actualizar velocímetro en el auto
       const speedSpan = fleetMarkers[unitId].badge.querySelector('span');
       if (speedSpan) speedSpan.textContent = speedTxt;
 
-      // Rotar suavemente el vehículo
-      if (heading !== undefined && heading !== null) {
+      if (!isBase && heading !== undefined && heading !== null) {
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
     }
 
-    // Alternar modo de seguimiento de cámara
-    btnFollow.addEventListener('click', () => {
-      followMode = !followMode;
-      btnFollow.classList.toggle('active', followMode);
-      if (followMode && myLastCoords) {
+    // Alternador manual de vista (1ª persona vs Vista Libre)
+    btnViewMode.addEventListener('click', () => {
+      firstPersonMode = !firstPersonMode;
+      updateViewButtonUI();
+      applyCameraPerspective();
+    });
+
+    function applyCameraPerspective() {
+      if (!myLastCoords) return;
+
+      if (firstPersonMode) {
+        // Modo Primera Persona: Auto en tercio inferior, cámara detrás orientada al rumbo
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 17.5,
-          pitch: 55,
+          zoom: 18,
+          pitch: 62, // Perspectiva rasante de calle
           bearing: myHeading,
-          duration: 1000
+          offset: [0, 160], // Desplaza el vehículo hacia abajo dejando ver el camino frontal
+          duration: 600
+        });
+      } else {
+        // Modo Cenital / Despacho
+        map.easeTo({
+          center: [myLastCoords.lon, myLastCoords.lat],
+          zoom: 16.5,
+          pitch: 45,
+          bearing: 0,
+          offset: [0, 0],
+          duration: 800
         });
       }
-    });
+    }
 
     // --- 5. Red Telemática (MQTT) ---
     let mqttClient = null;
@@ -657,6 +697,9 @@
       });
 
       mqttClient.on('connect', () => {
+        lblNet.textContent = 'En Línea';
+        lblNet.style.color = '#10b981';
+
         mqttClient.subscribe(TOPIC_GPS);
         mqttClient.subscribe(TOPIC_VOICE);
         mqttClient.subscribe(TOPIC_ALERT);
@@ -688,7 +731,7 @@
       });
     }
 
-    // --- 6. GPS y Cálculo de Orientación ---
+    // --- 6. GPS y Modo Primera Persona Continuo ---
     function calculateBearing(startLat, startLng, destLat, destLng) {
       const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
       const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
@@ -736,13 +779,16 @@
           }
 
           if (!initialCentering) {
-            map.flyTo({ center: [lon, lat], zoom: 17, pitch: 50 });
+            applyCameraPerspective();
             initialCentering = true;
-          } else if (followMode) {
+          } else if (firstPersonMode) {
+            // Actualización fluida continua del parabrisas
             map.easeTo({
               center: [lon, lat],
               bearing: myHeading,
-              duration: 800
+              pitch: 62,
+              offset: [0, 160],
+              duration: 900
             });
           }
         },
@@ -751,11 +797,7 @@
       );
     }
 
-    document.getElementById('btn-recenter').addEventListener('click', () => {
-      if (myLastCoords) {
-        map.flyTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 17, pitch: 50, bearing: myHeading });
-      }
-    });
+    document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
     // --- 7. Transmisor Walkie-Talkie (PTT) ---
     let mediaRecorder = null;
@@ -790,9 +832,7 @@
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            audioChunks.push(event.data);
-          }
+          if (event.data && event.data.size > 0) audioChunks.push(event.data);
         };
 
         mediaRecorder.onstop = () => {
@@ -836,7 +876,7 @@
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
         isTransmitting = false;
-        alert("Permite el micrófono para hablar por radio.");
+        alert("Permite el micrófono para transmitir.");
       }
     }
 
@@ -853,7 +893,7 @@
       channelStatus.textContent = '● CANAL LIBRE';
     }
 
-    // --- 8. Reproducción Forzada por Altavoz en Vivo ---
+    // --- 8. Reproducción en Vivo ---
     function receiveVoiceWalkieTalkie(voiceData) {
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -892,7 +932,6 @@
       };
     }
 
-    // Eventos táctiles y ratón
     btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
     btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
     btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
@@ -900,16 +939,14 @@
     btnPtt.addEventListener('mouseup', stopAudioRecording);
     btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    // Atajo por Barra Espaciadora en PC / Teclado
+    // Barra espaciadora en PC
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
         startAudioRecording(e);
       }
     });
     window.addEventListener('keyup', (e) => {
-      if (e.code === 'Space') {
-        stopAudioRecording(e);
-      }
+      if (e.code === 'Space') stopAudioRecording(e);
     });
 
     // --- 9. Buzón 24 Horas ---
