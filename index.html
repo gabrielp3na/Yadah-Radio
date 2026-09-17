@@ -757,7 +757,6 @@
   <div id="map-container">
     <div id="map"></div>
 
-    <!-- BOTÓN DE PÁNICO SOS RESTAURADO -->
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
@@ -766,6 +765,10 @@
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
+      <button class="btn-float-action" title="Acercar Zoom" onclick="zoomIn()">➕</button>
+      <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
+      <!-- BOTÓN DE PANTALLA COMPLETA AÑADIDO -->
+      <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
       <button class="btn-float-action" id="btn-unlock-base" title="Desbloquear para Mover Base" onclick="toggleBaseUnlock()" style="display:none;">🔒</button>
     </div>
   </div>
@@ -1140,6 +1143,25 @@
       }
     });
 
+    // --- FUNCIONES DE ZOOM Y PANTALLA COMPLETA ---
+    function zoomIn() {
+      map.zoomIn({ duration: 300 });
+    }
+    function zoomOut() {
+      map.zoomOut({ duration: 300 });
+    }
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          alert(`Error al intentar activar pantalla completa: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
     function formatTimeAgo(ms) {
       const sec = Math.floor(ms / 1000);
       if (sec < 60) return `${sec}s`;
@@ -1303,7 +1325,7 @@
         ]
       },
       center: defaultBaseCoords,
-      zoom: 17.5,
+      zoom: 16.5,
       pitch: 0,
       bearing: 0
     });
@@ -1693,8 +1715,8 @@
           map.jumpTo({
             center: [currentDisplayPos.lon, currentDisplayPos.lat],
             bearing: currentDisplayHeading,
-            pitch: 78,
-            zoom: 19.8,
+            pitch: 75,
+            zoom: 17.2,
             offset: [0, screenOffset]
           });
         }
@@ -1753,7 +1775,7 @@
 
     function applyCameraPerspective() {
       if (isModulator()) {
-        map.easeTo({ center: defaultBaseCoords, zoom: 17.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
+        map.easeTo({ center: defaultBaseCoords, zoom: 16.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
       }
 
@@ -1764,15 +1786,15 @@
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           bearing: myHeading,
-          pitch: 78,
-          zoom: 19.8,
+          pitch: 75,
+          zoom: 17.2,
           offset: [0, screenOffset],
           duration: 600
         });
       } else {
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 15.5,
+          zoom: 16.0,
           pitch: 0,
           bearing: 0,
           offset: [0, 0],
