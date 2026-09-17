@@ -608,6 +608,12 @@
       background: #0f172a;
     }
 
+    .car-badge.custom-poi {
+      border-color: #38bdf8;
+      background: #082f49;
+      color: #38bdf8;
+    }
+
     .car-svg-rotator {
       width: 44px;
       height: 44px;
@@ -679,7 +685,10 @@
 
   <div id="sos-alert-banner">
     <span id="sos-banner-text">🚨 ¡ALERTA SOS ACTIVA!</span>
-    <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
+    <div style="display:flex; gap:6px;">
+      <button style="background:#38bdf8; color:#030712; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="locateActiveSOS()">Ubicar 🎯</button>
+      <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
+    </div>
   </div>
 
   <div id="nav-search-bar">
@@ -765,7 +774,6 @@
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
-      <!-- BOTÓN RÁPIDO PARA GUARDAR UBICACIÓN ACTUAL -->
       <button class="btn-float-action" title="Guardar este lugar actual" onclick="promptSaveCurrentLocation()" style="background:#065f46; border-color:#10b981; color:#ffffff;">📍+</button>
       <button class="btn-float-action" title="Acercar Zoom" onclick="zoomIn()">➕</button>
       <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
@@ -862,6 +870,7 @@
       const pois = getCustomPOIs();
       pois.unshift({ name, lon, lat, time: Date.now() });
       localStorage.setItem('yadah_custom_pois', JSON.stringify(pois));
+      addCustomPoiMarkerToMap(name, lon, lat);
     }
 
     function promptSaveCurrentLocation() {
@@ -872,8 +881,61 @@
       const placeName = prompt("📍 Nombre del punto o negocio local (ej. Taxi Las Moritas, Punto de la Madrid):");
       if (placeName && placeName.trim().length > 0) {
         saveCustomPOI(placeName.trim(), myLastCoords.lon, myLastCoords.lat);
-        alert(`✅ ¡Lugar "${placeName.trim()}" guardado con éxito en tu directorio local!`);
+        alert(`✅ ¡Lugar "${placeName.trim()}" guardado y fijado en el mapa!`);
       }
+    }
+
+    let customPoiMarkers = [];
+
+    function renderCustomPoiMarkers() {
+      if (!map) return;
+      customPoiMarkers.forEach(m => m.remove());
+      customPoiMarkers = [];
+
+      const pois = getCustomPOIs();
+      pois.forEach(poi => {
+        const container = document.createElement('div');
+        container.className = 'car-marker-container';
+
+        const badge = document.createElement('div');
+        badge.className = 'car-badge custom-poi';
+        badge.innerHTML = `📍 <b>${poi.name}</b>`;
+        container.appendChild(badge);
+
+        const iconEl = document.createElement('div');
+        iconEl.style.fontSize = '1.6rem';
+        iconEl.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))';
+        iconEl.innerHTML = '⭐';
+        container.appendChild(iconEl);
+
+        const marker = new maplibregl.Marker({ element: container })
+          .setLngLat([poi.lon, poi.lat])
+          .addTo(map);
+
+        customPoiMarkers.push(marker);
+      });
+    }
+
+    function addCustomPoiMarkerToMap(name, lon, lat) {
+      const container = document.createElement('div');
+      container.className = 'car-marker-container';
+
+      const badge = document.createElement('div');
+      badge.className = 'car-badge custom-poi';
+      badge.innerHTML = `📍 <b>${name}</b>`;
+      container.appendChild(badge);
+
+      const iconEl = document.createElement('div');
+      iconEl.style.fontSize = '1.6rem';
+      iconEl.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))';
+      iconEl.innerHTML = '⭐';
+      container.appendChild(iconEl);
+
+      const marker = new maplibregl.Marker({ element: container })
+        .setLngLat([lon, lat])
+        .addTo(map);
+
+      customPoiMarkers.push(marker);
     }
 
     let currentUnit = localStorage.getItem('yadah_terminal_id');
@@ -910,6 +972,7 @@
     let activeHistoryUnit = null;
     let isSosActive = false;
     let sirenInterval = null;
+    let activeSosCoords = null;
     let pendingDestination = null;
     let gpsPermissionGranted = false;
     let searchTimeout = null;
@@ -929,7 +992,6 @@
       } catch (err) {}
     }
 
-    // --- BUSCADOR HÍBRIDO CON PRIORIDAD A LUGARES PROPIOS ---
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
       if (!query || query.trim().length < 1) {
@@ -957,7 +1019,6 @@
 
           let htmlContent = '';
 
-          // 1. Mostrar primero los lugares propios guardados
           localPOIs.forEach(poi => {
             htmlContent += `
               <div class="suggestion-item" onclick="selectSuggestion(${poi.lon}, ${poi.lat}, '${poi.name.replace(/'/g, "")}', true)">
@@ -966,7 +1027,6 @@
             `;
           });
 
-          // 2. Mostrar los resultados externos de OpenStreetMap debajo
           if (externalResults && externalResults.length > 0) {
             externalResults.forEach(item => {
               htmlContent += `
@@ -1003,7 +1063,6 @@
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
 
-      // Revisar primero en la base local exacta
       const localPOIs = getCustomPOIs();
       const foundLocal = localPOIs.find(p => p.name.toLowerCase() === query.toLowerCase());
       if (foundLocal) {
@@ -1417,6 +1476,7 @@
     map.on('load', () => {
       ensureLayersExist();
       addPermanentBaseMarker();
+      renderCustomPoiMarkers();
     });
 
     map.on('click', (e) => {
@@ -1884,7 +1944,13 @@
           coords: myLastCoords
         }));
       }
-      if (isSosActive) alert("¡ALERTA DE PÁNICO ACTIVADA! Transmitiendo emergencia a la Central.");
+      if (isSosActive) alert("¡ALERTA DE PÁNICO ACTIVADA! Transmitiendo emergencia a toda la flota y la Central.");
+    }
+
+    function locateActiveSOS() {
+      if (activeSosCoords && activeSosCoords.lon && activeSosCoords.lat) {
+        map.flyTo({ center: [activeSosCoords.lon, activeSosCoords.lat], zoom: 17.5, pitch: 45 });
+      }
     }
 
     function silenceSOS() {
@@ -1893,6 +1959,7 @@
         clearInterval(sirenInterval);
         sirenInterval = null;
       }
+      activeSosCoords = null;
     }
 
     function connectNetwork() {
@@ -1979,8 +2046,9 @@
             }
           } else if (topic === TOPIC_PANIC) {
             const panic = JSON.parse(text);
-            if (panic.active) {
-              if (isModulator()) {
+            if (panic.unit !== currentUnit) {
+              if (panic.active) {
+                activeSosCoords = panic.coords;
                 const banner = document.getElementById('sos-alert-banner');
                 document.getElementById('sos-banner-text').textContent = `🚨 ¡EMERGENCIA: ${panic.unit}!`;
                 banner.style.display = 'flex';
@@ -1988,12 +2056,12 @@
                   playSiren();
                   sirenInterval = setInterval(playSiren, 1200);
                 }
-                if (panic.coords) {
+                if (isModulator() && panic.coords) {
                   map.flyTo({ center: [panic.coords.lon, panic.coords.lat], zoom: 16.5, pitch: 0 });
                 }
+              } else {
+                silenceSOS();
               }
-            } else {
-              silenceSOS();
             }
           } else if (topic === TOPIC_ALERT) {
             const alertData = JSON.parse(text);
