@@ -902,10 +902,10 @@
 
     initDatabase();
 
-    // --- GESTIÓN DE LUGARES Y GESTOS (1 TOQUE SOSTENIDO = NAVEGAR | 2 TOQUES SOSTENIDO = AGREGAR PUNTO) ---
+    // --- GESTIÓN GLOBAL DE LUGARES Y SINCRONIZACIÓN MQTT ---
     let contextMenuCoords = null;
     let tempContextMarker = null;
-    let contextMenuMode = 'nav'; // 'nav' o 'save'
+    let contextMenuMode = 'nav';
 
     function getCustomPOIs() {
       try {
@@ -915,9 +915,13 @@
       }
     }
 
-    function saveAllPOIs(pois) {
+    function saveAllPOIs(pois, broadcast = true) {
       localStorage.setItem('yadah_custom_pois', JSON.stringify(pois));
       renderCustomPoiMarkers();
+      
+      if (broadcast && mqttClient && mqttClient.connected) {
+        mqttClient.publish(TOPIC_POI, JSON.stringify({ action: 'sync', pois: pois }));
+      }
     }
 
     function closeContextMenu() {
@@ -940,12 +944,12 @@
         navRouteInfo.style.display = 'flex';
       } else if (contextMenuMode === 'save') {
         closeContextMenu();
-        const placeName = prompt("📍 Nombre del nuevo punto o negocio local:");
+        const placeName = prompt("📍 Nombre del nuevo punto o negocio local (Visible para toda la flota):");
         if (placeName && placeName.trim().length > 0) {
           const pois = getCustomPOIs();
           pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
-          saveAllPOIs(pois);
-          alert(`✅ ¡Punto "${placeName.trim()}" creado y fijado con éxito!`);
+          saveAllPOIs(pois, true);
+          alert(`✅ ¡Punto "${placeName.trim()}" sincronizado con éxito para todos!`);
         }
       }
     }
@@ -984,28 +988,28 @@
 
         const startPress = (e) => {
           pressTimer = setTimeout(() => {
-            const action = prompt(`⚙️ Opciones para "${poi.name}":\n1. Editar Nombre\n2. Mover aquí (Actualizar con tu posición actual)\n3. Eliminar punto\n\nEscribe 1, 2 o 3:`, "1");
+            const action = prompt(`⚙️ Opciones para "${poi.name}":\n1. Editar Nombre\n2. Mover aquí\n3. Eliminar punto global\n\nEscribe 1, 2 o 3:`, "1");
             if (action === "1") {
               const newName = prompt("Nuevo nombre para el punto:", poi.name);
               if (newName && newName.trim()) {
                 poi.name = newName.trim();
-                saveAllPOIs(pois);
-                alert("✅ Nombre actualizado.");
+                saveAllPOIs(getCustomPOIs(), true);
+                alert("✅ Nombre actualizado para todos.");
               }
             } else if (action === "2") {
               if (myLastCoords) {
                 poi.lon = myLastCoords.lon;
                 poi.lat = myLastCoords.lat;
-                saveAllPOIs(pois);
-                alert("✅ Ubicación corregida a tu posición actual.");
+                saveAllPOIs(getCustomPOIs(), true);
+                alert("✅ Ubicación corregida para todos.");
               } else {
-                alert("⚠️ No hay señal GPS disponible para actualizar la posición.");
+                alert("⚠️ No hay señal GPS disponible.");
               }
             } else if (action === "3") {
-              if (confirm(`¿Estás seguro de eliminar el punto "${poi.name}"?`)) {
-                const updated = pois.filter(p => p.id !== poi.id);
-                saveAllPOIs(updated);
-                alert("🗑️ Punto eliminado.");
+              if (confirm(`¿Estás seguro de eliminar el punto "${poi.name}" para toda la flota?`)) {
+                const updated = getCustomPOIs().filter(p => p.id !== poi.id);
+                saveAllPOIs(updated, true);
+                alert("🗑️ Punto eliminado de la red.");
               }
             }
           }, 600);
@@ -1570,14 +1574,13 @@
       renderCustomPoiMarkers();
     });
 
-    // --- INTERACCIÓN PERFECTA: 1 TOQUE SOSTENIDO = NAVEGAR | 2 TOQUES SOSTENIDO = AGREGAR PUNTO ---
+    // --- INTERACCIÓN DE GESTOS PERFECTAMENTE SEPARADA ---
     let lastTapTime = 0;
     let doubleTapHoldTimer = null;
     let singleTapHoldTimer = null;
 
     map.on('touchstart', (e) => {
       if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
-        // Multitáctil (zoom/mover con 2 dedos): cancelar todo
         clearTimeout(singleTapHoldTimer);
         clearTimeout(doubleTapHoldTimer);
         return;
@@ -1588,23 +1591,16 @@
       closeContextMenu();
 
       if (tapLength < 350 && tapLength > 0) {
-        // --- ES UN DOBLE TOQUE ---
-        clearTimeout(singleTapHoldTimer); // Cancelar acción de 1 toque si corría
-        
+        clearTimeout(singleTapHoldTimer);
         const lngLat = e.lngLat;
         doubleTapHoldTimer = setTimeout(() => {
-          // EN EL SEGUNDO TOQUE MANTENIDO: AGREGAR PUNTO
           if (lngLat) triggerContextMenu(lngLat, 'save');
         }, 600);
-
-        lastTapTime = 0; // reset
+        lastTapTime = 0;
       } else {
-        // --- POSIBLE TOQUE SIMPLE ---
         lastTapTime = currentTime;
         const lngLat = e.lngLat;
-
         singleTapHoldTimer = setTimeout(() => {
-          // SI PASA EL TIEMPO SIN UN SEGUNDO TOQUE: IR A ESTE LUGAR
           if (lngLat && lastTapTime !== 0) {
             triggerContextMenu(lngLat, 'nav');
           }
@@ -1613,22 +1609,13 @@
     });
 
     map.on('touchmove', () => {
-      // Si el usuario arrastra el mapa, cancelar cualquier temporizador pendiente
       clearTimeout(singleTapHoldTimer);
       clearTimeout(doubleTapHoldTimer);
       lastTapTime = 0;
     });
 
-    map.on('touchend', () => {
-      // Si levanta el dedo antes de tiempo, cancelar el temporizador de navegación simple
-      if (lastTapTime !== 0) {
-        // Si no hubo doble toque y levantó rápido, permitimos comportamiento normal del mapa
-      }
-    });
-
-    // Soporte para PC (Mouse)
     map.on('contextmenu', (e) => {
-      e.preventDefault(); // Clic derecho para agregar punto rápido en PC
+      e.preventDefault();
       triggerContextMenu(e.lngLat, 'save');
     });
 
@@ -2106,6 +2093,7 @@
     const TOPIC_STATUS = 'yadah/radio/flota/status';
     const TOPIC_BASE = 'yadah/radio/flota/base';
     const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
+    const TOPIC_POI = 'yadah/radio/flota/poi'; // Canal para sincronizar puntos locales
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -2164,6 +2152,7 @@
         mqttClient.subscribe(TOPIC_STATUS);
         mqttClient.subscribe(TOPIC_BASE);
         mqttClient.subscribe(TOPIC_MODULATOR);
+        mqttClient.subscribe(TOPIC_POI); // Suscribirse al canal de puntos globales
 
         if (isDriver()) {
           mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
@@ -2173,7 +2162,13 @@
       mqttClient.on('message', (topic, message) => {
         try {
           const text = message.toString();
-          if (topic === TOPIC_BASE) {
+          if (topic === TOPIC_POI) {
+            const poiData = JSON.parse(text);
+            if (poiData && poiData.action === 'sync' && poiData.pois) {
+              localStorage.setItem('yadah_custom_pois', JSON.stringify(poiData.pois));
+              renderCustomPoiMarkers();
+            }
+          } else if (topic === TOPIC_BASE) {
             const baseData = JSON.parse(text);
             if (baseData.coords) {
               defaultBaseCoords = baseData.coords;
