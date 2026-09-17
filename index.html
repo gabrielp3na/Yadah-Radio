@@ -705,11 +705,41 @@
 
     .btn-vh-apply { background: #10b981; color: #ffffff; }
     .btn-vh-close { background: #ef4444; color: #ffffff; }
+
+    /* VISTA CLIENTE WEB LIMPIA */
+    #client-tracking-screen {
+      position: fixed;
+      inset: 0;
+      background: #0b0f19;
+      z-index: 5000;
+      display: none;
+      flex-direction: column;
+    }
+    .client-header {
+      background: #111827;
+      padding: 14px;
+      border-bottom: 2px solid #38bdf8;
+      text-align: center;
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 1rem;
+    }
+    .client-map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 <body>
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
+
+  <!-- VISTA PARA EL CLIENTE FINAL (SI ENTRA POR ENLACE DE SEGUIMIENTO) -->
+  <div id="client-tracking-screen">
+    <div class="client-header" id="client-header-title">🚘 Tu vehículo en camino - Yadah Fleet</div>
+    <div class="client-map" id="client-map"></div>
+  </div>
 
   <div id="fleet-list-drawer">
     <div class="drawer-header">
@@ -723,11 +753,11 @@
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
 
-  <!-- MENÚ CONTEXTUAL CON OPCIÓN DE ASIGNAR (EXCLUSIVO MODULADOR) -->
+  <!-- MENÚ CONTEXTUAL CON OPCIÓN DE ASIGNAR Y COMPARTIR CON CLIENTE -->
   <div id="map-context-menu">
     <div class="menu-title" id="menu-title-text">📍 Opción de Ubicación</div>
     <button class="btn-ctx btn-ctx-nav" id="btn-ctx-action" onclick="ctxMainAction()">🚀 ¡Ir a este lugar!</button>
-    <button class="btn-ctx btn-ctx-assign" id="btn-ctx-assign" onclick="ctxAssignAction()" style="display:none;">🎯 Asignar a Móvil...</button>
+    <button class="btn-ctx btn-ctx-assign" id="btn-ctx-assign" onclick="ctxAssignAction()" style="display:none;">🎯 Asignar a Móvil & Compartir...</button>
     <button class="btn-ctx btn-ctx-cancel" onclick="closeContextMenu()">Cancelar</button>
   </div>
 
@@ -741,7 +771,7 @@
 
   <div id="nav-search-bar">
     <div class="search-input-box">
-      <input type="text" id="input-destination" placeholder="Escribe el destino o negocio local..." oninput="handleSearchInput(this.value)" autocomplete="off" />
+      <input type="text" id="input-destination" placeholder="Escribe el destino, negocio o enlace Google Maps..." oninput="handleSearchInput(this.value)" autocomplete="off" />
       <button onclick="prepareRouteDestination()">Buscar 🔍</button>
     </div>
     <div id="search-suggestions"></div>
@@ -859,6 +889,55 @@
   </div>
 
   <script>
+    // --- VERIFICAR SI LA PÁGINA SE ABRIÓ COMO VISTA CLIENTE ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackingUnit = urlParams.get('track');
+
+    if (trackingUnit) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('client-tracking-screen').style.display = 'flex';
+      document.querySelector('header').style.display = 'none';
+      document.getElementById('map-container').style.display = 'none';
+      document.querySelector('.controls-panel').style.display = 'none';
+
+      // Inicializar mapa ligero para cliente
+      window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('client-header-title').textContent = `🚘 Siguiendo a: ${trackingUnit}`;
+        const clientMap = new maplibregl.Map({
+          container: 'client-map',
+          style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+          center: [-89.3562, 13.7242],
+          zoom: 16
+        });
+
+        let clientMarker = null;
+
+        const clientMqtt = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'client_' + Math.random().toString(16).substring(2,8) });
+        clientMqtt.on('connect', () => {
+          clientMqtt.subscribe('yadah/radio/flota/gps');
+        });
+
+        clientMqtt.on('message', (top, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            if (data.unit === trackingUnit && data.lat && data.lon) {
+              const coords = [data.lon, data.lat];
+              if (!clientMarker) {
+                const el = document.createElement('div');
+                el.style.fontSize = '2.2rem';
+                el.innerHTML = '🚗';
+                clientMarker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(clientMap);
+                clientMap.flyTo({ center: coords, zoom: 17 });
+              } else {
+                clientMarker.setLngLat(coords);
+                clientMap.panTo(coords, { duration: 500 });
+              }
+            }
+          } catch(e){}
+        });
+      });
+    }
+
     let db = null;
     const DB_NAME = 'YadahFleetDB';
     const STORE_NAME = 'gps_points';
@@ -902,9 +981,9 @@
       };
     }
 
-    initDatabase();
+    if (!trackingUnit) initDatabase();
 
-    // --- GESTIÓN GLOBAL DE LUGARES Y ASIGNACIÓN DE TAREAS ---
+    // --- GESTIÓN GLOBAL DE LUGARES, ASIGNACIÓN Y ENLACES DE CLIENTE ---
     let contextMenuCoords = null;
     let tempContextMarker = null;
     let contextMenuMode = 'nav';
@@ -956,7 +1035,7 @@
       }
     }
 
-    // Acción exclusiva del modulador para asignar destino a un vehículo
+    // Asignación de vehículo y opción de generar enlace para el cliente
     function ctxAssignAction() {
       if (!contextMenuCoords || !isModulator()) return;
       const { lng, lat } = contextMenuCoords;
@@ -979,7 +1058,19 @@
                 lat: lat,
                 label: taskName.trim()
               }));
-              alert(`✅ ¡Destino enviado con éxito a ${targetUnit}!`);
+              
+              // Preguntar si desea generar y copiar el enlace para el cliente
+              const shareClient = confirm(`✅ ¡Destino enviado a ${targetUnit}!\n\n¿Deseas generar y copiar un ENLACE DE SEGUIMIENTO para enviar al cliente por WhatsApp?`);
+              if (shareClient) {
+                const currentUrl = window.location.href.split('?')[0];
+                const clientLink = `${currentUrl}?track=${encodeURIComponent(targetUnit)}`;
+                
+                navigator.clipboard.writeText(clientLink).then(() => {
+                  alert(`📋 ¡Enlace copiado al portapapeles!\n\nPégalo en WhatsApp para que el cliente vea el viaje de ${targetUnit} en tiempo real:\n\n${clientLink}`);
+                }).catch(() => {
+                  prompt("Copia este enlace para el cliente:", clientLink);
+                });
+              }
             } else {
               alert("⚠️ Error: No hay conexión de red para transmitir la asignación.");
             }
@@ -1122,11 +1213,34 @@
       } catch (err) {}
     }
 
+    // Permitir pegar enlaces de Google Maps y extraer coordenadas automáticamente
+    function parseGoogleMapsLink(inputStr) {
+      const matchGeo = inputStr.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (matchGeo) return { lat: parseFloat(matchGeo[1]), lon: parseFloat(matchGeo[2]) };
+      
+      const matchQuery = inputStr.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (matchQuery) return { lat: parseFloat(matchQuery[1]), lon: parseFloat(matchQuery[2]) };
+
+      return null;
+    }
+
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
       if (!query || query.trim().length < 1) {
         searchSuggestions.style.display = 'none';
         searchSuggestions.innerHTML = '';
+        return;
+      }
+
+      // Si pegó un enlace de Google Maps directamente
+      const parsedGMap = parseGoogleMapsLink(query);
+      if (parsedGMap) {
+        searchSuggestions.innerHTML = `
+          <div class="suggestion-item" onclick="selectSuggestion(${parsedGMap.lon}, ${parsedGMap.lat}, 'Ubicación de Google Maps compartida', false)">
+            📍🔗 <b>Ubicación de Google Maps detectada</b><br><span style="color:#38bdf8; font-size:0.68rem;">Lat: ${parsedGMap.lat}, Lon: ${parsedGMap.lon}</span>
+          </div>
+        `;
+        searchSuggestions.style.display = 'flex';
         return;
       }
 
@@ -1192,6 +1306,12 @@
       searchSuggestions.style.display = 'none';
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
+
+      const parsedGMap = parseGoogleMapsLink(query);
+      if (parsedGMap) {
+        selectSuggestion(parsedGMap.lon, parsedGMap.lat, 'Ubicación de Google Maps', false);
+        return;
+      }
 
       const localPOIs = getCustomPOIs();
       const foundLocal = localPOIs.find(p => p.name.toLowerCase() === query.toLowerCase());
@@ -1456,7 +1576,7 @@
           <div class="unit-card-row" onclick="openVehicleHistoryFromList('${unitId}')">
             <div class="unit-card-info">
               <b>🚘 ${unitId}</b>
-              <div>${detailTxt} (Toca para ver historial)</div>
+              <div>${detailTxt} (Toca para ver historial o compartir enlace)</div>
             </div>
             <div>${statusBadge}</div>
           </div>
@@ -1466,6 +1586,21 @@
 
     function openVehicleHistoryFromList(unitId) {
       if (!isModulator()) return;
+      
+      // Permitir re-compartir enlace de cliente rápidamente desde la lista de flota
+      const shareAgain = confirm(`🚘 Opciones para ${unitId}:\n\n1. Ver historial de 24 horas\n2. Copiar enlace de seguimiento para cliente (WhatsApp)\n\n¿Deseas copiar el enlace de seguimiento en tiempo real para este móvil?`);
+      if (shareAgain) {
+        toggleFleetDrawer(false);
+        const currentUrl = window.location.href.split('?')[0];
+        const clientLink = `${currentUrl}?track=${encodeURIComponent(unitId)}`;
+        navigator.clipboard.writeText(clientLink).then(() => {
+          alert(`📋 ¡Enlace de ${unitId} copiado al portapapeles!\n\n${clientLink}`);
+        }).catch(() => {
+          prompt(`Copia el enlace para ${unitId}:`, clientLink);
+        });
+        return;
+      }
+
       toggleFleetDrawer(false);
       activeHistoryUnit = unitId;
       document.getElementById('vh-unit-name').textContent = unitId;
@@ -1528,7 +1663,7 @@
       try { defaultBaseCoords = JSON.parse(savedBaseCoords); } catch(e){}
     }
 
-    const map = new maplibregl.Map({
+    const map = !trackingUnit ? new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
       pitchWithRotate: true,
@@ -1579,12 +1714,13 @@
       zoom: 16.5,
       pitch: 0,
       bearing: 0
-    });
+    }) : null;
 
     let permanentBaseMarker = null;
     let baseBadgeEl = null;
 
     function addPermanentBaseMarker() {
+      if (!map) return;
       const container = document.createElement('div');
       container.className = 'car-marker-container';
 
@@ -1604,73 +1740,77 @@
         .addTo(map);
     }
 
-    map.on('load', () => {
-      ensureLayersExist();
-      addPermanentBaseMarker();
-      renderCustomPoiMarkers();
-    });
+    if (map) {
+      map.on('load', () => {
+        ensureLayersExist();
+        addPermanentBaseMarker();
+        renderCustomPoiMarkers();
+      });
+    }
 
     // --- INTERACCIÓN DE GESTOS PERFECTAMENTE SEPARADA ---
     let lastTapTime = 0;
     let doubleTapHoldTimer = null;
     let singleTapHoldTimer = null;
 
-    map.on('touchstart', (e) => {
-      if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
+    if (map) {
+      map.on('touchstart', (e) => {
+        if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
+          clearTimeout(singleTapHoldTimer);
+          clearTimeout(doubleTapHoldTimer);
+          return;
+        }
+
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+        closeContextMenu();
+
+        if (tapLength < 350 && tapLength > 0) {
+          clearTimeout(singleTapHoldTimer);
+          const lngLat = e.lngLat;
+          doubleTapHoldTimer = setTimeout(() => {
+            if (lngLat) triggerContextMenu(lngLat, 'save');
+          }, 600);
+          lastTapTime = 0;
+        } else {
+          lastTapTime = currentTime;
+          const lngLat = e.lngLat;
+          singleTapHoldTimer = setTimeout(() => {
+            if (lngLat && lastTapTime !== 0) {
+              triggerContextMenu(lngLat, 'nav');
+            }
+          }, 650);
+        }
+      });
+
+      map.on('touchmove', () => {
         clearTimeout(singleTapHoldTimer);
         clearTimeout(doubleTapHoldTimer);
-        return;
-      }
-
-      const currentTime = new Date().getTime();
-      const tapLength = currentTime - lastTapTime;
-      closeContextMenu();
-
-      if (tapLength < 350 && tapLength > 0) {
-        clearTimeout(singleTapHoldTimer);
-        const lngLat = e.lngLat;
-        doubleTapHoldTimer = setTimeout(() => {
-          if (lngLat) triggerContextMenu(lngLat, 'save');
-        }, 600);
         lastTapTime = 0;
-      } else {
-        lastTapTime = currentTime;
-        const lngLat = e.lngLat;
-        singleTapHoldTimer = setTimeout(() => {
-          if (lngLat && lastTapTime !== 0) {
-            triggerContextMenu(lngLat, 'nav');
+      });
+
+      map.on('contextmenu', (e) => {
+        e.preventDefault();
+        triggerContextMenu(e.lngLat, 'save');
+      });
+
+      map.on('click', (e) => {
+        if (isModulator() && baseUnlocked) {
+          const lng = e.lngLat.lng;
+          const lat = e.lngLat.lat;
+          defaultBaseCoords = [lng, lat];
+          localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
+          if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords);
+          if (mqttClient && mqttClient.connected) {
+            mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
           }
-        }, 650);
-      }
-    });
-
-    map.on('touchmove', () => {
-      clearTimeout(singleTapHoldTimer);
-      clearTimeout(doubleTapHoldTimer);
-      lastTapTime = 0;
-    });
-
-    map.on('contextmenu', (e) => {
-      e.preventDefault();
-      triggerContextMenu(e.lngLat, 'save');
-    });
-
-    map.on('click', (e) => {
-      if (isModulator() && baseUnlocked) {
-        const lng = e.lngLat.lng;
-        const lat = e.lngLat.lat;
-        defaultBaseCoords = [lng, lat];
-        localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
-        if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords);
-        if (mqttClient && mqttClient.connected) {
-          mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
+          baseUnlocked = false;
+          btnUnlockBase.textContent = '🔒';
+          btnUnlockBase.classList.remove('unlocked');
+          alert(`📍 ¡Base Central reubicada y sincronizada!`);
         }
-        baseUnlocked = false;
-        btnUnlockBase.textContent = '🔒';
-        btnUnlockBase.classList.remove('unlocked');
-        alert(`📍 ¡Base Central reubicada y sincronizada!`);
-      }
-    });
+      });
+    }
 
     function triggerContextMenu(lngLat, mode) {
       if (isModulator() && baseUnlocked) return;
@@ -1692,9 +1832,9 @@
         actionBtn.style.background = '#f59e0b';
       }
 
-      // Mostrar el botón de asignar solo si es el modulador
       if (isModulator()) {
         assignBtn.style.display = 'block';
+        assignBtn.textContent = '🎯 Asignar a Móvil & Compartir...';
       } else {
         assignBtn.style.display = 'none';
       }
@@ -1710,6 +1850,7 @@
     }
 
     function ensureLayersExist() {
+      if (!map) return;
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
           type: 'geojson',
@@ -1813,7 +1954,7 @@
       }
       navRouteInfo.style.display = 'none';
       document.getElementById('input-destination').value = '';
-      if (map.getSource('nav-active-route')) {
+      if (map && map.getSource('nav-active-route')) {
         map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
       }
       if (mqttClient && mqttClient.connected && currentUnit) {
@@ -1824,13 +1965,13 @@
     function closeVehicleHistory() {
       activeHistoryUnit = null;
       vehicleHistoryCard.style.display = 'none';
-      if (map.getSource('route-trails')) {
+      if (map && map.getSource('route-trails')) {
         map.getSource('route-trails').setData({ type: 'FeatureCollection', features: [] });
       }
     }
 
     function applyVehicleHistory() {
-      if (!isModulator() || !db || !activeHistoryUnit) return;
+      if (!isModulator() || !db || !activeHistoryUnit || !map) return;
       const startTime = Date.now() - (24 * 60 * 60 * 1000);
 
       const tx = db.transaction([STORE_NAME], 'readonly');
@@ -1954,7 +2095,7 @@
     }
 
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
-      if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
+      if (!lon || !lat || isNaN(lon) || isNaN(lat) || !map) return;
       const now = Date.now();
 
       if (!fleetStatusMap[unitId]) fleetStatusMap[unitId] = {};
@@ -2020,7 +2161,7 @@
     }
 
     function smoothAnimationLoop() {
-      if (isDriver() && targetPos && currentDisplayPos) {
+      if (isDriver() && targetPos && currentDisplayPos && map) {
         currentDisplayPos.lon += (targetPos.lon - currentDisplayPos.lon) * 0.15;
         currentDisplayPos.lat += (targetPos.lat - currentDisplayPos.lat) * 0.15;
 
@@ -2099,6 +2240,7 @@
     });
 
     function applyCameraPerspective() {
+      if (!map) return;
       if (isModulator()) {
         map.easeTo({ center: defaultBaseCoords, zoom: 16.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
@@ -2138,7 +2280,7 @@
     const TOPIC_BASE = 'yadah/radio/flota/base';
     const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
     const TOPIC_POI = 'yadah/radio/flota/poi';
-    const TOPIC_ASSIGN = 'yadah/radio/flota/assignment'; // Canal para asignación de tareas a móviles
+    const TOPIC_ASSIGN = 'yadah/radio/flota/assignment';
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -2154,7 +2296,7 @@
     }
 
     function locateActiveSOS() {
-      if (activeSosCoords && activeSosCoords.lon && activeSosCoords.lat) {
+      if (activeSosCoords && activeSosCoords.lon && activeSosCoords.lat && map) {
         map.flyTo({ center: [activeSosCoords.lon, activeSosCoords.lat], zoom: 17.5, pitch: 45 });
       }
     }
@@ -2198,7 +2340,7 @@
         mqttClient.subscribe(TOPIC_BASE);
         mqttClient.subscribe(TOPIC_MODULATOR);
         mqttClient.subscribe(TOPIC_POI);
-        mqttClient.subscribe(TOPIC_ASSIGN); // Suscripción para recibir tareas asignadas
+        mqttClient.subscribe(TOPIC_ASSIGN);
 
         if (isDriver()) {
           mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
@@ -2210,12 +2352,10 @@
           const text = message.toString();
           if (topic === TOPIC_ASSIGN) {
             const assignData = JSON.parse(text);
-            // Si el mensaje es para este móvil específico
             if (isDriver() && assignData.targetUnit === currentUnit) {
               playBeep(880, 0.1);
               alert(`🎯 ¡Nueva misión asignada por Central!\nDestino: ${assignData.label}`);
               
-              // Trazar automáticamente la ruta hacia el destino asignado
               pendingDestination = { lon: assignData.lon, lat: assignData.lat, label: assignData.label };
               lblRouteStats.textContent = `📍 [Asignado] ${assignData.label}. ¿Deseas iniciar marcha?`;
               navRouteInfo.style.display = 'flex';
@@ -2259,7 +2399,7 @@
             }
           } else if (topic === TOPIC_NAV) {
             const nav = JSON.parse(text);
-            if (isModulator()) {
+            if (isModulator() && map) {
               ensureLayersExist();
               if (nav.canceled) {
                 map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
@@ -2282,7 +2422,7 @@
                   playSiren();
                   sirenInterval = setInterval(playSiren, 1200);
                 }
-                if (isModulator() && panic.coords) {
+                if (isModulator() && panic.coords && map) {
                   map.flyTo({ center: [panic.coords.lon, panic.coords.lat], zoom: 16.5, pitch: 0 });
                 }
               } else {
@@ -2317,7 +2457,7 @@
 
     let initialCentering = false;
 
-    if (navigator.geolocation) {
+    if (!trackingUnit && navigator.geolocation) {
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'geolocation' }).then((result) => {
           updateGpsLockState(result.state === 'granted');
@@ -2399,11 +2539,13 @@
         },
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
-    } else {
+    } else if (!trackingUnit) {
       updateGpsLockState(false);
     }
 
-    document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
+    if (!trackingUnit) {
+      document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
+    }
 
     let mediaRecorder = null;
     let audioChunks = [];
@@ -2543,21 +2685,23 @@
       }
     }
 
-    btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
-    btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
-    btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
-    btnPtt.addEventListener('mousedown', startAudioRecording);
-    btnPtt.addEventListener('mouseup', stopAudioRecording);
-    btnPtt.addEventListener('mouseleave', stopAudioRecording);
+    if (!trackingUnit) {
+      btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
+      btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
+      btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
+      btnPtt.addEventListener('mousedown', startAudioRecording);
+      btnPtt.addEventListener('mouseup', stopAudioRecording);
+      btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
-        startAudioRecording(e);
-      }
-    });
-    window.addEventListener('keyup', (e) => {
-      if (e.code === 'Space') stopAudioRecording(e);
-    });
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
+          startAudioRecording(e);
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') stopAudioRecording(e);
+      });
+    }
 
     let cachedAudios = [];
 
@@ -2640,7 +2784,9 @@
       }
     }
 
-    checkAuth();
+    if (!trackingUnit) {
+      checkAuth();
+    }
   </script>
 </body>
 </html>
