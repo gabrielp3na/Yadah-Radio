@@ -684,7 +684,7 @@
 
   <div id="nav-search-bar">
     <div class="search-input-box">
-      <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." oninput="handleSearchInput(this.value)" autocomplete="off" />
+      <input type="text" id="input-destination" placeholder="Escribe el destino o negocio local..." oninput="handleSearchInput(this.value)" autocomplete="off" />
       <button onclick="prepareRouteDestination()">Buscar 🔍</button>
     </div>
     <div id="search-suggestions"></div>
@@ -765,9 +765,10 @@
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
+      <!-- BOTÓN RÁPIDO PARA GUARDAR UBICACIÓN ACTUAL -->
+      <button class="btn-float-action" title="Guardar este lugar actual" onclick="promptSaveCurrentLocation()" style="background:#065f46; border-color:#10b981; color:#ffffff;">📍+</button>
       <button class="btn-float-action" title="Acercar Zoom" onclick="zoomIn()">➕</button>
       <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
-      <!-- BOTÓN DE PANTALLA COMPLETA AÑADIDO -->
       <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
       <button class="btn-float-action" id="btn-unlock-base" title="Desbloquear para Mover Base" onclick="toggleBaseUnlock()" style="display:none;">🔒</button>
     </div>
@@ -848,6 +849,33 @@
 
     initDatabase();
 
+    // --- GESTIÓN DE LUGARES Y NEGOCIOS LOCALES (DIRECTORIO PROPIO) ---
+    function getCustomPOIs() {
+      try {
+        return JSON.parse(localStorage.getItem('yadah_custom_pois') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveCustomPOI(name, lon, lat) {
+      const pois = getCustomPOIs();
+      pois.unshift({ name, lon, lat, time: Date.now() });
+      localStorage.setItem('yadah_custom_pois', JSON.stringify(pois));
+    }
+
+    function promptSaveCurrentLocation() {
+      if (!myLastCoords) {
+        alert("⚠️ Esperando señal de GPS para obtener tu ubicación actual.");
+        return;
+      }
+      const placeName = prompt("📍 Nombre del punto o negocio local (ej. Taxi Las Moritas, Punto de la Madrid):");
+      if (placeName && placeName.trim().length > 0) {
+        saveCustomPOI(placeName.trim(), myLastCoords.lon, myLastCoords.lat);
+        alert(`✅ ¡Lugar "${placeName.trim()}" guardado con éxito en tu directorio local!`);
+      }
+    }
+
     let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
     const isModulator = () => currentUnit === 'Modulador';
@@ -901,31 +929,56 @@
       } catch (err) {}
     }
 
+    // --- BUSCADOR HÍBRIDO CON PRIORIDAD A LUGARES PROPIOS ---
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
-      if (!query || query.trim().length < 2) {
+      if (!query || query.trim().length < 1) {
         searchSuggestions.style.display = 'none';
         searchSuggestions.innerHTML = '';
         return;
       }
 
+      const qLower = query.toLowerCase();
+      const localPOIs = getCustomPOIs().filter(p => p.name.toLowerCase().includes(qLower));
+
       searchTimeout = setTimeout(async () => {
         try {
-          let suggestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
-          if (myLastCoords) {
-            const delta = 0.5;
-            const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
-            suggestUrl += `&viewbox=${viewbox}&bounded=1`;
+          let externalResults = [];
+          if (query.trim().length >= 2) {
+            let suggestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=4`;
+            if (myLastCoords) {
+              const delta = 0.5;
+              const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+              suggestUrl += `&viewbox=${viewbox}&bounded=1`;
+            }
+            const resp = await fetch(suggestUrl);
+            externalResults = await resp.json();
           }
-          const resp = await fetch(suggestUrl);
-          const results = await resp.json();
 
-          if (results && results.length > 0) {
-            searchSuggestions.innerHTML = results.map(item => `
-              <div class="suggestion-item" onclick="selectSuggestion(${item.lon}, ${item.lat}, '${item.display_name.replace(/'/g, "")}')">
-                📍 <b>${item.display_name.split(',')[0]}</b><br><span style="color:#94a3b8; font-size:0.68rem;">${item.display_name}</span>
+          let htmlContent = '';
+
+          // 1. Mostrar primero los lugares propios guardados
+          localPOIs.forEach(poi => {
+            htmlContent += `
+              <div class="suggestion-item" onclick="selectSuggestion(${poi.lon}, ${poi.lat}, '${poi.name.replace(/'/g, "")}', true)">
+                📍⭐ <b>[Local] ${poi.name}</b><br><span style="color:#38bdf8; font-size:0.68rem;">Punto registrado en tu flota</span>
               </div>
-            `).join('');
+            `;
+          });
+
+          // 2. Mostrar los resultados externos de OpenStreetMap debajo
+          if (externalResults && externalResults.length > 0) {
+            externalResults.forEach(item => {
+              htmlContent += `
+                <div class="suggestion-item" onclick="selectSuggestion(${item.lon}, ${item.lat}, '${item.display_name.replace(/'/g, "")}', false)">
+                  📍 <b>${item.display_name.split(',')[0]}</b><br><span style="color:#94a3b8; font-size:0.68rem;">${item.display_name}</span>
+                </div>
+              `;
+            });
+          }
+
+          if (htmlContent) {
+            searchSuggestions.innerHTML = htmlContent;
             searchSuggestions.style.display = 'flex';
           } else {
             searchSuggestions.style.display = 'none';
@@ -933,14 +986,15 @@
         } catch (e) {
           console.error("Error buscando sugerencias:", e);
         }
-      }, 350);
+      }, 300);
     }
 
-    function selectSuggestion(lon, lat, displayName) {
+    function selectSuggestion(lon, lat, displayName, isLocal) {
       document.getElementById('input-destination').value = displayName.split(',')[0];
       searchSuggestions.style.display = 'none';
       pendingDestination = { lon, lat, label: displayName.split(',')[0] };
-      lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
+      const prefix = isLocal ? '📍 [Local] Destino:' : '📍 Destino:';
+      lblRouteStats.textContent = `${prefix} ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
       navRouteInfo.style.display = 'flex';
     }
 
@@ -948,6 +1002,14 @@
       searchSuggestions.style.display = 'none';
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
+
+      // Revisar primero en la base local exacta
+      const localPOIs = getCustomPOIs();
+      const foundLocal = localPOIs.find(p => p.name.toLowerCase() === query.toLowerCase());
+      if (foundLocal) {
+        selectSuggestion(foundLocal.lon, foundLocal.lat, foundLocal.name, true);
+        return;
+      }
 
       try {
         lblRouteStats.textContent = 'Buscando lugar...';
@@ -969,7 +1031,7 @@
           pendingDestination = { lon, lat, label: results[0].display_name.split(',')[0] };
           lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
         } else {
-          alert("Lugar no encontrado. Intenta con un nombre más específico o toca directamente el mapa.");
+          alert("Lugar no encontrado. Intenta con un nombre más específico, selecciónalo de las sugerencias o toca directamente el mapa.");
           navRouteInfo.style.display = 'none';
         }
       } catch (err) {
@@ -1143,7 +1205,6 @@
       }
     });
 
-    // --- FUNCIONES DE ZOOM Y PANTALLA COMPLETA ---
     function zoomIn() {
       map.zoomIn({ duration: 300 });
     }
