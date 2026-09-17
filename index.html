@@ -307,16 +307,34 @@
     .nav-route-info {
       background: #030712;
       border: 1px solid #38bdf8;
-      padding: 6px 12px;
+      padding: 8px 12px;
       border-radius: 8px;
       display: none;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 6px;
       font-size: 0.78rem;
       color: #38bdf8;
       font-weight: 700;
       margin-top: 4px;
     }
+
+    .nav-route-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-nav-action {
+      flex: 1;
+      padding: 6px;
+      border-radius: 6px;
+      border: none;
+      font-weight: 800;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .btn-nav-start { background: #10b981; color: #ffffff; }
+    .btn-nav-cancel { background: #ef4444; color: #ffffff; }
 
     .map-floating-controls {
       position: absolute;
@@ -678,12 +696,15 @@
   <div id="nav-search-bar">
     <div class="search-input-box">
       <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." oninput="handleSearchInput(this.value)" autocomplete="off" />
-      <button onclick="searchAndRouteDestination()">Ir 🚀</button>
+      <button onclick="prepareRouteDestination()">Buscar 🔍</button>
     </div>
     <div id="search-suggestions"></div>
     <div class="nav-route-info" id="nav-route-info">
-      <span id="lbl-route-stats">Calculando...</span>
-      <button style="background:transparent; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" onclick="cancelNavigation()">✕ Cancelar</button>
+      <span id="lbl-route-stats">Destino seleccionado</span>
+      <div class="nav-route-actions">
+        <button class="btn-nav-action btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
+        <button class="btn-nav-action btn-nav-cancel" onclick="cancelNavigation()">Cancelar ✕</button>
+      </div>
     </div>
   </div>
 
@@ -883,7 +904,7 @@
     let activeHistoryUnit = null;
     let isSosActive = false;
     let sirenInterval = null;
-    let currentDestinationCoords = null;
+    let pendingDestination = null; // Almacena temporalmente el destino seleccionado
     let gpsPermissionGranted = false;
     let searchTimeout = null;
     let baseUnlocked = false;
@@ -940,7 +961,50 @@
     function selectSuggestion(lon, lat, displayName) {
       document.getElementById('input-destination').value = displayName.split(',')[0];
       searchSuggestions.style.display = 'none';
-      requestRouteToDestination(lon, lat, displayName.split(',')[0]);
+      pendingDestination = { lon, lat, label: displayName.split(',')[0] };
+      lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
+      navRouteInfo.style.display = 'flex';
+    }
+
+    async function prepareRouteDestination() {
+      searchSuggestions.style.display = 'none';
+      const query = document.getElementById('input-destination').value.trim();
+      if (!query) return;
+
+      try {
+        lblRouteStats.textContent = 'Buscando lugar...';
+        navRouteInfo.style.display = 'flex';
+
+        let searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+        if (myLastCoords) {
+          const delta = 0.5;
+          const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+          searchUrl += `&viewbox=${viewbox}&bounded=1`;
+        }
+
+        const resp = await fetch(searchUrl);
+        const results = await resp.json();
+
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          pendingDestination = { lon, lat, label: results[0].display_name.split(',')[0] };
+          lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
+        } else {
+          alert("Lugar no encontrado. Intenta con un nombre más específico o toca directamente el mapa.");
+          navRouteInfo.style.display = 'none';
+        }
+      } catch (err) {
+        console.error("Error buscando:", err);
+      }
+    }
+
+    function startNavigationMatch() {
+      if (!pendingDestination) {
+        alert("Primero selecciona o busca un destino.");
+        return;
+      }
+      requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
     }
 
     function updateGpsLockState(allowed) {
@@ -1209,7 +1273,6 @@
       } catch (e) {}
     }
 
-    // Coordenada exacta basada en la posición actual del Móvil 01 en la foto de prueba
     let defaultBaseCoords = [-89.356200, 13.724208];
     const savedBaseCoords = localStorage.getItem('yadah_base_coords');
     if (savedBaseCoords) {
@@ -1317,7 +1380,9 @@
 
         alert(`📍 ¡Base Central reubicada y sincronizada con la flota!\nLongitud: ${lng}\nLatitud: ${lat}`);
       } else if (isDriver() && !activeHistoryUnit) {
-        requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
+        pendingDestination = { lon: e.lngLat.lng, lat: e.lngLat.lat, label: 'Punto en el mapa' };
+        lblRouteStats.textContent = `📍 Destino en mapa seleccionado. ¿Deseas iniciar marcha?`;
+        navRouteInfo.style.display = 'flex';
       }
     });
 
@@ -1366,38 +1431,6 @@
 
     let destinationMarker = null;
 
-    async function searchAndRouteDestination() {
-      searchSuggestions.style.display = 'none';
-      const query = document.getElementById('input-destination').value.trim();
-      if (!query) return;
-
-      try {
-        lblRouteStats.textContent = 'Buscando lugar...';
-        navRouteInfo.style.display = 'flex';
-
-        let searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
-        if (myLastCoords) {
-          const delta = 0.5;
-          const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
-          searchUrl += `&viewbox=${viewbox}&bounded=1`;
-        }
-
-        const resp = await fetch(searchUrl);
-        const results = await resp.json();
-
-        if (results && results.length > 0) {
-          const lat = parseFloat(results[0].lat);
-          const lon = parseFloat(results[0].lon);
-          requestRouteToDestination(lon, lat, results[0].display_name.split(',')[0]);
-        } else {
-          alert("Lugar no encontrado. Intenta con un nombre más específico o toca directamente el mapa.");
-          navRouteInfo.style.display = 'none';
-        }
-      } catch (err) {
-        console.error("Error buscando:", err);
-      }
-    }
-
     async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
       if (!myLastCoords) {
         alert("Esperando señal de GPS para trazar navegación...");
@@ -1425,7 +1458,7 @@
           const distKm = (route.distance / 1000).toFixed(1);
           const mins = Math.round(route.duration / 60);
 
-          lblRouteStats.textContent = `🏁 ${label}: ${distKm} km (~${mins} min)`;
+          lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${distKm} km (~${mins} min). En marcha 🚀`;
 
           ensureLayersExist();
           map.getSource('nav-active-route').setData({
@@ -1449,6 +1482,7 @@
     }
 
     function cancelNavigation() {
+      pendingDestination = null;
       currentDestinationCoords = null;
       if (destinationMarker) {
         destinationMarker.remove();
