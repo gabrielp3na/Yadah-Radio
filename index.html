@@ -1007,18 +1007,15 @@
       const ahora = Date.now();
       const { intentos, bloqueos } = obtenerIntentosYBloqueos();
 
-      // 1. Verificar si el perfil está bloqueado temporalmente
       if (bloqueos[id] && ahora < bloqueos[id]) {
         const minutosRestantes = Math.ceil((bloqueos[id] - ahora) / 60000);
         alert(`🔒 El perfil de "${id}" está bloqueado temporalmente por seguridad.\nIntente de nuevo en ${minutosRestantes} minutos.`);
         return;
       }
 
-      // 2. Solicitar contraseña mediante un cuadro seguro
       const passIngresada = prompt(`🔐 Ingrese la contraseña de seguridad para [ ${id} ]:`);
-      if (passIngresada === null) return; // Si cancela
+      if (passIngresada === null) return;
 
-      // 3. Validar contraseña fija ("1994")
       if (passIngresada === "1994") {
         intentos[id] = 0;
         delete bloqueos[id];
@@ -1029,7 +1026,7 @@
         const restantes = 3 - intentos[id];
 
         if (intentos[id] >= 3) {
-          bloqueos[id] = ahora + (15 * 60 * 1000); // 15 minutos de bloqueo
+          bloqueos[id] = ahora + (15 * 60 * 1000);
           guardarIntentosYBloqueos(intentos, bloqueos);
           alert(`🚨 Demasiados intentos fallidos en "${id}". Este perfil ha sido bloqueado por 15 minutos.`);
         } else {
@@ -2597,10 +2594,31 @@
       document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
     }
 
+    // ==========================================
+    // MÓDULO DE AUDIO TIPO ZELLO (Streaming Baja Latencia)
+    // ==========================================
     let mediaRecorder = null;
-    let audioChunks = [];
     let audioStream = null;
     let isRecording = false;
+    let audioQueue = [];
+    let isPlayingQueue = false;
+
+    async function initAudioEngine() {
+      try {
+        if (!audioStream) {
+          audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+              echoCancellation: true, 
+              noiseSuppression: true, 
+              autoGainControl: true,
+              sampleRate: 16000 
+            } 
+          });
+        }
+      } catch (err) {
+        console.error("Error al acceder al micrófono:", err);
+      }
+    }
 
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
@@ -2616,67 +2634,47 @@
       isRecording = true;
 
       unlockAudioHardware();
+      await initAudioEngine();
+      if (!audioStream) {
+        isRecording = false;
+        return;
+      }
+
+      if (navigator.vibrate) navigator.vibrate(50); // Vibración táctil de 50ms
+
+      playBeep(920, 0.04);
+      btnPtt.classList.add('active');
+      channelStatus.className = 'channel-status transmitting';
+      channelStatus.textContent = '▲ TRANSMITIENDO EN DIRECTO...';
+
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
+      }
 
       try {
-        if (!audioStream) {
-          audioStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-          });
-        }
-
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
-
-        mediaRecorder = mime ? new MediaRecorder(audioStream, { mimeType: mime }) : new MediaRecorder(audioStream);
-        audioChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+        mediaRecorder = new MediaRecorder(audioStream, { mimeType: mime, bitsPerSecond: 12800 });
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = () => {
-          if (audioChunks.length === 0) return;
-
-          const recordedType = mediaRecorder.mimeType || 'audio/webm';
-          const audioBlob = new Blob(audioChunks, { type: recordedType });
-
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            const base64 = reader.result;
-            const payload = {
-              sender: currentUnit,
-              payload: base64,
-              type: recordedType,
-              timestamp: Date.now()
+          if (event.data && event.data.size > 0 && isRecording) {
+            const reader = new FileReader();
+            reader.readAsDataURL(event.data);
+            reader.onloadend = () => {
+              if (mqttClient && mqttClient.connected && isRecording) {
+                mqttClient.publish(TOPIC_VOICE, JSON.stringify({
+                  sender: currentUnit,
+                  payload: reader.result,
+                  timestamp: Date.now()
+                }));
+              }
             };
-
-            if (mqttClient && mqttClient.connected) {
-              mqttClient.publish(TOPIC_VOICE, JSON.stringify(payload));
-            }
-
-            saveAudioToHistory({
-              sender: `${currentUnit} (Tú)`,
-              payload: base64,
-              timestamp: Date.now()
-            });
-          };
+          }
         };
 
-        mediaRecorder.start();
-        playBeep(920, 0.05);
-
-        if (mqttClient && mqttClient.connected) {
-          mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
-        }
-
-        btnPtt.classList.add('active');
-        channelStatus.className = 'channel-status transmitting';
-        channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
+        // Fragmentación de streaming ultrarrápida cada 120ms
+        mediaRecorder.start(120);
       } catch (err) {
         isRecording = false;
-        alert("Por favor concede permisos de micrófono en el navegador.");
       }
     }
 
@@ -2688,24 +2686,45 @@
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
+
       btnPtt.classList.remove('active');
       channelStatus.className = 'channel-status';
       channelStatus.textContent = '● CANAL LIBRE';
+      playBeep(600, 0.04);
     }
 
     function receiveVoiceWalkieTalkie(voiceData) {
+      if (voiceData.sender === currentUnit) return;
+
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
+
+      audioQueue.push(voiceData);
+      if (!isPlayingQueue) {
+        processAudioQueue();
+      }
 
       saveAudioToHistory({
         sender: voiceData.sender,
         payload: voiceData.payload,
         timestamp: voiceData.timestamp || Date.now()
       });
+    }
+
+    function processAudioQueue() {
+      if (audioQueue.length === 0) {
+        isPlayingQueue = false;
+        channelStatus.className = 'channel-status';
+        channelStatus.textContent = '● CANAL LIBRE';
+        return;
+      }
+
+      isPlayingQueue = true;
+      const voiceData = audioQueue.shift();
 
       try {
         const parts = voiceData.payload.split(';base64,');
-        const contentType = parts[0].split(':')[1] || voiceData.type || 'audio/webm';
+        const contentType = parts[0].split(':')[1] || 'audio/webm';
         const raw = window.atob(parts[1]);
         const uInt8Array = new Uint8Array(raw.length);
         for (let i = 0; i < raw.length; ++i) {
@@ -2717,21 +2736,14 @@
         radioSpeaker.src = audioUrl;
         radioSpeaker.volume = 1.0;
 
-        radioSpeaker.play().then(() => {
-          playBeep(440, 0.04);
-        }).catch(() => {
-          const fallback = new Audio(audioUrl);
-          fallback.play().catch(() => {});
-        });
+        radioSpeaker.play().catch(() => {});
 
         radioSpeaker.onended = () => {
-          channelStatus.className = 'channel-status';
-          channelStatus.textContent = '● CANAL LIBRE';
-          playBeep(600, 0.05);
           URL.revokeObjectURL(audioUrl);
+          processAudioQueue();
         };
       } catch (err) {
-        console.error("Error reproduciendo audio:", err);
+        processAudioQueue();
       }
     }
 
