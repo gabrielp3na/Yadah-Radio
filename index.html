@@ -115,11 +115,14 @@
       font-size: 0.95rem;
       font-weight: 700;
       color: #f59e0b;
+      white-space: nowrap;
     }
 
     .header-actions {
       display: flex;
       gap: 6px;
+      overflow-x: auto;
+      align-items: center;
     }
 
     .btn-header {
@@ -131,9 +134,16 @@
       font-size: 0.72rem;
       font-weight: 600;
       cursor: pointer;
+      white-space: nowrap;
     }
 
-    /* BANNER ALERTA GPS BLOQUEADO */
+    .btn-header.danger {
+      background: #991b1b;
+      border-color: #ef4444;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
     #gps-lock-banner {
       background: #dc2626;
       color: #ffffff;
@@ -146,7 +156,6 @@
       z-index: 2200;
     }
 
-    /* BARRA RESUMEN DE FLOTA */
     #fleet-summary-bar {
       background: #0f172a;
       border-bottom: 1px solid #334155;
@@ -168,7 +177,6 @@
     .badge-stat.stopped { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
     .badge-stat.offline { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
 
-    /* PANEL LATERAL FLOTA */
     #fleet-list-drawer {
       position: fixed;
       top: 0;
@@ -444,7 +452,6 @@
 
     .btn-ptt.active { background-color: #f59e0b; color: #030712; }
 
-    /* ESTADO DESHABILITADO POR FALTA DE GPS */
     .btn-ptt.gps-disabled {
       background-color: #1e293b !important;
       border-color: #475569 !important;
@@ -624,7 +631,6 @@
     <div class="fleet-items-container" id="fleet-items-list"></div>
   </div>
 
-  <!-- BANNER BLOQUEO POR GPS APAGADO / DENEGADO -->
   <div id="gps-lock-banner">
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
@@ -701,12 +707,12 @@
 
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT Live
+      <span>📻</span> Yadah PTT
     </div>
     <div class="header-actions">
       <button class="btn-header" id="btn-toggle-fleet" onclick="toggleFleetDrawer(true)" style="display:none; border-color:#38bdf8; color:#38bdf8;">📋 Flota</button>
       <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón</button>
-      <button class="btn-header" onclick="logoutUnit()">🔄 Salir</button>
+      <button class="btn-header danger" onclick="logoutUnit()">🚪 Salir</button>
     </div>
   </header>
 
@@ -724,7 +730,6 @@
 
     <div class="map-floating-controls">
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
-      <button class="btn-float-action" id="btn-trail-mode" title="Ver / Ocultar Rastros">🛣️</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
@@ -819,7 +824,6 @@
     const radioSpeaker = document.getElementById('radio-speaker');
     const btnViewMode = document.getElementById('btn-view-mode');
     const btnThemeMode = document.getElementById('btn-theme-mode');
-    const btnTrailMode = document.getElementById('btn-trail-mode');
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
     const btnSos = document.getElementById('btn-sos');
     const btnToggleFleet = document.getElementById('btn-toggle-fleet');
@@ -835,15 +839,11 @@
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
-    let showTrails = true;
     let showTraffic = true;
-    const unitTrails = {};
     let activeHistoryUnit = null;
     let isSosActive = false;
     let sirenInterval = null;
     let currentDestinationCoords = null;
-
-    // Control estricto de GPS para transmitir
     let gpsPermissionGranted = false;
 
     const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
@@ -858,7 +858,6 @@
       } catch (err) {}
     }
 
-    // Actualiza UI según el permiso de GPS
     function updateGpsLockState(allowed) {
       gpsPermissionGranted = allowed;
 
@@ -899,7 +898,6 @@
         updateViewButtonUI();
         applyNightModeTheme();
         btnTrafficToggle.classList.toggle('active', showTraffic);
-        btnTrailMode.classList.toggle('active', showTrails);
         requestWakeLock();
         connectNetwork();
         applyCameraPerspective();
@@ -922,7 +920,6 @@
       updateViewButtonUI();
       applyNightModeTheme();
       btnTrafficToggle.classList.toggle('active', showTraffic);
-      btnTrailMode.classList.toggle('active', showTrails);
       requestWakeLock();
       unlockAudioHardware();
       connectNetwork();
@@ -932,9 +929,24 @@
     function logoutUnit() {
       if (mqttClient && mqttClient.connected && currentUnit) {
         mqttClient.publish('yadah/radio/flota/status', JSON.stringify({ unit: currentUnit, status: 'offline' }), { retain: true });
+        mqttClient.end(true);
+        mqttClient = null;
       }
+
       localStorage.removeItem('yadah_terminal_id');
-      location.reload();
+      currentUnit = null;
+
+      silenceSOS();
+      cancelNavigation();
+      closeVehicleHistory();
+      toggleFleetDrawer(false);
+
+      loginScreen.style.display = 'flex';
+      lblUnit.textContent = '--';
+      fleetSummaryBar.style.display = 'none';
+      btnToggleFleet.style.display = 'none';
+      navSearchBar.style.display = 'none';
+      btnSos.style.display = 'none';
     }
 
     function updateViewButtonUI() {
@@ -958,14 +970,6 @@
     btnThemeMode.addEventListener('click', () => {
       isNightMode = !isNightMode;
       applyNightModeTheme();
-    });
-
-    btnTrailMode.addEventListener('click', () => {
-      showTrails = !showTrails;
-      btnTrailMode.classList.toggle('active', showTrails);
-      if (map.getLayer('route-trails-layer')) {
-        map.setLayoutProperty('route-trails-layer', 'visibility', showTrails ? 'visible' : 'none');
-      }
     });
 
     btnTrafficToggle.addEventListener('click', () => {
@@ -1136,6 +1140,7 @@
     });
 
     function ensureLayersExist() {
+      // Capa de Línea Histórica (solo para auditoría de 2h a 24h)
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
           type: 'geojson',
@@ -1147,11 +1152,12 @@
           id: 'route-trails-layer',
           type: 'line',
           source: 'route-trails',
-          layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': showTrails ? 'visible' : 'none' },
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
           paint: { 'line-color': '#0284c7', 'line-width': 6, 'line-opacity': 0.85 }
         });
       }
 
+      // Capa de Navegación de destino
       if (!map.getSource('nav-active-route')) {
         map.addSource('nav-active-route', {
           type: 'geojson',
@@ -1278,25 +1284,7 @@
       }
     }
 
-    function updateTrailsMap() {
-      if (activeHistoryUnit) return;
-      ensureLayersExist();
-      const source = map.getSource('route-trails');
-      if (!source) return;
-
-      const features = Object.keys(unitTrails).map(unitId => {
-        const coords = unitTrails[unitId];
-        if (coords.length < 2) return null;
-        return {
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: coords },
-          properties: { unit: unitId }
-        };
-      }).filter(Boolean);
-
-      source.setData({ type: 'FeatureCollection', features });
-    }
-
+    // --- Auditoría Histórica (Trazado solo bajo demanda) ---
     function openVehicleHistory(unitName) {
       if (!isModulator()) return;
       activeHistoryUnit = unitName;
@@ -1308,7 +1296,9 @@
     function closeVehicleHistory() {
       activeHistoryUnit = null;
       vehicleHistoryCard.style.display = 'none';
-      updateTrailsMap();
+      if (map.getSource('route-trails')) {
+        map.getSource('route-trails').setData({ type: 'FeatureCollection', features: [] });
+      }
     }
 
     function applyVehicleHistory() {
@@ -1471,23 +1461,13 @@
         fleetMarkers[unitId].container.classList.remove('sos-active');
       }
 
+      // Persistencia en IndexedDB para la auditoría de 2h a 24h
       savePointToDB(unitId, lon, lat, speed, heading);
-
-      if (!isBase) {
-        if (!unitTrails[unitId]) unitTrails[unitId] = [];
-        const trail = unitTrails[unitId];
-        const last = trail[trail.length - 1];
-        if (!last || Math.hypot(last[0] - lon, last[1] - lat) > 0.00002) {
-          trail.push([lon, lat]);
-          if (trail.length > 100) trail.shift();
-          updateTrailsMap();
-        }
-      }
 
       refreshFleetStatsCounters();
     }
 
-    // Watchdog supervisor de apagado / desconexión
+    // Supervisor de desconexión / apagado
     setInterval(() => {
       const now = Date.now();
 
@@ -1710,15 +1690,11 @@
 
     let initialCentering = false;
 
-    // --- Geolocation con Monitoreo de Permiso y Bloqueo de PTT ---
     if (navigator.geolocation) {
-      // Monitoreo proactivo de permisos
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({ name: 'geolocation' }).then((result) => {
           updateGpsLockState(result.state === 'granted');
-          result.onchange = () => {
-            updateGpsLockState(result.state === 'granted');
-          };
+          result.onchange = () => updateGpsLockState(result.state === 'granted');
         }).catch(() => {});
       }
 
@@ -1799,7 +1775,7 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // --- PTT con Candado Obligatorio de GPS ---
+    // PTT con bloqueo por GPS
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -1808,7 +1784,6 @@
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
 
-      // Bloqueo de seguridad: Si no hay GPS en choferes, no permite hablar
       if (isDriver() && !gpsPermissionGranted) {
         channelStatus.className = 'channel-status blocked';
         channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
