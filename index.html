@@ -645,22 +645,11 @@
       color: #38bdf8;
     }
 
-    .vh-select {
-      background: #030712;
-      color: #f8fafc;
-      border: 1px solid #334155;
-      padding: 6px 8px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      outline: none;
-    }
-
-    .vh-actions { display: flex; gap: 6px; }
+    .vh-actions { display: flex; gap: 6px; margin-top: 4px; }
 
     .btn-vh {
       flex: 1;
-      padding: 6px;
+      padding: 8px;
       font-size: 0.75rem;
       font-weight: 700;
       border-radius: 6px;
@@ -668,8 +657,8 @@
       cursor: pointer;
     }
 
-    .btn-vh-apply { background: #38bdf8; color: #0b0f19; }
-    .btn-vh-close { background: #334155; color: #cbd5e1; }
+    .btn-vh-apply { background: #10b981; color: #ffffff; }
+    .btn-vh-close { background: #ef4444; color: #ffffff; }
   </style>
 </head>
 <body>
@@ -713,27 +702,12 @@
       <span id="vh-unit-name">Móvil</span>
       <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem;" onclick="closeVehicleHistory()">✕</span>
     </div>
-    <div style="font-size:0.75rem; color:#94a3b8;">Auditoría de recorrido:</div>
-    <select id="vh-time-range" class="vh-select">
-      <option value="1">Última 1 hora</option>
-      <option value="2">Últimas 2 horas</option>
-      <option value="4">Últimas 4 horas</option>
-      <option value="6">Últimas 6 horas</option>
-      <option value="8">Últimas 8 horas</option>
-      <option value="10">Últimas 10 horas</option>
-      <option value="12">Últimas 12 horas</option>
-      <option value="14">Últimas 14 horas</option>
-      <option value="16">Últimas 16 horas</option>
-      <option value="18">Últimas 18 horas</option>
-      <option value="20">Últimas 20 horas</option>
-      <option value="22">Últimas 22 horas</option>
-      <option value="24" selected>Últimas 24 horas (Día Completo)</option>
-    </select>
+    <div style="font-size:0.75rem; color:#94a3b8;">Trazar ruta de las últimas 24 horas:</div>
     <div class="vh-actions">
-      <button class="btn-vh btn-vh-apply" onclick="applyVehicleHistory()">Ver Recorrido</button>
-      <button class="btn-vh btn-vh-close" onclick="closeVehicleHistory()">En Vivo</button>
+      <button class="btn-vh btn-vh-apply" onclick="applyVehicleHistory()">Ver Recorrido 🗺️</button>
+      <button class="btn-vh btn-vh-close" onclick="closeVehicleHistory()">Cerrar ✕</button>
     </div>
-    <div id="vh-status-info" style="font-size:0.7rem; color:#10b981; text-align:center;"></div>
+    <div id="vh-status-info" style="font-size:0.7rem; color:#10b981; text-align:center; margin-top:4px;"></div>
   </div>
 
   <div id="login-screen">
@@ -783,6 +757,7 @@
   <div id="map-container">
     <div id="map"></div>
 
+    <!-- BOTÓN DE PÁNICO SOS RESTAURADO -->
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
@@ -1004,7 +979,6 @@
         alert("Primero selecciona o busca un destino.");
         return;
       }
-      // Forzar activamente el modo de primera persona al dar marcha
       firstPersonMode = true;
       updateViewButtonUI();
       requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
@@ -1206,10 +1180,10 @@
         }
 
         return `
-          <div class="unit-card-row" onclick="focusVehicleFromList('${unitId}')">
+          <div class="unit-card-row" onclick="openVehicleHistoryFromList('${unitId}')">
             <div class="unit-card-info">
               <b>🚘 ${unitId}</b>
-              <div>${detailTxt}</div>
+              <div>${detailTxt} (Toca para ver historial)</div>
             </div>
             <div>${statusBadge}</div>
           </div>
@@ -1217,14 +1191,13 @@
       }).join('');
     }
 
-    function focusVehicleFromList(unitId) {
+    function openVehicleHistoryFromList(unitId) {
+      if (!isModulator()) return;
       toggleFleetDrawer(false);
-      const data = fleetStatusMap[unitId];
-      if (data && data.lat && data.lon) {
-        map.flyTo({ center: [data.lon, data.lat], zoom: 17, pitch: 0 });
-      } else {
-        alert(`${unitId} está apagado y no tiene coordenadas registradas.`);
-      }
+      activeHistoryUnit = unitId;
+      document.getElementById('vh-unit-name').textContent = unitId;
+      document.getElementById('vh-status-info').textContent = 'Listo para trazar ruta';
+      vehicleHistoryCard.style.display = 'flex';
     }
 
     let audioCtx = null;
@@ -1501,14 +1474,6 @@
       }
     }
 
-    function openVehicleHistory(unitName) {
-      if (!isModulator()) return;
-      activeHistoryUnit = unitName;
-      document.getElementById('vh-unit-name').textContent = unitName;
-      document.getElementById('vh-status-info').textContent = '';
-      vehicleHistoryCard.style.display = 'flex';
-    }
-
     function closeVehicleHistory() {
       activeHistoryUnit = null;
       vehicleHistoryCard.style.display = 'none';
@@ -1519,8 +1484,7 @@
 
     function applyVehicleHistory() {
       if (!isModulator() || !db || !activeHistoryUnit) return;
-      const hours = parseInt(document.getElementById('vh-time-range').value);
-      const startTime = Date.now() - (hours * 60 * 60 * 1000);
+      const startTime = Date.now() - (24 * 60 * 60 * 1000);
 
       const tx = db.transaction([STORE_NAME], 'readonly');
       const store = tx.objectStore(STORE_NAME);
@@ -1551,13 +1515,13 @@
 
           const statusDiv = document.getElementById('vh-status-info');
           if (historyCoords.length < 2) {
-            statusDiv.textContent = 'Sin historial en ese lapso.';
+            statusDiv.textContent = 'Sin historial registrado en 24h.';
             statusDiv.style.color = '#ef4444';
           } else {
-            statusDiv.textContent = `Trazados ${historyCoords.length} puntos.`;
+            statusDiv.textContent = `¡Mostrando ${historyCoords.length} puntos!`;
             statusDiv.style.color = '#10b981';
             const lastPt = historyCoords[historyCoords.length - 1];
-            map.flyTo({ center: lastPt, zoom: 15, pitch: 0, bearing: 0 });
+            map.flyTo({ center: lastPt, zoom: 16, pitch: 0, bearing: 0 });
           }
         }
       };
