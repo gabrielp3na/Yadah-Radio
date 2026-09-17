@@ -996,8 +996,10 @@
       }
 
       Object.keys(fleetMarkers).forEach(k => {
-        fleetMarkers[k].marker.remove();
-        delete fleetMarkers[k];
+        if (k !== 'BASE_PERMANENTE') {
+          fleetMarkers[k].marker.remove();
+          delete fleetMarkers[k];
+        }
       });
 
       localStorage.removeItem('yadah_terminal_id');
@@ -1200,10 +1202,35 @@
           }
         ]
       },
-      center: [-89.356661, 13.724208], // <--- CENTRADO EXACTO EN EL CENTRO DEL TERRENO
-      zoom: 17.5, // <--- Zoom más cercano para enfocar el terreno completo
+      center: [-89.354800, 13.724208],
+      zoom: 17.5,
       pitch: 0,
       bearing: 0
+    });
+
+    // --- MARCADOR PERMANENTE DE LA BASE CENTRAL ---
+    function addPermanentBaseMarker() {
+      const container = document.createElement('div');
+      container.className = 'car-marker-container';
+
+      const badge = document.createElement('div');
+      badge.className = 'car-badge base-station';
+      badge.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#38bdf8;">Transportes Yadah</div>`;
+      container.appendChild(badge);
+
+      const rotator = document.createElement('div');
+      rotator.className = 'car-svg-rotator';
+      rotator.innerHTML = `<div class="base-icon">🏢</div>`;
+      container.appendChild(rotator);
+
+      new maplibregl.Marker({ element: container })
+        .setLngLat([-89.354800, 13.724208])
+        .addTo(map);
+    }
+
+    map.on('load', () => {
+      ensureLayersExist();
+      addPermanentBaseMarker(); // Coloca el edificio fijo desde el inicio
     });
 
     function ensureLayersExist() {
@@ -1248,8 +1275,6 @@
         });
       }
     }
-
-    map.on('load', ensureLayersExist);
 
     map.on('click', (e) => {
       if (isDriver() && !activeHistoryUnit) {
@@ -1423,47 +1448,24 @@
       const container = document.createElement('div');
       container.className = 'car-marker-container';
 
-      const isBase = unitName.includes('Modulador');
-
       const badge = document.createElement('div');
-      badge.className = isBase ? 'car-badge base-station' : 'car-badge';
-      badge.innerHTML = `<div><strong>${unitName}</strong></div><div class="unit-speed-txt" style="font-size:0.6rem; color:#38bdf8;">${isBase ? 'Central' : 'Detenido'}</div>`;
+      badge.className = 'car-badge';
+      badge.innerHTML = `<div><strong>${unitName}</strong></div><div class="unit-speed-txt" style="font-size:0.6rem; color:#38bdf8;">Detenido</div>`;
       container.appendChild(badge);
 
       const rotator = document.createElement('div');
       rotator.className = 'car-svg-rotator';
-
-      if (isBase) {
-        rotator.innerHTML = `<div class="base-icon">🏢</div>`;
-      } else {
-        rotator.innerHTML = `
-          <svg viewBox="0 0 48 48" width="44" height="44">
-            <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
-            <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
-            <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
-            <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
-            <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
-            <circle cx="16" cy="7" r="2" fill="#fef08a"/>
-            <circle cx="32" cy="7" r="2" fill="#fef08a"/>
-          </svg>`;
-      }
-
+      rotator.innerHTML = `
+        <svg viewBox="0 0 48 48" width="44" height="44">
+          <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
+          <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
+          <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
+          <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
+          <circle cx="16" cy="7" r="2" fill="#fef08a"/>
+          <circle cx="32" cy="7" r="2" fill="#fef08a"/>
+        </svg>`;
       container.appendChild(rotator);
-
-      container.addEventListener('click', (e) => {
-        if (isModulator()) {
-          e.stopPropagation();
-          openVehicleHistory(unitName);
-        }
-      });
-
-      if (isModulator()) {
-        container.style.cursor = 'pointer';
-        container.style.pointerEvents = 'auto';
-      } else {
-        container.style.cursor = 'default';
-        container.style.pointerEvents = 'none';
-      }
 
       return { container, rotator, badge };
     }
@@ -1475,37 +1477,25 @@
 
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
-
-      const isBase = unitId.includes('Modulador');
       const now = Date.now();
 
-      if (!isBase) {
-        if (!fleetStatusMap[unitId]) fleetStatusMap[unitId] = {};
-        const u = fleetStatusMap[unitId];
-        u.lastSeen = now;
-        u.speed = speed;
-        u.lat = lat;
-        u.lon = lon;
+      if (!fleetStatusMap[unitId]) fleetStatusMap[unitId] = {};
+      const u = fleetStatusMap[unitId];
+      u.lastSeen = now;
+      u.speed = speed;
+      u.lat = lat;
+      u.lon = lon;
 
-        if (speed > 3) {
-          u.state = 'online';
-          u.stoppedSince = null;
-        } else {
-          u.state = 'stopped';
-          if (!u.stoppedSince) u.stoppedSince = now;
-        }
+      if (speed > 3) {
+        u.state = 'online';
+        u.stoppedSince = null;
+      } else {
+        u.state = 'stopped';
+        if (!u.stoppedSince) u.stoppedSince = now;
       }
 
-      let speedTxt = isBase ? 'Central' : 'Detenido';
-      if (!isBase) {
-        const u = fleetStatusMap[unitId];
-        if (u.state === 'online') {
-          speedTxt = `${Math.round(speed)} km/h`;
-        } else if (u.state === 'stopped') {
-          const stopTime = formatTimeAgo(now - u.stoppedSince);
-          speedTxt = `Detenido hace ${stopTime}`;
-        }
-      }
+      const uState = fleetStatusMap[unitId];
+      let speedTxt = uState.state === 'online' ? `${Math.round(speed)} km/h` : `Detenido hace ${formatTimeAgo(now - uState.stoppedSince)}`;
 
       if (!fleetMarkers[unitId]) {
         const { container, rotator, badge } = createMarkerElement(unitId);
@@ -1521,7 +1511,7 @@
       const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
       if (speedDiv) speedDiv.textContent = speedTxt;
 
-      if (!isBase && heading !== undefined && heading !== null) {
+      if (heading !== undefined && heading !== null) {
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
 
@@ -1586,7 +1576,7 @@
 
     function applyCameraPerspective() {
       if (isModulator()) {
-        map.easeTo({ center: [-89.356661, 13.724208], zoom: 17.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
+        map.easeTo({ center: [-89.354800, 13.724208], zoom: 17.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
       }
 
@@ -1596,9 +1586,9 @@
         const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
-          zoom: 19.8,
-          pitch: 78,
           bearing: myHeading,
+          pitch: 78,
+          zoom: 19.8,
           offset: [0, screenOffset],
           duration: 600
         });
@@ -1915,7 +1905,7 @@
         }
 
         btnPtt.classList.add('active');
-        channelStatus.className = 'channel-status transmitting';
+        channelstatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
         isRecording = false;
@@ -2071,7 +2061,7 @@
         radioSpeaker.src = url;
         radioSpeaker.play();
       } catch (err) {
-        console.error("Error reproduciendo voz:", err);
+        console.error("Error reproduciendo audio:", err);
       }
     }
 
