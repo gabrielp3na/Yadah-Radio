@@ -389,7 +389,6 @@
       to { transform: scale(1.15); background: #991b1b; }
     }
 
-    /* Animación de iluminación/parpadeo para la Base Activa */
     @keyframes pulse-base {
       from { transform: scale(1); filter: drop-shadow(0 0 4px #38bdf8); }
       to { transform: scale(1.12); filter: drop-shadow(0 0 14px #10b981); }
@@ -1210,6 +1209,7 @@
       } catch (e) {}
     }
 
+    // Coordenada exacta basada en la posición actual del Móvil 01 en la foto de prueba
     let defaultBaseCoords = [-89.356200, 13.724208];
     const savedBaseCoords = localStorage.getItem('yadah_base_coords');
     if (savedBaseCoords) {
@@ -1315,7 +1315,7 @@
         btnUnlockBase.textContent = '🔒';
         btnUnlockBase.classList.remove('unlocked');
 
-        alert(`📍 ¡Base Central reubicada y bloqueada con seguridad!\nLongitud: ${lng}\nLatitud: ${lat}`);
+        alert(`📍 ¡Base Central reubicada y sincronizada con la flota!\nLongitud: ${lng}\nLatitud: ${lat}`);
       } else if (isDriver() && !activeHistoryUnit) {
         requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
       }
@@ -1587,7 +1587,6 @@
         modulatorActivationTime = null;
       }
 
-      // Actualizar visualmente el edificio fijo de la Base Central
       if (baseBadgeEl) {
         const iconRotator = document.getElementById('base-icon-rotator');
         if (modulatorActiveAtBase) {
@@ -2129,7 +2128,7 @@
           URL.revokeObjectURL(audioUrl);
         };
       } catch (err) {
-        console.error("Error reproduciendo audio:", err);
+        console.error("Error reproduciendo voz:", err);
       }
     }
 
