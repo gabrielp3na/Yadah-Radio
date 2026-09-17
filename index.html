@@ -239,6 +239,66 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
+    /* MODAL DE VISOR WAZE INCORPORADO */
+    #waze-modal-container {
+      position: absolute;
+      inset: 0;
+      background: #0b0f19;
+      z-index: 2800;
+      display: none;
+      flex-direction: column;
+    }
+
+    .waze-modal-header {
+      background: #111827;
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    .waze-modal-header span {
+      font-weight: 800;
+      color: #38bdf8;
+      font-size: 0.85rem;
+    }
+
+    .waze-modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-waze-act {
+      background: #38bdf8;
+      color: #0b0f19;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .btn-waze-close {
+      background: #334155;
+      color: #f8fafc;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #waze-iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #0b0f19;
+    }
+
     #nav-search-bar {
       position: absolute;
       top: 10px;
@@ -292,7 +352,6 @@
       font-weight: 700;
     }
 
-    /* BOTONES FLOTANTES LATERALES */
     .map-floating-controls {
       position: absolute;
       top: 65px;
@@ -324,7 +383,6 @@
       color: #111827;
     }
 
-    /* BOTÓN FLOTANTE DE SALIR / CAMBIO DE PERFIL */
     .btn-float-action.btn-float-exit {
       background: #7f1d1d;
       border-color: #ef4444;
@@ -332,6 +390,11 @@
     }
     .btn-float-action.btn-float-exit:active {
       background: #ef4444;
+    }
+
+    .btn-float-action.btn-float-waze {
+      border-color: #38bdf8;
+      color: #38bdf8;
     }
 
     .btn-sos {
@@ -526,12 +589,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      transition: opacity 0.3s;
-    }
-
-    .car-marker-container.offline-unit {
-      opacity: 0.45;
-      filter: grayscale(100%);
     }
 
     .car-marker-container.sos-active .car-badge {
@@ -644,6 +701,18 @@
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
+  <!-- VISOR WAZE INTEGRADO -->
+  <div id="waze-modal-container">
+    <div class="waze-modal-header">
+      <span>🚙 Waze Tráfico en Vivo</span>
+      <div class="waze-modal-actions">
+        <a id="btn-open-waze-app" class="btn-waze-act" target="_blank" href="https://waze.com">Abrir App</a>
+        <button class="btn-waze-close" onclick="toggleWazeModal(false)">Volver a Radio</button>
+      </div>
+    </div>
+    <iframe id="waze-iframe" src="about:blank"></iframe>
+  </div>
+
   <div id="nav-search-bar">
     <div class="search-input-box">
       <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." />
@@ -732,8 +801,8 @@
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
-      <!-- BOTÓN DE SALIR / CAMBIO DE PERFIL ARRIBA DEL SEMÁFORO -->
       <button class="btn-float-action btn-float-exit" id="btn-float-logout" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
+      <button class="btn-float-action btn-float-waze" id="btn-waze-toggle" title="Ver Tráfico Waze" onclick="toggleWazeModal(true)">🚙</button>
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
@@ -830,6 +899,7 @@
     const btnViewMode = document.getElementById('btn-view-mode');
     const btnThemeMode = document.getElementById('btn-theme-mode');
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
+    const btnWazeToggle = document.getElementById('btn-waze-toggle');
     const btnSos = document.getElementById('btn-sos');
     const btnToggleFleet = document.getElementById('btn-toggle-fleet');
     const mapContainer = document.getElementById('map-container');
@@ -841,6 +911,9 @@
     const fleetListDrawer = document.getElementById('fleet-list-drawer');
     const gpsLockBanner = document.getElementById('gps-lock-banner');
     const btnPtt = document.getElementById('btn-ptt');
+    const wazeModalContainer = document.getElementById('waze-modal-container');
+    const wazeIframe = document.getElementById('waze-iframe');
+    const btnOpenWazeApp = document.getElementById('btn-open-waze-app');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
@@ -861,6 +934,21 @@
       try {
         if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
       } catch (err) {}
+    }
+
+    function toggleWazeModal(show) {
+      wazeModalContainer.style.display = show ? 'flex' : 'none';
+      if (show && myLastCoords) {
+        // Carga el visor Waze Live Map centrado en las coordenadas del chofer
+        wazeIframe.src = `https://embed.waze.com/iframe?zoom=16&lat=${myLastCoords.lat}&lon=${myLastCoords.lon}&ct=livemap`;
+        if (currentDestinationCoords) {
+          btnOpenWazeApp.href = `https://waze.com/ul?ll=${currentDestinationCoords[1]},${currentDestinationCoords[0]}&navigate=yes`;
+        } else {
+          btnOpenWazeApp.href = `https://waze.com/ul?ll=${myLastCoords.lat},${myLastCoords.lon}`;
+        }
+      } else if (!show) {
+        wazeIframe.src = 'about:blank';
+      }
     }
 
     function updateGpsLockState(allowed) {
@@ -896,6 +984,7 @@
         lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
         btnSos.style.display = isDriver() ? 'flex' : 'none';
+        btnWazeToggle.style.display = isDriver() ? 'flex' : 'none';
         navSearchBar.style.display = isDriver() ? 'flex' : 'none';
         btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
         fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
@@ -918,6 +1007,7 @@
       loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
       btnSos.style.display = isDriver() ? 'flex' : 'none';
+      btnWazeToggle.style.display = isDriver() ? 'flex' : 'none';
       navSearchBar.style.display = isDriver() ? 'flex' : 'none';
       btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
       fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
@@ -938,6 +1028,12 @@
         mqttClient = null;
       }
 
+      // Elimina todos los marcadores previos para no dejar carritos fantasma
+      Object.keys(fleetMarkers).forEach(k => {
+        fleetMarkers[k].marker.remove();
+        delete fleetMarkers[k];
+      });
+
       localStorage.removeItem('yadah_terminal_id');
       currentUnit = null;
 
@@ -945,6 +1041,7 @@
       cancelNavigation();
       closeVehicleHistory();
       toggleFleetDrawer(false);
+      toggleWazeModal(false);
 
       loginScreen.style.display = 'flex';
       lblUnit.textContent = '--';
@@ -952,6 +1049,7 @@
       btnToggleFleet.style.display = 'none';
       navSearchBar.style.display = 'none';
       btnSos.style.display = 'none';
+      btnWazeToggle.style.display = 'none';
     }
 
     function updateViewButtonUI() {
@@ -1448,8 +1546,6 @@
         fleetMarkers[unitId].marker.setLngLat([lon, lat]);
       }
 
-      fleetMarkers[unitId].container.classList.remove('offline-unit');
-
       const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
       if (speedDiv) speedDiv.textContent = speedTxt;
 
@@ -1467,6 +1563,7 @@
       refreshFleetStatsCounters();
     }
 
+    // Supervisor de desconexión: retira los carros del mapa si pasan a apagados
     setInterval(() => {
       const now = Date.now();
 
@@ -1478,10 +1575,10 @@
 
         if (diffSec > 50 && u.state !== 'offline') {
           u.state = 'offline';
+          // Se retira del mapa para evitar carros fantasma
           if (fleetMarkers[unitId]) {
-            fleetMarkers[unitId].container.classList.add('offline-unit');
-            const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
-            if (speedDiv) speedDiv.textContent = `Apagado (${formatTimeAgo(now - u.lastSeen)})`;
+            fleetMarkers[unitId].marker.remove();
+            delete fleetMarkers[unitId];
           }
         } else if (u.state === 'stopped' && fleetMarkers[unitId]) {
           const stopTime = formatTimeAgo(now - u.stoppedSince);
@@ -1623,9 +1720,8 @@
               if (stData.status === 'offline') {
                 if (fleetStatusMap[stData.unit]) fleetStatusMap[stData.unit].state = 'offline';
                 if (fleetMarkers[stData.unit]) {
-                  fleetMarkers[stData.unit].container.classList.add('offline-unit');
-                  const speedDiv = fleetMarkers[stData.unit].badge.querySelector('.unit-speed-txt');
-                  if (speedDiv) speedDiv.textContent = 'Apagado / Sin señal';
+                  fleetMarkers[stData.unit].marker.remove();
+                  delete fleetMarkers[stData.unit];
                 }
                 refreshFleetStatsCounters();
               }
