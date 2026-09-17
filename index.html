@@ -72,9 +72,13 @@
     <div class="card" id="login-section">
         <h2>Acceso a Flota</h2>
         <p style="color: #666; font-size: 14px;">Ingrese su contraseña para iniciar</p>
-        <input type="password" id="passwordInput" placeholder="Contraseña (1994)">
-        <br>
-        <button class="btn-login" onclick="probarLogin()">Ingresar</button>
+        
+        <!-- Formulario con soporte para Enter -->
+        <form onsubmit="event.preventDefault(); probarLogin();">
+            <input type="password" id="passwordInput" placeholder="Ingrese clave">
+            <br>
+            <button type="submit" class="btn-login">Ingresar</button>
+        </form>
     </div>
 
     <!-- Pantalla Principal de la Flota (Oculta hasta iniciar sesión) -->
@@ -87,10 +91,54 @@
         <button id="micButton">RADIO PTT</button>
     </div>
 
-    <!-- Vinculamos tu archivo de código JavaScript -->
-    <script src="app.js"></script>
+    <!-- Lógica de la Aplicación -->
     <script>
-        // Función puente para conectar la interfaz visual con el script
+        // ==========================================
+        // 1. CONFIGURACIÓN Y ESTADO INICIAL
+        // ==========================================
+        const PASSWORD_CORRECTA = "1994";
+        const MAX_INTENTOS = 3;
+        let intentosFallidos = 0;
+        let bloqueadoHasta = null;
+
+        let localStream = null;
+        let peerConnection = null;
+        const rtcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        // ==========================================
+        // 2. SISTEMA DE SEGURIDAD (3 INTENTOS / 15 MIN)
+        // ==========================================
+        function intentarLogin(passwordIngresada) {
+            const ahora = new Date().getTime();
+
+            if (bloqueadoHasta && ahora < bloqueadoHasta) {
+                const minutosRestantes = Math.ceil((bloqueadoHasta - ahora) / 60000);
+                alert(`Acceso bloqueado temporalmente. Intente de nuevo en ${minutosRestantes} minutos.`);
+                return false;
+            }
+
+            if (passwordIngresada === PASSWORD_CORRECTA) {
+                intentosFallidos = 0;
+                bloqueadoHasta = null;
+                console.log("Acceso concedido. Iniciando servicios...");
+                iniciarAppPrincipal();
+                return true;
+            } else {
+                intentosFallidos++;
+                
+                if (intentosFallidos >= MAX_INTENTOS) {
+                    bloqueadoHasta = new Date().getTime() + (15 * 60 * 1000);
+                    alert("Demasiados intentos fallidos. El acceso ha sido bloqueado por 15 minutos.");
+                } else {
+                    alert(`Contraseña incorrecta. Te quedan ${MAX_INTENTOS - intentosFallidos} intentos.`);
+                }
+                return false;
+            }
+        }
+
+        // Función puente para la interfaz visual
         function probarLogin() {
             const pass = document.getElementById('passwordInput').value;
             const exito = intentarLogin(pass);
@@ -99,6 +147,100 @@
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
             }
+        }
+
+        // ==========================================
+        // 3. INICIO DE SERVICIOS PRINCIPALES (GPS + PTT)
+        // ==========================================
+        function iniciarAppPrincipal() {
+            initAudio();
+            iniciarGPSEnSegundoPlano();
+            configurarBotonPTT();
+        }
+
+        // ==========================================
+        // 4. MÓDULO DE AUDIO (WebRTC + VIBRACIÓN)
+        // ==========================================
+        async function initAudio() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            } catch (error) {
+                console.error("Error al acceder al micrófono:", error);
+            }
+        }
+
+        function startTransmission() {
+            if (navigator.vibrate) {
+                navigator.vibrate(50); // Vibración táctil de confirmación de 50ms
+            }
+
+            if (!localStream) {
+                console.error("Micrófono no disponible.");
+                return;
+            }
+
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            console.log("Transmitiendo audio en tiempo real...");
+        }
+
+        function stopTransmission() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            console.log("Transmisión detenida.");
+        }
+
+        function configurarBotonPTT() {
+            const micButton = document.getElementById('micButton');
+            if (!micButton) return;
+
+            micButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startTransmission();
+            });
+
+            micButton.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stopTransmission();
+            });
+        }
+
+        // ==========================================
+        // 5. MÓDULO DE RASTREO GPS PERSISTENTE
+        // ==========================================
+        function iniciarGPSEnSegundoPlano() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        const datosUbicacion = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            velocidad: position.coords.speed,
+                            timestamp: new Date().toISOString()
+                        };
+                        enviarUbicacionAlServidor(datosUbicacion);
+                    },
+                    (error) => {
+                        console.error("Error en geolocalización:", error.message);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                console.error("La geolocalización no es compatible con este dispositivo.");
+            }
+        }
+
+        function enviarUbicacionAlServidor(datos) {
+            console.log("Ubicación enviada al servidor:", datos);
         }
     </script>
 </body>
