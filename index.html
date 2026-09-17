@@ -1,155 +1,105 @@
-// ==========================================
-// 1. CONFIGURACIÓN Y ESTADO INICIAL
-// ==========================================
-const PASSWORD_CORRECTA = "1994";
-const MAX_INTENTOS = 3;
-let intentosFallidos = 0;
-let bloqueadoHasta = null;
-
-let localStream = null;
-let peerConnection = null;
-const rtcConfig = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
-
-// ==========================================
-// 2. SISTEMA DE SEGURIDAD (3 INTENTOS / 15 MIN)
-// ==========================================
-function intentarLogin(passwordIngresada) {
-    const ahora = new Date().getTime();
-
-    // Verificar si el dispositivo está bloqueado temporalmente
-    if (bloqueadoHasta && ahora < bloqueadoHasta) {
-        const minutosRestantes = Math.ceil((bloqueadoHasta - ahora) / 60000);
-        console.warn(`Acceso bloqueado. Faltan ${minutosRestantes} minutos.`);
-        return false;
-    }
-
-    // Validar contraseña
-    if (passwordIngresada === PASSWORD_CORRECTA) {
-        intentosFallidos = 0;
-        bloqueadoHasta = null;
-        console.log("Acceso concedido. Iniciando servicios de la flota...");
-        
-        // Ocultar pantalla de login y mostrar la interfaz principal de la app
-        iniciarAppPrincipal();
-        return true;
-    } else {
-        intentosFallidos++;
-        console.warn(`Contraseña incorrecta. Intentos fallidos: ${intentosFallidos}/${MAX_INTENTOS}`);
-
-        if (intentosFallidos >= MAX_INTENTOS) {
-            // Bloquear por 15 minutos (15 * 60 * 1000 milisegundos)
-            bloqueadoHasta = new Date().getTime() + (15 * 60 * 1000);
-            console.error("Demasiados intentos fallidos. Bloqueado por 15 minutos.");
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Flota - Móvil</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: #f4f4f9; 
+            margin: 0; 
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-        return false;
-    }
-}
+        .card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 350px;
+        }
+        input { 
+            padding: 12px; 
+            margin: 10px 0; 
+            font-size: 16px; 
+            width: 85%; 
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button.btn-login { 
+            padding: 12px 20px; 
+            font-size: 16px; 
+            background: #007BFF; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer;
+            width: 90%;
+            margin-top: 10px;
+        }
+        button.btn-login:active { background: #0056b3; }
+        
+        /* Botón estilo Radio PTT (Grande y rojo) */
+        #micButton { 
+            background: #ff4d4d; 
+            color: white; 
+            border: none; 
+            border-radius: 50%; 
+            width: 140px; 
+            height: 140px; 
+            font-size: 18px;
+            font-weight: bold; 
+            cursor: pointer; 
+            box-shadow: 0px 6px 20px rgba(255, 77, 77, 0.4);
+            margin-top: 20px;
+            outline: none;
+        }
+        #micButton:active {
+            background: #cc0000;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
 
-// ==========================================
-// 3. INICIO DE SERVICIOS PRINCIPALES (GPS + PTT)
-// ==========================================
-function iniciarAppPrincipal() {
-    // Inicializar micrófono para WebRTC
-    initAudio();
+    <!-- Pantalla de Login -->
+    <div class="card" id="login-section">
+        <h2>Acceso a Flota</h2>
+        <p style="color: #666; font-size: 14px;">Ingrese su contraseña para iniciar</p>
+        <input type="password" id="passwordInput" placeholder="Contraseña (1994)">
+        <br>
+        <button class="btn-login" onclick="probarLogin()">Ingresar</button>
+    </div>
 
-    // Iniciar rastreo GPS persistente en segundo plano
-    iniciarGPSEnSegundoPlano();
+    <!-- Pantalla Principal de la Flota (Oculta hasta iniciar sesión) -->
+    <div class="card" id="app-section" style="display:none;">
+        <h2>Panel de Motorista</h2>
+        <p style="color: green; font-size: 14px;">● GPS Activo en Segundo Plano</p>
+        <p style="font-size: 13px; color: #555;">Mantén presionado o toca para hablar por radio:</p>
+        
+        <!-- Botón de Radio PTT -->
+        <button id="micButton">RADIO PTT</button>
+    </div>
 
-    // Activar eventos del botón de radio (PTT)
-    configurarBotonPTT();
-}
-
-// ==========================================
-// 4. MÓDULO DE AUDIO (WebRTC + VIBRACIÓN)
-// ==========================================
-async function initAudio() {
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch (error) {
-        console.error("Error al acceder al micrófono:", error);
-    }
-}
-
-function startTransmission() {
-    // Vibración táctil de 50ms para confirmar al motorista que está al aire
-    if (navigator.vibrate) {
-        navigator.vibrate(50); 
-    }
-
-    if (!localStream) {
-        console.error("Micrófono no disponible.");
-        return;
-    }
-
-    // Configuración de WebRTC para baja latencia instantánea
-    peerConnection = new RTCPeerConnection(rtcConfig);
-    localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-    });
-
-    console.log("Transmitiendo audio en tiempo real...");
-}
-
-function stopTransmission() {
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    console.log("Transmisión detenida.");
-}
-
-function configurarBotonPTT() {
-    const micButton = document.getElementById('micButton');
-    if (!micButton) return;
-
-    // Eventos táctiles para dispositivos móviles
-    micButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startTransmission();
-    });
-
-    micButton.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        stopTransmission();
-    });
-}
-
-// ==========================================
-// 5. MÓDULO DE RASTREO GPS PERSISTENTE
-// ==========================================
-function iniciarGPSEnSegundoPlano() {
-    if ("geolocation" in navigator) {
-        navigator.geolocation.watchPosition(
-            (position) => {
-                const datosUbicacion = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    velocidad: position.coords.speed,
-                    bateria: navigator.getBattery ? getBatteryLevel() : "N/A", // Monitoreo de batería
-                    timestamp: new Date().toISOString()
-                };
-
-                // Enviar coordenadas y telemetría al servidor (para geocercas e historial de 24h)
-                enviarUbicacionAlServidor(datosUbicacion);
-            },
-            (error) => {
-                console.error("Error en geolocalización:", error.message);
-            },
-            {
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000
+    <!-- Vinculamos tu archivo de código JavaScript -->
+    <script src="app.js"></script>
+    <script>
+        // Función puente para conectar la interfaz visual con el script
+        function probarLogin() {
+            const pass = document.getElementById('passwordInput').value;
+            const exito = intentarLogin(pass);
+            
+            if (exito) {
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
             }
-        );
-    } else {
-        console.error("La geolocalización no es compatible con este dispositivo.");
-    }
-}
-
-function enviarUbicacionAlServidor(datos) {
-    // Aquí harías tu petición fetch o websocket hacia tu backend
-    // fetch('/api/ubicacion', { method: 'POST', body: JSON.stringify(datos) });
-    console.log("Ubicación enviada al servidor:", datos);
-}
+        }
+    </script>
+</body>
+</html>
