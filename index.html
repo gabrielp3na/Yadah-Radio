@@ -239,7 +239,6 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* BARRA DE BÚSQUEDA Y PREDICCIONES TIPO GOOGLE MAPS */
     #nav-search-bar {
       position: absolute;
       top: 10px;
@@ -280,7 +279,6 @@
       cursor: pointer;
     }
 
-    /* LISTA DESPLEGABLE DE PREDICCIONES */
     #search-suggestions {
       background: #111827;
       border: 1px solid #38bdf8;
@@ -666,7 +664,6 @@
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
-  <!-- BARRA DE BÚSQUEDA CON PREDICCIONES -->
   <div id="nav-search-bar">
     <div class="search-input-box">
       <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." oninput="handleSearchInput(this.value)" autocomplete="off" />
@@ -789,7 +786,7 @@
         <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem; padding:4px;" onclick="toggleHistory(false)">✕</span>
       </div>
       <div class="history-list" id="history-list">
-        <p style="color:#64748b; font-size:0.8rem;">No hay transmisiones registradas.</p>
+        <p style="color:#64748b; font-size:0.85rem;">No hay transmisiones registradas.</p>
       </div>
     </div>
   </div>
@@ -900,7 +897,7 @@
       }
     }
 
-    // --- Sistema de Predicciones Autocompletado en Tiempo Real ---
+    // Buscador con autocompletado y priorización local basada en el GPS actual
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
       if (!query || query.trim().length < 2) {
@@ -909,10 +906,15 @@
         return;
       }
 
-      // Espera 350ms de tipeo para no saturar la API
       searchTimeout = setTimeout(async () => {
         try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+          let suggestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+          if (myLastCoords) {
+            const delta = 0.5; // ~50km alrededor de la posición actual del motorista
+            const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+            suggestUrl += `&viewbox=${viewbox}&bounded=1`;
+          }
+          const resp = await fetch(suggestUrl);
           const results = await resp.json();
 
           if (results && results.length > 0) {
@@ -1288,7 +1290,14 @@
         lblRouteStats.textContent = 'Buscando lugar...';
         navRouteInfo.style.display = 'flex';
 
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        let searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+        if (myLastCoords) {
+          const delta = 0.5;
+          const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+          searchUrl += `&viewbox=${viewbox}&bounded=1`;
+        }
+
+        const resp = await fetch(searchUrl);
         const results = await resp.json();
 
         if (results && results.length > 0) {
