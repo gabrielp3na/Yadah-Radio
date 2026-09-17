@@ -722,10 +722,10 @@
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
 
+  <!-- MENÚ CONTEXTUAL -->
   <div id="map-context-menu">
-    <div class="menu-title">📍 Punto Seleccionado</div>
-    <button class="btn-ctx btn-ctx-nav" onclick="ctxRouteHere()">🚀 ¡Ir a este lugar!</button>
-    <button class="btn-ctx btn-ctx-save" onclick="ctxSaveAsPoi()">⭐ Guardar como punto local</button>
+    <div class="menu-title" id="menu-title-text">📍 Opción de Ubicación</div>
+    <button class="btn-ctx btn-ctx-nav" id="btn-ctx-action" onclick="ctxMainAction()">🚀 ¡Ir a este lugar!</button>
     <button class="btn-ctx btn-ctx-cancel" onclick="closeContextMenu()">Cancelar</button>
   </div>
 
@@ -902,9 +902,10 @@
 
     initDatabase();
 
-    // --- GESTIÓN DE LUGARES Y MENÚ CONTEXTUAL (FILTRANDO MULTITÁCTIL) ---
+    // --- GESTIÓN DE LUGARES Y GESTOS (1 TOQUE SOSTENIDO = NAVEGAR | 2 TOQUES SOSTENIDO = AGREGAR PUNTO) ---
     let contextMenuCoords = null;
     let tempContextMarker = null;
+    let contextMenuMode = 'nav'; // 'nav' o 'save'
 
     function getCustomPOIs() {
       try {
@@ -928,26 +929,24 @@
       contextMenuCoords = null;
     }
 
-    function ctxRouteHere() {
+    function ctxMainAction() {
       if (!contextMenuCoords) return;
       const { lng, lat } = contextMenuCoords;
-      closeContextMenu();
-      pendingDestination = { lon: lng, lat: lat, label: 'Punto seleccionado' };
-      lblRouteStats.textContent = `📍 Destino seleccionado. ¿Deseas iniciar marcha?`;
-      navRouteInfo.style.display = 'flex';
-    }
-
-    function ctxSaveAsPoi() {
-      if (!contextMenuCoords) return;
-      const { lng, lat } = contextMenuCoords;
-      closeContextMenu();
-
-      const placeName = prompt("📍 Nombre del nuevo punto o negocio local:");
-      if (placeName && placeName.trim().length > 0) {
-        const pois = getCustomPOIs();
-        pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
-        saveAllPOIs(pois);
-        alert(`✅ ¡Punto "${placeName.trim()}" creado y fijado con éxito!`);
+      
+      if (contextMenuMode === 'nav') {
+        closeContextMenu();
+        pendingDestination = { lon: lng, lat: lat, label: 'Punto seleccionado' };
+        lblRouteStats.textContent = `📍 Destino seleccionado. ¿Deseas iniciar marcha?`;
+        navRouteInfo.style.display = 'flex';
+      } else if (contextMenuMode === 'save') {
+        closeContextMenu();
+        const placeName = prompt("📍 Nombre del nuevo punto o negocio local:");
+        if (placeName && placeName.trim().length > 0) {
+          const pois = getCustomPOIs();
+          pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
+          saveAllPOIs(pois);
+          alert(`✅ ¡Punto "${placeName.trim()}" creado y fijado con éxito!`);
+        }
       }
     }
 
@@ -1571,64 +1570,72 @@
       renderCustomPoiMarkers();
     });
 
-    // --- INTERACCIÓN DE TOQUE LARGO (FILTRANDO MULTITÁCTIL PARA ZOOM/MOVER) ---
-    let longPressTimer = null;
-
-    map.on('mousedown', (e) => {
-      closeContextMenu();
-      longPressTimer = setTimeout(() => {
-        triggerMapLongPress(e.lngLat);
-      }, 650);
-    });
-
-    map.on('mousemove', () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    });
-
-    map.on('mouseup', () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    });
+    // --- INTERACCIÓN PERFECTA: 1 TOQUE SOSTENIDO = NAVEGAR | 2 TOQUES SOSTENIDO = AGREGAR PUNTO ---
+    let lastTapTime = 0;
+    let doubleTapHoldTimer = null;
+    let singleTapHoldTimer = null;
 
     map.on('touchstart', (e) => {
-      // Si hay más de 1 dedo en la pantalla (haciendo zoom o rotando), cancelamos cualquier toque largo
       if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
-        if (longPressTimer) {
-          clearTimeout(longPressTimer);
-          longPressTimer = null;
-        }
+        // Multitáctil (zoom/mover con 2 dedos): cancelar todo
+        clearTimeout(singleTapHoldTimer);
+        clearTimeout(doubleTapHoldTimer);
         return;
       }
 
+      const currentTime = new Date().getTime();
+      const tapLength = currentTime - lastTapTime;
       closeContextMenu();
-      longPressTimer = setTimeout(() => {
-        if (e.lngLat) triggerMapLongPress(e.lngLat);
-      }, 650);
+
+      if (tapLength < 350 && tapLength > 0) {
+        // --- ES UN DOBLE TOQUE ---
+        clearTimeout(singleTapHoldTimer); // Cancelar acción de 1 toque si corría
+        
+        const lngLat = e.lngLat;
+        doubleTapHoldTimer = setTimeout(() => {
+          // EN EL SEGUNDO TOQUE MANTENIDO: AGREGAR PUNTO
+          if (lngLat) triggerContextMenu(lngLat, 'save');
+        }, 600);
+
+        lastTapTime = 0; // reset
+      } else {
+        // --- POSIBLE TOQUE SIMPLE ---
+        lastTapTime = currentTime;
+        const lngLat = e.lngLat;
+
+        singleTapHoldTimer = setTimeout(() => {
+          // SI PASA EL TIEMPO SIN UN SEGUNDO TOQUE: IR A ESTE LUGAR
+          if (lngLat && lastTapTime !== 0) {
+            triggerContextMenu(lngLat, 'nav');
+          }
+        }, 650);
+      }
     });
 
-    map.on('touchmove', (e) => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
+    map.on('touchmove', () => {
+      // Si el usuario arrastra el mapa, cancelar cualquier temporizador pendiente
+      clearTimeout(singleTapHoldTimer);
+      clearTimeout(doubleTapHoldTimer);
+      lastTapTime = 0;
     });
 
     map.on('touchend', () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
+      // Si levanta el dedo antes de tiempo, cancelar el temporizador de navegación simple
+      if (lastTapTime !== 0) {
+        // Si no hubo doble toque y levantó rápido, permitimos comportamiento normal del mapa
       }
     });
 
-    function triggerMapLongPress(lngLat) {
+    // Soporte para PC (Mouse)
+    map.on('contextmenu', (e) => {
+      e.preventDefault(); // Clic derecho para agregar punto rápido en PC
+      triggerContextMenu(e.lngLat, 'save');
+    });
+
+    map.on('click', (e) => {
       if (isModulator() && baseUnlocked) {
-        const lng = lngLat.lng;
-        const lat = lngLat.lat;
+        const lng = e.lngLat.lng;
+        const lat = e.lngLat.lat;
         defaultBaseCoords = [lng, lat];
         localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
         if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords);
@@ -1639,14 +1646,32 @@
         btnUnlockBase.textContent = '🔒';
         btnUnlockBase.classList.remove('unlocked');
         alert(`📍 ¡Base Central reubicada y sincronizada!`);
-        return;
       }
+    });
+
+    function triggerContextMenu(lngLat, mode) {
+      if (isModulator() && baseUnlocked) return;
 
       contextMenuCoords = lngLat;
+      contextMenuMode = mode;
 
+      const titleEl = document.getElementById('menu-title-text');
+      const actionBtn = document.getElementById('btn-ctx-action');
+
+      if (mode === 'nav') {
+        titleEl.textContent = '📍 Destino Seleccionado';
+        actionBtn.textContent = '🚀 ¡Ir a este lugar!';
+        actionBtn.style.background = '#10b981';
+      } else {
+        titleEl.textContent = '⭐ Nuevo Punto Local';
+        actionBtn.textContent = '📍 Guardar este punto';
+        actionBtn.style.background = '#f59e0b';
+      }
+
+      if (tempContextMarker) tempContextMarker.remove();
       const el = document.createElement('div');
       el.style.fontSize = '2rem';
-      el.innerHTML = '📍';
+      el.innerHTML = mode === 'nav' ? '🏁' : '📍';
       tempContextMarker = new maplibregl.Marker({ element: el }).setLngLat([lngLat.lng, lngLat.lat]).addTo(map);
 
       document.getElementById('map-context-menu').style.display = 'flex';
