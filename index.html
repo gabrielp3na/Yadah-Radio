@@ -149,24 +149,43 @@
       z-index: 2200;
     }
 
-    #poi-mode-banner {
+    #map-context-menu {
       position: absolute;
-      top: 10px;
-      left: 12px;
-      right: 12px;
-      background: #059669;
-      border: 2px solid #34d399;
-      color: #ffffff;
-      padding: 10px 14px;
-      font-size: 0.85rem;
-      font-weight: 800;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111827;
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 12px;
       display: none;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 2900;
-      border-radius: 10px;
-      box-shadow: 0 4px 15px rgba(5, 150, 105, 0.7);
+      flex-direction: column;
+      gap: 8px;
+      z-index: 3200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+      width: 260px;
+      text-align: center;
     }
+
+    .menu-title {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-bottom: 2px;
+    }
+
+    .btn-ctx {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 800;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    .btn-ctx-nav { background: #10b981; color: #ffffff; }
+    .btn-ctx-save { background: #f59e0b; color: #0b0f19; }
+    .btn-ctx-cancel { background: #374151; color: #cbd5e1; }
 
     #fleet-summary-bar {
       background: #0f172a;
@@ -703,9 +722,12 @@
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
 
-  <div id="poi-mode-banner">
-    <span>📍 Toca el mapa en el lugar exacto del punto o negocio...</span>
-    <button style="background:#ffffff; color:#059669; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="cancelPoiMode()">Cancelar</button>
+  <!-- MENÚ CONTEXTUAL AL MANTENER PRESIONADO EL MAPA -->
+  <div id="map-context-menu">
+    <div class="menu-title">📍 Punto Seleccionado</div>
+    <button class="btn-ctx btn-ctx-nav" onclick="ctxRouteHere()">🚀 ¡Ir a este lugar!</button>
+    <button class="btn-ctx btn-ctx-save" onclick="ctxSaveAsPoi()">⭐ Guardar como punto local</button>
+    <button class="btn-ctx btn-ctx-cancel" onclick="closeContextMenu()">Cancelar</button>
   </div>
 
   <div id="sos-alert-banner">
@@ -799,7 +821,6 @@
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
-      <button class="btn-float-action" title="Agregar punto tocando el mapa" onclick="startAddingPoiMode()" style="background:#065f46; border-color:#10b981; color:#ffffff;">📍+</button>
       <button class="btn-float-action" title="Acercar Zoom" onclick="zoomIn()">➕</button>
       <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
       <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
@@ -882,8 +903,9 @@
 
     initDatabase();
 
-    // --- GESTIÓN DE LUGARES Y NEGOCIOS LOCALES CON MODO DE SELECCIÓN MANUAL ---
-    let isAddingPoiMode = false;
+    // --- GESTIÓN DE LUGARES Y MENÚ CONTEXTUAL POR TOQUE LARGO ---
+    let contextMenuCoords = null;
+    let tempContextMarker = null;
 
     function getCustomPOIs() {
       try {
@@ -898,14 +920,36 @@
       renderCustomPoiMarkers();
     }
 
-    function startAddingPoiMode() {
-      isAddingPoiMode = true;
-      document.getElementById('poi-mode-banner').style.display = 'flex';
+    function closeContextMenu() {
+      document.getElementById('map-context-menu').style.display = 'none';
+      if (tempContextMarker) {
+        tempContextMarker.remove();
+        tempContextMarker = null;
+      }
+      contextMenuCoords = null;
     }
 
-    function cancelPoiMode() {
-      isAddingPoiMode = false;
-      document.getElementById('poi-mode-banner').style.display = 'none';
+    function ctxRouteHere() {
+      if (!contextMenuCoords) return;
+      const { lng, lat } = contextMenuCoords;
+      closeContextMenu();
+      pendingDestination = { lon: lng, lat: lat, label: 'Punto seleccionado' };
+      lblRouteStats.textContent = `📍 Destino seleccionado. ¿Deseas iniciar marcha?`;
+      navRouteInfo.style.display = 'flex';
+    }
+
+    function ctxSaveAsPoi() {
+      if (!contextMenuCoords) return;
+      const { lng, lat } = contextMenuCoords;
+      closeContextMenu();
+
+      const placeName = prompt("📍 Nombre del nuevo punto o negocio local:");
+      if (placeName && placeName.trim().length > 0) {
+        const pois = getCustomPOIs();
+        pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
+        saveAllPOIs(pois);
+        alert(`✅ ¡Punto "${placeName.trim()}" creado y fijado con éxito!`);
+      }
     }
 
     let customPoiMarkers = [];
@@ -1249,7 +1293,7 @@
       cancelNavigation();
       closeVehicleHistory();
       toggleFleetDrawer(false);
-      cancelPoiMode();
+      closeContextMenu();
       baseUnlocked = false;
       btnUnlockBase.textContent = '🔒';
       btnUnlockBase.classList.remove('unlocked');
@@ -1530,43 +1574,81 @@
       renderCustomPoiMarkers();
     });
 
-    map.on('click', (e) => {
+    // --- INTERACCIÓN DE TOQUE LARGO (LONG PRESS) EN EL MAPA ---
+    let longPressTimer = null;
+
+    map.on('mousedown', (e) => {
+      closeContextMenu();
+      longPressTimer = setTimeout(() => {
+        triggerMapLongPress(e.lngLat);
+      }, 650);
+    });
+
+    map.on('mousemove', () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    });
+
+    map.on('mouseup', () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    });
+
+    map.on('touchstart', (e) => {
+      closeContextMenu();
+      longPressTimer = setTimeout(() => {
+        if (e.lngLat) triggerMapLongPress(e.lngLat);
+      }, 650);
+    });
+
+    map.on('touchmove', () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    });
+
+    map.on('touchend', () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    });
+
+    function triggerMapLongPress(lngLat) {
       if (isModulator() && baseUnlocked) {
-        const lng = e.lngLat.lng;
-        const lat = e.lngLat.lat;
+        // Si está desbloqueada la base, el click largo o click normal reubica la base
+        const lng = lngLat.lng;
+        const lat = lngLat.lat;
         defaultBaseCoords = [lng, lat];
         localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
-        if (permanentBaseMarker) {
-          permanentBaseMarker.setLngLat(defaultBaseCoords);
-        }
-
+        if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords);
         if (mqttClient && mqttClient.connected) {
           mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
         }
-
         baseUnlocked = false;
         btnUnlockBase.textContent = '🔒';
         btnUnlockBase.classList.remove('unlocked');
-
-        alert(`📍 ¡Base Central reubicada y sincronizada con la flota!\nLongitud: ${lng}\nLatitud: ${lat}`);
-      } else if (isAddingPoiMode) {
-        const lng = e.lngLat.lng;
-        const lat = e.lngLat.lat;
-        cancelPoiMode();
-
-        const placeName = prompt("📍 Nombre del punto o negocio local en esta ubicación:");
-        if (placeName && placeName.trim().length > 0) {
-          const pois = getCustomPOIs();
-          pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
-          saveAllPOIs(pois);
-          alert(`✅ ¡Punto "${placeName.trim()}" creado y fijado con éxito!`);
-        }
-      } else if (isDriver() && !activeHistoryUnit) {
-        pendingDestination = { lon: e.lngLat.lng, lat: e.lngLat.lat, label: 'Punto en el mapa' };
-        lblRouteStats.textContent = `📍 Destino en mapa seleccionado. ¿Deseas iniciar marcha?`;
-        navRouteInfo.style.display = 'flex';
+        alert(`📍 ¡Base Central reubicada y sincronizada!`);
+        return;
       }
-    });
+
+      contextMenuCoords = lngLat;
+
+      // Colocar un marcador temporal en el punto presionado
+      const el = document.createElement('div');
+      el.style.fontSize = '2rem';
+      el.innerHTML = '📍';
+      tempContextMarker = new maplibregl.Marker({ element: el }).setLngLat([lngLat.lng, lngLat.lat]).addTo(map);
+
+      // Mostrar menú contextual
+      document.getElementById('map-context-menu').style.display = 'flex';
+      playBeep(700, 0.05);
+    }
 
     function ensureLayersExist() {
       if (!map.getSource('route-trails')) {
