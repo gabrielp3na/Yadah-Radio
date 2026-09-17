@@ -137,13 +137,6 @@
       white-space: nowrap;
     }
 
-    .btn-header.danger {
-      background: #991b1b;
-      border-color: #ef4444;
-      color: #ffffff;
-      font-weight: 700;
-    }
-
     #gps-lock-banner {
       background: #dc2626;
       color: #ffffff;
@@ -299,9 +292,10 @@
       font-weight: 700;
     }
 
+    /* BOTONES FLOTANTES LATERALES */
     .map-floating-controls {
       position: absolute;
-      top: 75px;
+      top: 65px;
       right: 12px;
       display: flex;
       flex-direction: column;
@@ -328,6 +322,16 @@
     .btn-float-action.active {
       background: #f59e0b;
       color: #111827;
+    }
+
+    /* BOTÓN FLOTANTE DE SALIR / CAMBIO DE PERFIL */
+    .btn-float-action.btn-float-exit {
+      background: #7f1d1d;
+      border-color: #ef4444;
+      color: #ffffff;
+    }
+    .btn-float-action.btn-float-exit:active {
+      background: #ef4444;
     }
 
     .btn-sos {
@@ -712,7 +716,6 @@
     <div class="header-actions">
       <button class="btn-header" id="btn-toggle-fleet" onclick="toggleFleetDrawer(true)" style="display:none; border-color:#38bdf8; color:#38bdf8;">📋 Flota</button>
       <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón</button>
-      <button class="btn-header danger" onclick="logoutUnit()">🚪 Salir</button>
     </div>
   </header>
 
@@ -729,6 +732,8 @@
     <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
+      <!-- BOTÓN DE SALIR / CAMBIO DE PERFIL ARRIBA DEL SEMÁFORO -->
+      <button class="btn-float-action btn-float-exit" id="btn-float-logout" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
@@ -1140,7 +1145,6 @@
     });
 
     function ensureLayersExist() {
-      // Capa de Línea Histórica (solo para auditoría de 2h a 24h)
       if (!map.getSource('route-trails')) {
         map.addSource('route-trails', {
           type: 'geojson',
@@ -1157,7 +1161,6 @@
         });
       }
 
-      // Capa de Navegación de destino
       if (!map.getSource('nav-active-route')) {
         map.addSource('nav-active-route', {
           type: 'geojson',
@@ -1284,7 +1287,6 @@
       }
     }
 
-    // --- Auditoría Histórica (Trazado solo bajo demanda) ---
     function openVehicleHistory(unitName) {
       if (!isModulator()) return;
       activeHistoryUnit = unitName;
@@ -1461,13 +1463,10 @@
         fleetMarkers[unitId].container.classList.remove('sos-active');
       }
 
-      // Persistencia en IndexedDB para la auditoría de 2h a 24h
       savePointToDB(unitId, lon, lat, speed, heading);
-
       refreshFleetStatsCounters();
     }
 
-    // Supervisor de desconexión / apagado
     setInterval(() => {
       const now = Date.now();
 
@@ -1775,7 +1774,6 @@
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
-    // PTT con bloqueo por GPS
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
