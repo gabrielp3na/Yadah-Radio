@@ -239,66 +239,7 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* MODAL DE VISOR WAZE INCORPORADO */
-    #waze-modal-container {
-      position: absolute;
-      inset: 0;
-      background: #0b0f19;
-      z-index: 2800;
-      display: none;
-      flex-direction: column;
-    }
-
-    .waze-modal-header {
-      background: #111827;
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #38bdf8;
-    }
-
-    .waze-modal-header span {
-      font-weight: 800;
-      color: #38bdf8;
-      font-size: 0.85rem;
-    }
-
-    .waze-modal-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-waze-act {
-      background: #38bdf8;
-      color: #0b0f19;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 800;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .btn-waze-close {
-      background: #334155;
-      color: #f8fafc;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    #waze-iframe {
-      flex: 1;
-      width: 100%;
-      border: none;
-      background: #0b0f19;
-    }
-
+    /* BARRA DE BÚSQUEDA Y PREDICCIONES TIPO GOOGLE MAPS */
     #nav-search-bar {
       position: absolute;
       top: 10px;
@@ -307,7 +248,7 @@
       z-index: 2400;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
       max-width: 400px;
     }
 
@@ -339,6 +280,31 @@
       cursor: pointer;
     }
 
+    /* LISTA DESPLEGABLE DE PREDICCIONES */
+    #search-suggestions {
+      background: #111827;
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.8);
+      margin-top: 2px;
+    }
+
+    .suggestion-item {
+      padding: 10px 12px;
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      border-bottom: 1px solid #1f2937;
+      cursor: pointer;
+    }
+    .suggestion-item:hover, .suggestion-item:active {
+      background: #1e3a8a;
+      color: #ffffff;
+    }
+
     .nav-route-info {
       background: #030712;
       border: 1px solid #38bdf8;
@@ -350,6 +316,7 @@
       font-size: 0.78rem;
       color: #38bdf8;
       font-weight: 700;
+      margin-top: 4px;
     }
 
     .map-floating-controls {
@@ -388,13 +355,11 @@
       border-color: #ef4444;
       color: #ffffff;
     }
-    .btn-float-action.btn-float-exit:active {
-      background: #ef4444;
-    }
 
     .btn-float-action.btn-float-waze {
       border-color: #38bdf8;
       color: #38bdf8;
+      font-weight: 900;
     }
 
     .btn-sos {
@@ -701,23 +666,13 @@
     <button style="background:#ffffff; color:#dc2626; border:none; padding:4px 8px; font-weight:800; border-radius:4px; cursor:pointer;" onclick="silenceSOS()">Silenciar</button>
   </div>
 
-  <!-- VISOR WAZE INTEGRADO -->
-  <div id="waze-modal-container">
-    <div class="waze-modal-header">
-      <span>🚙 Waze Tráfico en Vivo</span>
-      <div class="waze-modal-actions">
-        <a id="btn-open-waze-app" class="btn-waze-act" target="_blank" href="https://waze.com">Abrir App</a>
-        <button class="btn-waze-close" onclick="toggleWazeModal(false)">Volver a Radio</button>
-      </div>
-    </div>
-    <iframe id="waze-iframe" src="about:blank"></iframe>
-  </div>
-
+  <!-- BARRA DE BÚSQUEDA CON PREDICCIONES -->
   <div id="nav-search-bar">
     <div class="search-input-box">
-      <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." />
+      <input type="text" id="input-destination" placeholder="Escribe el destino (ej. Metrocentro)..." oninput="handleSearchInput(this.value)" autocomplete="off" />
       <button onclick="searchAndRouteDestination()">Ir 🚀</button>
     </div>
+    <div id="search-suggestions"></div>
     <div class="nav-route-info" id="nav-route-info">
       <span id="lbl-route-stats">Calculando...</span>
       <button style="background:transparent; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" onclick="cancelNavigation()">✕ Cancelar</button>
@@ -802,7 +757,7 @@
 
     <div class="map-floating-controls">
       <button class="btn-float-action btn-float-exit" id="btn-float-logout" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
-      <button class="btn-float-action btn-float-waze" id="btn-waze-toggle" title="Ver Tráfico Waze" onclick="toggleWazeModal(true)">🚙</button>
+      <button class="btn-float-action btn-float-waze" id="btn-waze-toggle" title="Lanzar Waze GPS" onclick="launchWazeApp()">🚙</button>
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
@@ -905,15 +860,13 @@
     const mapContainer = document.getElementById('map-container');
     const vehicleHistoryCard = document.getElementById('vehicle-history-card');
     const navSearchBar = document.getElementById('nav-search-bar');
+    const searchSuggestions = document.getElementById('search-suggestions');
     const navRouteInfo = document.getElementById('nav-route-info');
     const lblRouteStats = document.getElementById('lbl-route-stats');
     const fleetSummaryBar = document.getElementById('fleet-summary-bar');
     const fleetListDrawer = document.getElementById('fleet-list-drawer');
     const gpsLockBanner = document.getElementById('gps-lock-banner');
     const btnPtt = document.getElementById('btn-ptt');
-    const wazeModalContainer = document.getElementById('waze-modal-container');
-    const wazeIframe = document.getElementById('waze-iframe');
-    const btnOpenWazeApp = document.getElementById('btn-open-waze-app');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
@@ -923,6 +876,7 @@
     let sirenInterval = null;
     let currentDestinationCoords = null;
     let gpsPermissionGranted = false;
+    let searchTimeout = null;
 
     const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
     const fleetStatusMap = {};
@@ -936,19 +890,51 @@
       } catch (err) {}
     }
 
-    function toggleWazeModal(show) {
-      wazeModalContainer.style.display = show ? 'flex' : 'none';
-      if (show && myLastCoords) {
-        // Carga el visor Waze Live Map centrado en las coordenadas del chofer
-        wazeIframe.src = `https://embed.waze.com/iframe?zoom=16&lat=${myLastCoords.lat}&lon=${myLastCoords.lon}&ct=livemap`;
-        if (currentDestinationCoords) {
-          btnOpenWazeApp.href = `https://waze.com/ul?ll=${currentDestinationCoords[1]},${currentDestinationCoords[0]}&navigate=yes`;
-        } else {
-          btnOpenWazeApp.href = `https://waze.com/ul?ll=${myLastCoords.lat},${myLastCoords.lon}`;
-        }
-      } else if (!show) {
-        wazeIframe.src = 'about:blank';
+    function launchWazeApp() {
+      if (currentDestinationCoords) {
+        window.location.href = `https://waze.com/ul?ll=${currentDestinationCoords[1]},${currentDestinationCoords[0]}&navigate=yes`;
+      } else if (myLastCoords) {
+        window.location.href = `https://waze.com/ul?ll=${myLastCoords.lat},${myLastCoords.lon}`;
+      } else {
+        window.location.href = `https://waze.com/ul`;
       }
+    }
+
+    // --- Sistema de Predicciones Autocompletado en Tiempo Real ---
+    function handleSearchInput(query) {
+      clearTimeout(searchTimeout);
+      if (!query || query.trim().length < 2) {
+        searchSuggestions.style.display = 'none';
+        searchSuggestions.innerHTML = '';
+        return;
+      }
+
+      // Espera 350ms de tipeo para no saturar la API
+      searchTimeout = setTimeout(async () => {
+        try {
+          const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+          const results = await resp.json();
+
+          if (results && results.length > 0) {
+            searchSuggestions.innerHTML = results.map(item => `
+              <div class="suggestion-item" onclick="selectSuggestion(${item.lon}, ${item.lat}, '${item.display_name.replace(/'/g, "")}')">
+                📍 <b>${item.display_name.split(',')[0]}</b><br><span style="color:#94a3b8; font-size:0.68rem;">${item.display_name}</span>
+              </div>
+            `).join('');
+            searchSuggestions.style.display = 'flex';
+          } else {
+            searchSuggestions.style.display = 'none';
+          }
+        } catch (e) {
+          console.error("Error buscando sugerencias:", e);
+        }
+      }, 350);
+    }
+
+    function selectSuggestion(lon, lat, displayName) {
+      document.getElementById('input-destination').value = displayName.split(',')[0];
+      searchSuggestions.style.display = 'none';
+      requestRouteToDestination(lon, lat, displayName.split(',')[0]);
     }
 
     function updateGpsLockState(allowed) {
@@ -1028,7 +1014,6 @@
         mqttClient = null;
       }
 
-      // Elimina todos los marcadores previos para no dejar carritos fantasma
       Object.keys(fleetMarkers).forEach(k => {
         fleetMarkers[k].marker.remove();
         delete fleetMarkers[k];
@@ -1041,7 +1026,6 @@
       cancelNavigation();
       closeVehicleHistory();
       toggleFleetDrawer(false);
-      toggleWazeModal(false);
 
       loginScreen.style.display = 'flex';
       lblUnit.textContent = '--';
@@ -1296,6 +1280,7 @@
     let destinationMarker = null;
 
     async function searchAndRouteDestination() {
+      searchSuggestions.style.display = 'none';
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
 
@@ -1563,7 +1548,6 @@
       refreshFleetStatsCounters();
     }
 
-    // Supervisor de desconexión: retira los carros del mapa si pasan a apagados
     setInterval(() => {
       const now = Date.now();
 
@@ -1575,7 +1559,6 @@
 
         if (diffSec > 50 && u.state !== 'offline') {
           u.state = 'offline';
-          // Se retira del mapa para evitar carros fantasma
           if (fleetMarkers[unitId]) {
             fleetMarkers[unitId].marker.remove();
             delete fleetMarkers[unitId];
