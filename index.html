@@ -611,7 +611,7 @@
     .car-svg-rotator {
       width: 44px;
       height: 44px;
-      transition: transform 0.25s linear;
+      transition: transform 0.15s linear;
       transform-origin: center center;
     }
 
@@ -904,7 +904,7 @@
     let activeHistoryUnit = null;
     let isSosActive = false;
     let sirenInterval = null;
-    let pendingDestination = null; // Almacena temporalmente el destino seleccionado
+    let pendingDestination = null;
     let gpsPermissionGranted = false;
     let searchTimeout = null;
     let baseUnlocked = false;
@@ -1591,6 +1591,12 @@
     let myHeading = 0;
     let mySpeed = 0;
 
+    // --- VARIABLES PARA INTERPOLACIÓN FLUIDA (ANIMACIÓN LERP) ---
+    let targetPos = null;
+    let currentDisplayPos = null;
+    let targetHeading = 0;
+    let currentDisplayHeading = 0;
+
     function getDistanceFromBase(lat, lon) {
       const baseLat = defaultBaseCoords[1];
       const baseLon = defaultBaseCoords[0];
@@ -1699,6 +1705,41 @@
       savePointToDB(unitId, lon, lat, speed, heading);
       refreshFleetStatsCounters();
     }
+
+    // --- BUCLE DE ANIMACIÓN FLUIDA (LERP) PARA EL PROPIO VEHÍCULO ---
+    function smoothAnimationLoop() {
+      if (isDriver() && targetPos && currentDisplayPos) {
+        // Interpolar posición (desplazamiento suave)
+        currentDisplayPos.lon += (targetPos.lon - currentDisplayPos.lon) * 0.15;
+        currentDisplayPos.lat += (targetPos.lat - currentDisplayPos.lat) * 0.15;
+
+        // Interpolar rumbo con manejo de wrap-around de 360 grados
+        let diff = targetHeading - currentDisplayHeading;
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
+        currentDisplayHeading += diff * 0.15;
+
+        const myId = `${currentUnit} (Tú)`;
+        if (fleetMarkers[myId]) {
+          fleetMarkers[myId].marker.setLngLat([currentDisplayPos.lon, currentDisplayPos.lat]);
+          fleetMarkers[myId].rotator.style.transform = `rotate(${currentDisplayHeading}deg)`;
+        }
+
+        // Mover cámara suavemente si está en primera persona
+        if (firstPersonMode) {
+          const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
+          map.jumpTo({
+            center: [currentDisplayPos.lon, currentDisplayPos.lat],
+            bearing: currentDisplayHeading,
+            pitch: 78,
+            zoom: 19.8,
+            offset: [0, screenOffset]
+          });
+        }
+      }
+      requestAnimationFrame(smoothAnimationLoop);
+    }
+    requestAnimationFrame(smoothAnimationLoop);
 
     setInterval(() => {
       const now = Date.now();
@@ -1988,6 +2029,14 @@
               mqttClient.publish(TOPIC_MODULATOR, JSON.stringify({ lat, lon, timestamp: now }));
             }
           } else {
+            // Asignar objetivos para la animación suave (LERP)
+            targetPos = { lon, lat };
+            targetHeading = myHeading;
+            if (!currentDisplayPos) {
+              currentDisplayPos = { lon, lat };
+              currentDisplayHeading = myHeading;
+            }
+
             updateVehicleOnMap(`${currentUnit} (Tú)`, lon, lat, myHeading, mySpeed, isSosActive);
             if (mqttClient && mqttClient.connected) {
               mqttClient.publish(TOPIC_GPS, JSON.stringify({
@@ -2004,16 +2053,6 @@
           if (!initialCentering) {
             applyCameraPerspective();
             initialCentering = true;
-          } else if (firstPersonMode && isDriver()) {
-            const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
-            map.easeTo({
-              center: [lon, lat],
-              bearing: myHeading,
-              pitch: 78,
-              zoom: 19.8,
-              offset: [0, screenOffset],
-              duration: 800
-            });
           }
         },
         (err) => {
@@ -2162,7 +2201,7 @@
           URL.revokeObjectURL(audioUrl);
         };
       } catch (err) {
-        console.error("Error reproduciendo voz:", err);
+        console.error("Error reproduciendo audio:", err);
       }
     }
 
