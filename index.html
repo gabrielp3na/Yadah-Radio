@@ -169,6 +169,7 @@
     .badge-stat.online { background: rgba(16, 185, 129, 0.2); color: #10b981; }
     .badge-stat.stopped { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
     .badge-stat.offline { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+    .badge-stat.at-base { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
 
     #fleet-list-drawer {
       position: fixed;
@@ -737,6 +738,7 @@
   <div id="fleet-summary-bar" onclick="toggleFleetDrawer(true)">
     <span>🏢 <b>Supervisión Flota:</b></span>
     <span><span class="badge-stat online" id="stat-online">0 En línea</span></span>
+    <span><span class="badge-stat at-base" id="stat-base">0 En Base</span></span>
     <span><span class="badge-stat stopped" id="stat-stopped">0 Detenidos</span></span>
     <span><span class="badge-stat offline" id="stat-offline">14 Apagados</span></span>
   </div>
@@ -870,7 +872,7 @@
     const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
     const fleetStatusMap = {};
     ALL_UNITS.forEach(id => {
-      fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline' };
+      fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline', arrivalTime: null };
     });
 
     async function requestWakeLock() {
@@ -990,7 +992,7 @@
 
     function logoutUnit() {
       if (mqttClient && mqttClient.connected && currentUnit) {
-        mqttClient.publish('yadah/radio/flota/status', JSON.stringify({ unit: currentUnit, status: 'offline' }), { retain: true });
+        mqttClient.publish('yadah/radio/flota/status', JSON.stringify({ unit: currentUnit, status: 'offline', cause: 'desconexion_inesperada' }), { retain: true });
         mqttClient.end(true);
         mqttClient = null;
       }
@@ -1072,7 +1074,11 @@
         let statusBadge = '<span class="badge-stat offline">Apagado</span>';
         let detailTxt = 'Sin conexión';
 
-        if (data.state === 'online') {
+        if (data.state === 'at-base') {
+          statusBadge = '<span class="badge-stat at-base">En Base 🏢</span>';
+          const arrTime = data.arrivalTime ? new Date(data.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          detailTxt = `Llegada a base: <b>${arrTime}</b>`;
+        } else if (data.state === 'online') {
           statusBadge = '<span class="badge-stat online">En Marcha</span>';
           detailTxt = `Velocidad: <b>${Math.round(data.speed)} km/h</b>`;
         } else if (data.state === 'stopped') {
@@ -1155,7 +1161,6 @@
       } catch (e) {}
     }
 
-    // --- CARGAR COORDENADAS GUARDADAS DE LA BASE O USAR DEFAULT ---
     let defaultBaseCoords = [-89.356200, 13.724208];
     const savedBaseCoords = localStorage.getItem('yadah_base_coords');
     if (savedBaseCoords) {
@@ -1241,7 +1246,6 @@
       addPermanentBaseMarker();
     });
 
-    // --- CALIBRACIÓN POR DOBLE CLIC (EXCLUSIVO MODULADOR) ---
     map.on('dblclick', (e) => {
       if (isModulator()) {
         const lng = e.lngLat.lng;
@@ -1497,6 +1501,23 @@
     let myHeading = 0;
     let mySpeed = 0;
 
+    // --- FUNCIÓN DE GEOFENCING ESTRICTA (18 METROS MÁXIMO) ---
+    function getDistanceFromBase(lat, lon) {
+      const baseLat = defaultBaseCoords[1];
+      const baseLon = defaultBaseCoords[0];
+      const R = 6371e3; 
+      const φ1 = lat * Math.PI/180;
+      const φ2 = baseLat * Math.PI/180;
+      const Δφ = (baseLat - lat) * Math.PI/180;
+      const Δλ = (baseLon - lon) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; 
+    }
+
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
       const now = Date.now();
@@ -1508,16 +1529,33 @@
       u.lat = lat;
       u.lon = lon;
 
-      if (speed > 3) {
-        u.state = 'online';
-        u.stoppedSince = null;
+      // Radio estricto de 18 metros para evitar activaciones desde la carretera
+      const distanceToBasePath = getDistanceFromBase(lat, lon);
+      if (distanceToBasePath <= 18) {
+        if (u.state !== 'at-base') {
+          u.state = 'at-base';
+          u.arrivalTime = now;
+        }
       } else {
-        u.state = 'stopped';
-        if (!u.stoppedSince) u.stoppedSince = now;
+        if (speed > 3) {
+          u.state = 'online';
+          u.stoppedSince = null;
+          u.arrivalTime = null;
+        } else {
+          u.state = 'stopped';
+          if (!u.stoppedSince) u.stoppedSince = now;
+        }
       }
 
-      const uState = fleetStatusMap[unitId];
-      let speedTxt = uState.state === 'online' ? `${Math.round(speed)} km/h` : `Detenido hace ${formatTimeAgo(now - uState.stoppedSince)}`;
+      let speedTxt = '';
+      if (u.state === 'at-base') {
+        const arrTimeStr = u.arrivalTime ? new Date(u.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+        speedTxt = `En Base (${arrTimeStr})`;
+      } else if (u.state === 'online') {
+        speedTxt = `${Math.round(speed)} km/h`;
+      } else {
+        speedTxt = `Detenido hace ${formatTimeAgo(now - u.stoppedSince)}`;
+      }
 
       if (!fleetMarkers[unitId]) {
         const { container, rotator, badge } = createMarkerElement(unitId);
@@ -1562,10 +1600,6 @@
             fleetMarkers[unitId].marker.remove();
             delete fleetMarkers[unitId];
           }
-        } else if (u.state === 'stopped' && fleetMarkers[unitId]) {
-          const stopTime = formatTimeAgo(now - u.stoppedSince);
-          const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
-          if (speedDiv) speedDiv.textContent = `Detenido hace ${stopTime}`;
         }
       });
 
@@ -1575,17 +1609,20 @@
 
     function refreshFleetStatsCounters() {
       let online = 0;
+      let atBase = 0;
       let stopped = 0;
       let offline = 0;
 
       ALL_UNITS.forEach(id => {
         const st = fleetStatusMap[id].state;
-        if (st === 'online') online++;
+        if (st === 'at-base') atBase++;
+        else if (st === 'online') online++;
         else if (st === 'stopped') stopped++;
         else offline++;
       });
 
       document.getElementById('stat-online').textContent = `${online} En línea`;
+      document.getElementById('stat-base').textContent = `${atBase} En Base`;
       document.getElementById('stat-stopped').textContent = `${stopped} Detenidos`;
       document.getElementById('stat-offline').textContent = `${offline} Apagados`;
     }
