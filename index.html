@@ -355,6 +355,13 @@
       color: #ffffff;
     }
 
+    .btn-float-action.unlocked {
+      background: #059669;
+      border-color: #10b981;
+      color: #ffffff;
+      animation: pulse-sos 0.8s infinite alternate;
+    }
+
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -380,6 +387,16 @@
     @keyframes pulse-sos {
       from { transform: scale(1); background: #dc2626; }
       to { transform: scale(1.15); background: #991b1b; }
+    }
+
+    /* Animación de iluminación/parpadeo para la Base Activa */
+    @keyframes pulse-base {
+      from { transform: scale(1); filter: drop-shadow(0 0 4px #38bdf8); }
+      to { transform: scale(1.12); filter: drop-shadow(0 0 14px #10b981); }
+    }
+
+    .base-active-glow {
+      animation: pulse-base 0.9s infinite alternate;
     }
 
     #sos-alert-banner {
@@ -754,6 +771,7 @@
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
+      <button class="btn-float-action" id="btn-unlock-base" title="Desbloquear para Mover Base" onclick="toggleBaseUnlock()" style="display:none;">🔒</button>
     </div>
   </div>
 
@@ -848,6 +866,7 @@
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
     const btnSos = document.getElementById('btn-sos');
     const btnToggleFleet = document.getElementById('btn-toggle-fleet');
+    const btnUnlockBase = document.getElementById('btn-unlock-base');
     const mapContainer = document.getElementById('map-container');
     const vehicleHistoryCard = document.getElementById('vehicle-history-card');
     const navSearchBar = document.getElementById('nav-search-bar');
@@ -868,6 +887,9 @@
     let currentDestinationCoords = null;
     let gpsPermissionGranted = false;
     let searchTimeout = null;
+    let baseUnlocked = false;
+    let modulatorActiveAtBase = false;
+    let modulatorActivationTime = null;
 
     const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
     const fleetStatusMap = {};
@@ -958,6 +980,7 @@
         navSearchBar.style.display = isDriver() ? 'flex' : 'none';
         btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
         fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+        btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
         if (!isModulator()) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
@@ -980,6 +1003,7 @@
       navSearchBar.style.display = isDriver() ? 'flex' : 'none';
       btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
       fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+      btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
       if (!isModulator()) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
@@ -1011,13 +1035,38 @@
       cancelNavigation();
       closeVehicleHistory();
       toggleFleetDrawer(false);
+      baseUnlocked = false;
+      btnUnlockBase.textContent = '🔒';
+      btnUnlockBase.classList.remove('unlocked');
 
       loginScreen.style.display = 'flex';
       lblUnit.textContent = '--';
       fleetSummaryBar.style.display = 'none';
       btnToggleFleet.style.display = 'none';
+      btnUnlockBase.style.display = 'none';
       navSearchBar.style.display = 'none';
       btnSos.style.display = 'none';
+    }
+
+    function toggleBaseUnlock() {
+      if (!isModulator()) return;
+
+      if (!baseUnlocked) {
+        const pass = prompt("🔐 Ingresa la contraseña de seguridad para mover la Base Central:");
+        if (pass === "1234") {
+          baseUnlocked = true;
+          btnUnlockBase.textContent = '🔓';
+          btnUnlockBase.classList.add('unlocked');
+          alert("✅ Modo de edición desbloqueado. Ahora haz UN CLIC en el mapa donde quieras colocar la Base Central.");
+        } else if (pass !== null) {
+          alert("❌ Contraseña incorrecta.");
+        }
+      } else {
+        baseUnlocked = false;
+        btnUnlockBase.textContent = '🔒';
+        btnUnlockBase.classList.remove('unlocked');
+        alert("🔒 Base Central bloqueada de nuevo con seguridad.");
+      }
     }
 
     function updateViewButtonUI() {
@@ -1221,18 +1270,20 @@
     });
 
     let permanentBaseMarker = null;
+    let baseBadgeEl = null;
 
     function addPermanentBaseMarker() {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
 
-      const badge = document.createElement('div');
-      badge.className = 'car-badge base-station';
-      badge.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#38bdf8;">Transportes Yadah</div>`;
-      container.appendChild(badge);
+      baseBadgeEl = document.createElement('div');
+      baseBadgeEl.className = 'car-badge base-station';
+      baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#38bdf8;" id="base-status-txt">Inactiva</div>`;
+      container.appendChild(baseBadgeEl);
 
       const rotator = document.createElement('div');
       rotator.className = 'car-svg-rotator';
+      rotator.id = 'base-icon-rotator';
       rotator.innerHTML = `<div class="base-icon">🏢</div>`;
       container.appendChild(rotator);
 
@@ -1246,8 +1297,8 @@
       addPermanentBaseMarker();
     });
 
-    map.on('dblclick', (e) => {
-      if (isModulator()) {
+    map.on('click', (e) => {
+      if (isModulator() && baseUnlocked) {
         const lng = e.lngLat.lng;
         const lat = e.lngLat.lat;
         defaultBaseCoords = [lng, lat];
@@ -1255,7 +1306,18 @@
         if (permanentBaseMarker) {
           permanentBaseMarker.setLngLat(defaultBaseCoords);
         }
-        alert(`📍 ¡Base Central recalibrada!\nLongitud: ${lng}\nLatitud: ${lat}`);
+
+        if (mqttClient && mqttClient.connected) {
+          mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
+        }
+
+        baseUnlocked = false;
+        btnUnlockBase.textContent = '🔒';
+        btnUnlockBase.classList.remove('unlocked');
+
+        alert(`📍 ¡Base Central reubicada y bloqueada con seguridad!\nLongitud: ${lng}\nLatitud: ${lat}`);
+      } else if (isDriver() && !activeHistoryUnit) {
+        requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
       }
     });
 
@@ -1301,12 +1363,6 @@
         });
       }
     }
-
-    map.on('click', (e) => {
-      if (isDriver() && !activeHistoryUnit) {
-        requestRouteToDestination(e.lngLat.lng, e.lngLat.lat, 'Punto en el mapa');
-      }
-    });
 
     let destinationMarker = null;
 
@@ -1501,7 +1557,6 @@
     let myHeading = 0;
     let mySpeed = 0;
 
-    // --- FUNCIÓN DE GEOFENCING ESTRICTA (18 METROS MÁXIMO) ---
     function getDistanceFromBase(lat, lon) {
       const baseLat = defaultBaseCoords[1];
       const baseLon = defaultBaseCoords[0];
@@ -1518,6 +1573,34 @@
       return R * c; 
     }
 
+    function updateModulatorState(modLat, modLon) {
+      const dist = getDistanceFromBase(modLat, modLon);
+      const wasActive = modulatorActiveAtBase;
+
+      if (dist <= 18) {
+        modulatorActiveAtBase = true;
+        if (!wasActive) {
+          modulatorActivationTime = Date.now();
+        }
+      } else {
+        modulatorActiveAtBase = false;
+        modulatorActivationTime = null;
+      }
+
+      // Actualizar visualmente el edificio fijo de la Base Central
+      if (baseBadgeEl) {
+        const iconRotator = document.getElementById('base-icon-rotator');
+        if (modulatorActiveAtBase) {
+          const actTimeStr = modulatorActivationTime ? new Date(modulatorActivationTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#10b981;">Activa desde ${actTimeStr}</div>`;
+          if (iconRotator) iconRotator.classList.add('base-active-glow');
+        } else {
+          baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#94a3b8;">Inactiva</div>`;
+          if (iconRotator) iconRotator.classList.remove('base-active-glow');
+        }
+      }
+    }
+
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
       const now = Date.now();
@@ -1529,7 +1612,6 @@
       u.lat = lat;
       u.lon = lon;
 
-      // Radio estricto de 18 metros para evitar activaciones desde la carretera
       const distanceToBasePath = getDistanceFromBase(lat, lon);
       if (distanceToBasePath <= 18) {
         if (u.state !== 'at-base') {
@@ -1670,6 +1752,8 @@
     const TOPIC_PANIC = 'yadah/radio/flota/panic';
     const TOPIC_NAV = 'yadah/radio/flota/navigation';
     const TOPIC_STATUS = 'yadah/radio/flota/status';
+    const TOPIC_BASE = 'yadah/radio/flota/base';
+    const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -1719,6 +1803,8 @@
         mqttClient.subscribe(TOPIC_PANIC);
         mqttClient.subscribe(TOPIC_NAV);
         mqttClient.subscribe(TOPIC_STATUS);
+        mqttClient.subscribe(TOPIC_BASE);
+        mqttClient.subscribe(TOPIC_MODULATOR);
 
         if (isDriver()) {
           mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
@@ -1728,7 +1814,21 @@
       mqttClient.on('message', (topic, message) => {
         try {
           const text = message.toString();
-          if (topic === TOPIC_GPS) {
+          if (topic === TOPIC_BASE) {
+            const baseData = JSON.parse(text);
+            if (baseData.coords) {
+              defaultBaseCoords = baseData.coords;
+              localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
+              if (permanentBaseMarker) {
+                permanentBaseMarker.setLngLat(defaultBaseCoords);
+              }
+            }
+          } else if (topic === TOPIC_MODULATOR) {
+            const modData = JSON.parse(text);
+            if (modData && modData.lat && modData.lon) {
+              updateModulatorState(modData.lat, modData.lon);
+            }
+          } else if (topic === TOPIC_GPS) {
             const data = JSON.parse(text);
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
@@ -1849,17 +1949,23 @@
           lblHeading.textContent = `${myHeading}°`;
           lblSpeed.textContent = `${mySpeed} km/h`;
 
-          updateVehicleOnMap(currentUnit ? `${currentUnit} (Tú)` : 'Tú', lon, lat, myHeading, mySpeed, isSosActive);
-
-          if (mqttClient && mqttClient.connected && currentUnit) {
-            mqttClient.publish(TOPIC_GPS, JSON.stringify({
-              unit: currentUnit,
-              lat: lat,
-              lon: lon,
-              heading: myHeading,
-              speed: mySpeed,
-              isSos: isSosActive
-            }));
+          if (isModulator()) {
+            updateModulatorState(lat, lon);
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_MODULATOR, JSON.stringify({ lat, lon, timestamp: now }));
+            }
+          } else {
+            updateVehicleOnMap(`${currentUnit} (Tú)`, lon, lat, myHeading, mySpeed, isSosActive);
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_GPS, JSON.stringify({
+                unit: currentUnit,
+                lat: lat,
+                lon: lon,
+                heading: myHeading,
+                speed: mySpeed,
+                isSos: isSosActive
+              }));
+            }
           }
 
           if (!initialCentering) {
@@ -2023,7 +2129,7 @@
           URL.revokeObjectURL(audioUrl);
         };
       } catch (err) {
-        console.error("Error reproduciendo voz:", err);
+        console.error("Error reproduciendo audio:", err);
       }
     }
 
