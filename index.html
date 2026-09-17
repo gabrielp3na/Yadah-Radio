@@ -119,7 +119,7 @@
 
     .header-actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .btn-header {
@@ -132,6 +132,94 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    /* BANNER ALERTA GPS BLOQUEADO */
+    #gps-lock-banner {
+      background: #dc2626;
+      color: #ffffff;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 2200;
+    }
+
+    /* BARRA RESUMEN DE FLOTA */
+    #fleet-summary-bar {
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      padding: 6px 12px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      cursor: pointer;
+      z-index: 999;
+    }
+
+    .badge-stat {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .badge-stat.online { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .badge-stat.stopped { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+    .badge-stat.offline { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+
+    /* PANEL LATERAL FLOTA */
+    #fleet-list-drawer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 100vh;
+      height: 100dvh;
+      background: #111827;
+      border-right: 2px solid #38bdf8;
+      z-index: 3500;
+      display: none;
+      flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
+    }
+
+    .drawer-header {
+      padding: 14px;
+      background: #030712;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .fleet-items-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .unit-card-row {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .unit-card-row:active { background: #334155; }
+
+    .unit-card-info b { font-size: 0.85rem; color: #f8fafc; }
+    .unit-card-info div { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
 
     #map-container {
       flex: 1;
@@ -150,7 +238,6 @@
       filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
     }
 
-    /* BARRA DE NAVEGACIÓN */
     #nav-search-bar {
       position: absolute;
       top: 10px;
@@ -204,7 +291,6 @@
       font-weight: 700;
     }
 
-    /* CONTROLES FLOTANTES LATERALES */
     .map-floating-controls {
       position: absolute;
       top: 75px;
@@ -256,9 +342,7 @@
       touch-action: manipulation;
     }
 
-    .btn-sos.active {
-      animation: pulse-sos 0.7s infinite alternate;
-    }
+    .btn-sos.active { animation: pulse-sos 0.7s infinite alternate; }
 
     @keyframes pulse-sos {
       from { transform: scale(1); background: #dc2626; }
@@ -304,10 +388,8 @@
       color: #94a3b8;
     }
 
-    .status-active {
-      color: #10b981;
-      font-weight: 600;
-    }
+    .status-active { color: #10b981; font-weight: 600; }
+    .status-warning { color: #ef4444; font-weight: 700; }
 
     .channel-status {
       background-color: #030712;
@@ -334,10 +416,13 @@
       border-color: #10b981;
     }
 
-    @keyframes pulse {
-      from { opacity: 0.8; }
-      to { opacity: 1; }
+    .channel-status.blocked {
+      background-color: #450a0a;
+      color: #fca5a5;
+      border-color: #dc2626;
     }
+
+    @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
 
     .btn-ptt {
       width: 100%;
@@ -357,9 +442,15 @@
       touch-action: none;
     }
 
-    .btn-ptt.active {
-      background-color: #f59e0b;
-      color: #030712;
+    .btn-ptt.active { background-color: #f59e0b; color: #030712; }
+
+    /* ESTADO DESHABILITADO POR FALTA DE GPS */
+    .btn-ptt.gps-disabled {
+      background-color: #1e293b !important;
+      border-color: #475569 !important;
+      color: #64748b !important;
+      cursor: not-allowed !important;
+      opacity: 0.65;
     }
 
     #history-modal {
@@ -424,6 +515,12 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      transition: opacity 0.3s;
+    }
+
+    .car-marker-container.offline-unit {
+      opacity: 0.45;
+      filter: grayscale(100%);
     }
 
     .car-marker-container.sos-active .car-badge {
@@ -499,10 +596,7 @@
       outline: none;
     }
 
-    .vh-actions {
-      display: flex;
-      gap: 6px;
-    }
+    .vh-actions { display: flex; gap: 6px; }
 
     .btn-vh {
       flex: 1;
@@ -514,20 +608,26 @@
       cursor: pointer;
     }
 
-    .btn-vh-apply {
-      background: #38bdf8;
-      color: #0b0f19;
-    }
-
-    .btn-vh-close {
-      background: #334155;
-      color: #cbd5e1;
-    }
+    .btn-vh-apply { background: #38bdf8; color: #0b0f19; }
+    .btn-vh-close { background: #334155; color: #cbd5e1; }
   </style>
 </head>
 <body>
 
   <audio id="radio-speaker" playsinline preload="auto"></audio>
+
+  <div id="fleet-list-drawer">
+    <div class="drawer-header">
+      <span>📋 Flota y Estado en Vivo</span>
+      <span style="cursor:pointer; color:#94a3b8;" onclick="toggleFleetDrawer(false)">✕</span>
+    </div>
+    <div class="fleet-items-container" id="fleet-items-list"></div>
+  </div>
+
+  <!-- BANNER BLOQUEO POR GPS APAGADO / DENEGADO -->
+  <div id="gps-lock-banner">
+    <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
+  </div>
 
   <div id="sos-alert-banner">
     <span id="sos-banner-text">🚨 ¡ALERTA SOS ACTIVA!</span>
@@ -604,10 +704,18 @@
       <span>📻</span> Yadah PTT Live
     </div>
     <div class="header-actions">
+      <button class="btn-header" id="btn-toggle-fleet" onclick="toggleFleetDrawer(true)" style="display:none; border-color:#38bdf8; color:#38bdf8;">📋 Flota</button>
       <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón</button>
       <button class="btn-header" onclick="logoutUnit()">🔄 Salir</button>
     </div>
   </header>
+
+  <div id="fleet-summary-bar" onclick="toggleFleetDrawer(true)">
+    <span>🏢 <b>Supervisión Flota:</b></span>
+    <span><span class="badge-stat online" id="stat-online">0 En línea</span></span>
+    <span><span class="badge-stat stopped" id="stat-stopped">0 Detenidos</span></span>
+    <span><span class="badge-stat offline" id="stat-offline">14 Apagados</span></span>
+  </div>
 
   <div id="map-container">
     <div id="map"></div>
@@ -626,6 +734,7 @@
   <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
+      <span>GPS: <b id="lbl-gps-status" class="status-warning">Comprobando...</b></span>
       <span>Vel: <b class="status-active" id="lbl-speed">0 km/h</b></span>
       <span>Rumbo: <b class="status-active" id="lbl-heading">0°</b></span>
     </div>
@@ -705,6 +814,7 @@
     const lblUnit = document.getElementById('lbl-unit');
     const lblSpeed = document.getElementById('lbl-speed');
     const lblHeading = document.getElementById('lbl-heading');
+    const lblGpsStatus = document.getElementById('lbl-gps-status');
     const channelStatus = document.getElementById('channel-status');
     const radioSpeaker = document.getElementById('radio-speaker');
     const btnViewMode = document.getElementById('btn-view-mode');
@@ -712,11 +822,16 @@
     const btnTrailMode = document.getElementById('btn-trail-mode');
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
     const btnSos = document.getElementById('btn-sos');
+    const btnToggleFleet = document.getElementById('btn-toggle-fleet');
     const mapContainer = document.getElementById('map-container');
     const vehicleHistoryCard = document.getElementById('vehicle-history-card');
     const navSearchBar = document.getElementById('nav-search-bar');
     const navRouteInfo = document.getElementById('nav-route-info');
     const lblRouteStats = document.getElementById('lbl-route-stats');
+    const fleetSummaryBar = document.getElementById('fleet-summary-bar');
+    const fleetListDrawer = document.getElementById('fleet-list-drawer');
+    const gpsLockBanner = document.getElementById('gps-lock-banner');
+    const btnPtt = document.getElementById('btn-ptt');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
@@ -728,10 +843,47 @@
     let sirenInterval = null;
     let currentDestinationCoords = null;
 
+    // Control estricto de GPS para transmitir
+    let gpsPermissionGranted = false;
+
+    const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
+    const fleetStatusMap = {};
+    ALL_UNITS.forEach(id => {
+      fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline' };
+    });
+
     async function requestWakeLock() {
       try {
         if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
       } catch (err) {}
+    }
+
+    // Actualiza UI según el permiso de GPS
+    function updateGpsLockState(allowed) {
+      gpsPermissionGranted = allowed;
+
+      if (isModulator()) {
+        lblGpsStatus.textContent = 'Base Central';
+        lblGpsStatus.className = 'status-active';
+        btnPtt.classList.remove('gps-disabled');
+        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
+        gpsLockBanner.style.display = 'none';
+        return;
+      }
+
+      if (allowed) {
+        lblGpsStatus.textContent = 'Activo';
+        lblGpsStatus.className = 'status-active';
+        btnPtt.classList.remove('gps-disabled');
+        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
+        gpsLockBanner.style.display = 'none';
+      } else {
+        lblGpsStatus.textContent = 'Denegado/Apagado';
+        lblGpsStatus.className = 'status-warning';
+        btnPtt.classList.add('gps-disabled');
+        btnPtt.innerHTML = '<span>🚫</span> GPS REQUERIDO PARA TRANSMITIR';
+        gpsLockBanner.style.display = 'flex';
+      }
     }
 
     function checkAuth() {
@@ -741,6 +893,8 @@
         firstPersonMode = isDriver();
         btnSos.style.display = isDriver() ? 'flex' : 'none';
         navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+        btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+        fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
         if (!isModulator()) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
@@ -762,6 +916,8 @@
       firstPersonMode = isDriver();
       btnSos.style.display = isDriver() ? 'flex' : 'none';
       navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+      btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+      fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
       if (!isModulator()) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
@@ -774,6 +930,9 @@
     }
 
     function logoutUnit() {
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish('yadah/radio/flota/status', JSON.stringify({ unit: currentUnit, status: 'offline' }), { retain: true });
+      }
       localStorage.removeItem('yadah_terminal_id');
       location.reload();
     }
@@ -816,6 +975,63 @@
         map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
       }
     });
+
+    function formatTimeAgo(ms) {
+      const sec = Math.floor(ms / 1000);
+      if (sec < 60) return `${sec}s`;
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `${min}m`;
+      const hrs = Math.floor(min / 60);
+      return `${hrs}h ${min % 60}m`;
+    }
+
+    function toggleFleetDrawer(show) {
+      fleetListDrawer.style.display = show ? 'flex' : 'none';
+      if (show) renderFleetList();
+    }
+
+    function renderFleetList() {
+      const container = document.getElementById('fleet-items-list');
+      const now = Date.now();
+
+      container.innerHTML = ALL_UNITS.map(unitId => {
+        const data = fleetStatusMap[unitId] || {};
+        let statusBadge = '<span class="badge-stat offline">Apagado</span>';
+        let detailTxt = 'Sin conexión';
+
+        if (data.state === 'online') {
+          statusBadge = '<span class="badge-stat online">En Marcha</span>';
+          detailTxt = `Velocidad: <b>${Math.round(data.speed)} km/h</b>`;
+        } else if (data.state === 'stopped') {
+          const stopTime = data.stoppedSince ? formatTimeAgo(now - data.stoppedSince) : '0s';
+          statusBadge = '<span class="badge-stat stopped">Detenido</span>';
+          detailTxt = `Detenido hace: <b>${stopTime}</b>`;
+        } else if (data.lastSeen > 0) {
+          const offTime = formatTimeAgo(now - data.lastSeen);
+          detailTxt = `Última señal hace: <b>${offTime}</b>`;
+        }
+
+        return `
+          <div class="unit-card-row" onclick="focusVehicleFromList('${unitId}')">
+            <div class="unit-card-info">
+              <b>🚘 ${unitId}</b>
+              <div>${detailTxt}</div>
+            </div>
+            <div>${statusBadge}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function focusVehicleFromList(unitId) {
+      toggleFleetDrawer(false);
+      const data = fleetStatusMap[unitId];
+      if (data && data.lat && data.lon) {
+        map.flyTo({ center: [data.lon, data.lat], zoom: 17, pitch: 0 });
+      } else {
+        alert(`${unitId} está apagado y no tiene coordenadas registradas.`);
+      }
+    }
 
     let audioCtx = null;
 
@@ -866,7 +1082,6 @@
       } catch (e) {}
     }
 
-    // Mapa base configurado para vista plana cenital
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -1029,11 +1244,7 @@
           ensureLayersExist();
           map.getSource('nav-active-route').setData({
             type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: route.geometry,
-              properties: {}
-            }]
+            features: [{ type: 'Feature', geometry: route.geometry, properties: {} }]
           });
 
           if (mqttClient && mqttClient.connected && currentUnit) {
@@ -1063,10 +1274,7 @@
         map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
       }
       if (mqttClient && mqttClient.connected && currentUnit) {
-        mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({
-          unit: currentUnit,
-          canceled: true
-        }));
+        mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, canceled: true }));
       }
     }
 
@@ -1207,7 +1415,35 @@
       if (!lon || !lat || isNaN(lon) || isNaN(lat)) return;
 
       const isBase = unitId.includes('Modulador');
-      const speedTxt = isBase ? 'Central' : (speed > 3 ? `${Math.round(speed)} km/h` : 'Detenido');
+      const now = Date.now();
+
+      if (!isBase) {
+        if (!fleetStatusMap[unitId]) fleetStatusMap[unitId] = {};
+        const u = fleetStatusMap[unitId];
+        u.lastSeen = now;
+        u.speed = speed;
+        u.lat = lat;
+        u.lon = lon;
+
+        if (speed > 3) {
+          u.state = 'online';
+          u.stoppedSince = null;
+        } else {
+          u.state = 'stopped';
+          if (!u.stoppedSince) u.stoppedSince = now;
+        }
+      }
+
+      let speedTxt = isBase ? 'Central' : 'Detenido';
+      if (!isBase) {
+        const u = fleetStatusMap[unitId];
+        if (u.state === 'online') {
+          speedTxt = `${Math.round(speed)} km/h`;
+        } else if (u.state === 'stopped') {
+          const stopTime = formatTimeAgo(now - u.stoppedSince);
+          speedTxt = `Detenido hace ${stopTime}`;
+        }
+      }
 
       if (!fleetMarkers[unitId]) {
         const { container, rotator, badge } = createMarkerElement(unitId);
@@ -1219,6 +1455,8 @@
       } else {
         fleetMarkers[unitId].marker.setLngLat([lon, lat]);
       }
+
+      fleetMarkers[unitId].container.classList.remove('offline-unit');
 
       const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
       if (speedDiv) speedDiv.textContent = speedTxt;
@@ -1245,6 +1483,53 @@
           updateTrailsMap();
         }
       }
+
+      refreshFleetStatsCounters();
+    }
+
+    // Watchdog supervisor de apagado / desconexión
+    setInterval(() => {
+      const now = Date.now();
+
+      ALL_UNITS.forEach(unitId => {
+        const u = fleetStatusMap[unitId];
+        if (!u || u.lastSeen === 0) return;
+
+        const diffSec = (now - u.lastSeen) / 1000;
+
+        if (diffSec > 50 && u.state !== 'offline') {
+          u.state = 'offline';
+          if (fleetMarkers[unitId]) {
+            fleetMarkers[unitId].container.classList.add('offline-unit');
+            const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
+            if (speedDiv) speedDiv.textContent = `Apagado (${formatTimeAgo(now - u.lastSeen)})`;
+          }
+        } else if (u.state === 'stopped' && fleetMarkers[unitId]) {
+          const stopTime = formatTimeAgo(now - u.stoppedSince);
+          const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
+          if (speedDiv) speedDiv.textContent = `Detenido hace ${stopTime}`;
+        }
+      });
+
+      refreshFleetStatsCounters();
+      if (fleetListDrawer.style.display === 'flex') renderFleetList();
+    }, 4000);
+
+    function refreshFleetStatsCounters() {
+      let online = 0;
+      let stopped = 0;
+      let offline = 0;
+
+      ALL_UNITS.forEach(id => {
+        const st = fleetStatusMap[id].state;
+        if (st === 'online') online++;
+        else if (st === 'stopped') stopped++;
+        else offline++;
+      });
+
+      document.getElementById('stat-online').textContent = `${online} En línea`;
+      document.getElementById('stat-stopped').textContent = `${stopped} Detenidos`;
+      document.getElementById('stat-offline').textContent = `${offline} Apagados`;
     }
 
     btnViewMode.addEventListener('click', () => {
@@ -1253,24 +1538,15 @@
       applyCameraPerspective();
     });
 
-    // Control de cámara: Plano Cenital (Modulador o Motorista en 2D) vs Primera Persona
     function applyCameraPerspective() {
       if (isModulator()) {
-        // La Base Central SIEMPRE ve el mapa plano 2D, amplio y orientado al Norte
-        map.easeTo({
-          zoom: 14.5,
-          pitch: 0,
-          bearing: 0,
-          offset: [0, 0],
-          duration: 600
-        });
+        map.easeTo({ zoom: 14.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
       }
 
       if (!myLastCoords) return;
 
       if (firstPersonMode) {
-        // Modo Primera Persona 3D rasante
         const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
@@ -1281,7 +1557,6 @@
           duration: 600
         });
       } else {
-        // Vista Plana 2D para el motorista (para ver tráfico y panorama general)
         map.easeTo({
           center: [myLastCoords.lon, myLastCoords.lat],
           zoom: 15.5,
@@ -1299,6 +1574,7 @@
     const TOPIC_ALERT = 'yadah/radio/flota/alert';
     const TOPIC_PANIC = 'yadah/radio/flota/panic';
     const TOPIC_NAV = 'yadah/radio/flota/navigation';
+    const TOPIC_STATUS = 'yadah/radio/flota/status';
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -1310,9 +1586,7 @@
           coords: myLastCoords
         }));
       }
-      if (isSosActive) {
-        alert("¡ALERTA DE PÁNICO ACTIVADA! Transmitiendo emergencia a la Central.");
-      }
+      if (isSosActive) alert("¡ALERTA DE PÁNICO ACTIVADA! Transmitiendo emergencia a la Central.");
     }
 
     function silenceSOS() {
@@ -1326,11 +1600,22 @@
     function connectNetwork() {
       if (mqttClient && mqttClient.connected) return;
 
-      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+      const opts = {
         clientId: 'yadah_' + Math.random().toString(16).substring(2, 9),
         clean: true,
         reconnectPeriod: 2000
-      });
+      };
+
+      if (isDriver()) {
+        opts.will = {
+          topic: TOPIC_STATUS,
+          payload: JSON.stringify({ unit: currentUnit, status: 'offline', cause: 'desconexion_inesperada' }),
+          qos: 1,
+          retain: true
+        };
+      }
+
+      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', opts);
 
       mqttClient.on('connect', () => {
         mqttClient.subscribe(TOPIC_GPS);
@@ -1338,6 +1623,11 @@
         mqttClient.subscribe(TOPIC_ALERT);
         mqttClient.subscribe(TOPIC_PANIC);
         mqttClient.subscribe(TOPIC_NAV);
+        mqttClient.subscribe(TOPIC_STATUS);
+
+        if (isDriver()) {
+          mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
+        }
       });
 
       mqttClient.on('message', (topic, message) => {
@@ -1347,6 +1637,19 @@
             const data = JSON.parse(text);
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
+            }
+          } else if (topic === TOPIC_STATUS) {
+            const stData = JSON.parse(text);
+            if (stData.unit && stData.unit !== currentUnit) {
+              if (stData.status === 'offline') {
+                if (fleetStatusMap[stData.unit]) fleetStatusMap[stData.unit].state = 'offline';
+                if (fleetMarkers[stData.unit]) {
+                  fleetMarkers[stData.unit].container.classList.add('offline-unit');
+                  const speedDiv = fleetMarkers[stData.unit].badge.querySelector('.unit-speed-txt');
+                  if (speedDiv) speedDiv.textContent = 'Apagado / Sin señal';
+                }
+                refreshFleetStatsCounters();
+              }
             }
           } else if (topic === TOPIC_NAV) {
             const nav = JSON.parse(text);
@@ -1407,9 +1710,22 @@
 
     let initialCentering = false;
 
+    // --- Geolocation con Monitoreo de Permiso y Bloqueo de PTT ---
     if (navigator.geolocation) {
+      // Monitoreo proactivo de permisos
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+          updateGpsLockState(result.state === 'granted');
+          result.onchange = () => {
+            updateGpsLockState(result.state === 'granted');
+          };
+        }).catch(() => {});
+      }
+
       navigator.geolocation.watchPosition(
         (pos) => {
+          updateGpsLockState(true);
+
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
           const now = Date.now();
@@ -1471,21 +1787,35 @@
             });
           }
         },
-        (err) => console.warn('GPS:', err.message),
+        (err) => {
+          console.warn('Falla de GPS:', err.message);
+          updateGpsLockState(false);
+        },
         { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
       );
+    } else {
+      updateGpsLockState(false);
     }
 
     document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
+    // --- PTT con Candado Obligatorio de GPS ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
-    const btnPtt = document.getElementById('btn-ptt');
     let isRecording = false;
 
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
+
+      // Bloqueo de seguridad: Si no hay GPS en choferes, no permite hablar
+      if (isDriver() && !gpsPermissionGranted) {
+        channelStatus.className = 'channel-status blocked';
+        channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
+        playBeep(220, 0.15);
+        return;
+      }
+
       if (isRecording) return;
       isRecording = true;
 
@@ -1494,11 +1824,7 @@
       try {
         if (!audioStream) {
           audioStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            }
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
           });
         }
 
