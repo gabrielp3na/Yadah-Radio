@@ -354,12 +354,6 @@
       color: #ffffff;
     }
 
-    .btn-float-action.btn-float-waze {
-      border-color: #38bdf8;
-      color: #38bdf8;
-      font-weight: 900;
-    }
-
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -754,7 +748,6 @@
 
     <div class="map-floating-controls">
       <button class="btn-float-action btn-float-exit" id="btn-float-logout" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
-      <button class="btn-float-action btn-float-waze" id="btn-waze-toggle" title="Lanzar Waze GPS" onclick="launchWazeApp()">🚙</button>
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
       <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
@@ -851,7 +844,6 @@
     const btnViewMode = document.getElementById('btn-view-mode');
     const btnThemeMode = document.getElementById('btn-theme-mode');
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
-    const btnWazeToggle = document.getElementById('btn-waze-toggle');
     const btnSos = document.getElementById('btn-sos');
     const btnToggleFleet = document.getElementById('btn-toggle-fleet');
     const mapContainer = document.getElementById('map-container');
@@ -887,17 +879,6 @@
       } catch (err) {}
     }
 
-    function launchWazeApp() {
-      if (currentDestinationCoords) {
-        window.location.href = `https://waze.com/ul?ll=${currentDestinationCoords[1]},${currentDestinationCoords[0]}&navigate=yes`;
-      } else if (myLastCoords) {
-        window.location.href = `https://waze.com/ul?ll=${myLastCoords.lat},${myLastCoords.lon}`;
-      } else {
-        window.location.href = `https://waze.com/ul`;
-      }
-    }
-
-    // Buscador con autocompletado y priorización local basada en el GPS actual
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
       if (!query || query.trim().length < 2) {
@@ -910,7 +891,7 @@
         try {
           let suggestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
           if (myLastCoords) {
-            const delta = 0.5; // ~50km alrededor de la posición actual del motorista
+            const delta = 0.5;
             const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
             suggestUrl += `&viewbox=${viewbox}&bounded=1`;
           }
@@ -972,7 +953,6 @@
         lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
         btnSos.style.display = isDriver() ? 'flex' : 'none';
-        btnWazeToggle.style.display = isDriver() ? 'flex' : 'none';
         navSearchBar.style.display = isDriver() ? 'flex' : 'none';
         btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
         fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
@@ -995,7 +975,6 @@
       loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
       btnSos.style.display = isDriver() ? 'flex' : 'none';
-      btnWazeToggle.style.display = isDriver() ? 'flex' : 'none';
       navSearchBar.style.display = isDriver() ? 'flex' : 'none';
       btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
       fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
@@ -1035,7 +1014,6 @@
       btnToggleFleet.style.display = 'none';
       navSearchBar.style.display = 'none';
       btnSos.style.display = 'none';
-      btnWazeToggle.style.display = 'none';
     }
 
     function updateViewButtonUI() {
