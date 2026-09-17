@@ -1155,6 +1155,13 @@
       } catch (e) {}
     }
 
+    // --- CARGAR COORDENADAS GUARDADAS DE LA BASE O USAR DEFAULT ---
+    let defaultBaseCoords = [-89.356200, 13.724208];
+    const savedBaseCoords = localStorage.getItem('yadah_base_coords');
+    if (savedBaseCoords) {
+      try { defaultBaseCoords = JSON.parse(savedBaseCoords); } catch(e){}
+    }
+
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -1202,13 +1209,14 @@
           }
         ]
       },
-      center: [-89.354800, 13.724208],
+      center: defaultBaseCoords,
       zoom: 17.5,
       pitch: 0,
       bearing: 0
     });
 
-    // --- MARCADOR PERMANENTE DE LA BASE CENTRAL ---
+    let permanentBaseMarker = null;
+
     function addPermanentBaseMarker() {
       const container = document.createElement('div');
       container.className = 'car-marker-container';
@@ -1223,14 +1231,28 @@
       rotator.innerHTML = `<div class="base-icon">🏢</div>`;
       container.appendChild(rotator);
 
-      new maplibregl.Marker({ element: container })
-        .setLngLat([-89.354800, 13.724208])
+      permanentBaseMarker = new maplibregl.Marker({ element: container })
+        .setLngLat(defaultBaseCoords)
         .addTo(map);
     }
 
     map.on('load', () => {
       ensureLayersExist();
-      addPermanentBaseMarker(); // Coloca el edificio fijo desde el inicio
+      addPermanentBaseMarker();
+    });
+
+    // --- CALIBRACIÓN POR DOBLE CLIC (EXCLUSIVO MODULADOR) ---
+    map.on('dblclick', (e) => {
+      if (isModulator()) {
+        const lng = e.lngLat.lng;
+        const lat = e.lngLat.lat;
+        defaultBaseCoords = [lng, lat];
+        localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
+        if (permanentBaseMarker) {
+          permanentBaseMarker.setLngLat(defaultBaseCoords);
+        }
+        alert(`📍 ¡Base Central recalibrada!\nLongitud: ${lng}\nLatitud: ${lat}`);
+      }
     });
 
     function ensureLayersExist() {
@@ -1576,7 +1598,7 @@
 
     function applyCameraPerspective() {
       if (isModulator()) {
-        map.easeTo({ center: [-89.354800, 13.724208], zoom: 17.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
+        map.easeTo({ center: defaultBaseCoords, zoom: 17.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
       }
 
@@ -1905,7 +1927,7 @@
         }
 
         btnPtt.classList.add('active');
-        channelstatus.className = 'channel-status transmitting';
+        channelStatus.className = 'channel-status transmitting';
         channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
       } catch (err) {
         isRecording = false;
