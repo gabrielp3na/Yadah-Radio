@@ -163,7 +163,7 @@
       gap: 8px;
       z-index: 3200;
       box-shadow: 0 8px 24px rgba(0,0,0,0.8);
-      width: 260px;
+      width: 270px;
       text-align: center;
     }
 
@@ -185,6 +185,7 @@
 
     .btn-ctx-nav { background: #10b981; color: #ffffff; }
     .btn-ctx-save { background: #f59e0b; color: #0b0f19; }
+    .btn-ctx-assign { background: #3b82f6; color: #ffffff; }
     .btn-ctx-cancel { background: #374151; color: #cbd5e1; }
 
     #fleet-summary-bar {
@@ -722,10 +723,11 @@
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
 
-  <!-- MENÚ CONTEXTUAL -->
+  <!-- MENÚ CONTEXTUAL CON OPCIÓN DE ASIGNAR (EXCLUSIVO MODULADOR) -->
   <div id="map-context-menu">
     <div class="menu-title" id="menu-title-text">📍 Opción de Ubicación</div>
     <button class="btn-ctx btn-ctx-nav" id="btn-ctx-action" onclick="ctxMainAction()">🚀 ¡Ir a este lugar!</button>
+    <button class="btn-ctx btn-ctx-assign" id="btn-ctx-assign" onclick="ctxAssignAction()" style="display:none;">🎯 Asignar a Móvil...</button>
     <button class="btn-ctx btn-ctx-cancel" onclick="closeContextMenu()">Cancelar</button>
   </div>
 
@@ -902,7 +904,7 @@
 
     initDatabase();
 
-    // --- GESTIÓN GLOBAL DE LUGARES Y SINCRONIZACIÓN MQTT ---
+    // --- GESTIÓN GLOBAL DE LUGARES Y ASIGNACIÓN DE TAREAS ---
     let contextMenuCoords = null;
     let tempContextMarker = null;
     let contextMenuMode = 'nav';
@@ -950,6 +952,40 @@
           pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
           saveAllPOIs(pois, true);
           alert(`✅ ¡Punto "${placeName.trim()}" sincronizado con éxito para todos!`);
+        }
+      }
+    }
+
+    // Acción exclusiva del modulador para asignar destino a un vehículo
+    function ctxAssignAction() {
+      if (!contextMenuCoords || !isModulator()) return;
+      const { lng, lat } = contextMenuCoords;
+      closeContextMenu();
+
+      const unitListStr = ALL_UNITS.map((u, i) => `${i + 1}. ${u}`).join('\n');
+      const choice = prompt(`🎯 Selecciona el número de la unidad a la que deseas asignar este destino:\n\n${unitListStr}`);
+      
+      if (choice) {
+        const index = parseInt(choice.trim()) - 1;
+        if (index >= 0 && index < ALL_UNITS.length) {
+          const targetUnit = ALL_UNITS[index];
+          const taskName = prompt(`📍 Nombre o referencia del destino para ${targetUnit}:`, "Punto asignado por Central");
+          
+          if (taskName && taskName.trim()) {
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_ASSIGN, JSON.stringify({
+                targetUnit: targetUnit,
+                lon: lng,
+                lat: lat,
+                label: taskName.trim()
+              }));
+              alert(`✅ ¡Destino enviado con éxito a ${targetUnit}!`);
+            } else {
+              alert("⚠️ Error: No hay conexión de red para transmitir la asignación.");
+            }
+          }
+        } else {
+          alert("❌ Opción de unidad no válida.");
         }
       }
     }
@@ -1644,6 +1680,7 @@
 
       const titleEl = document.getElementById('menu-title-text');
       const actionBtn = document.getElementById('btn-ctx-action');
+      const assignBtn = document.getElementById('btn-ctx-assign');
 
       if (mode === 'nav') {
         titleEl.textContent = '📍 Destino Seleccionado';
@@ -1653,6 +1690,13 @@
         titleEl.textContent = '⭐ Nuevo Punto Local';
         actionBtn.textContent = '📍 Guardar este punto';
         actionBtn.style.background = '#f59e0b';
+      }
+
+      // Mostrar el botón de asignar solo si es el modulador
+      if (isModulator()) {
+        assignBtn.style.display = 'block';
+      } else {
+        assignBtn.style.display = 'none';
       }
 
       if (tempContextMarker) tempContextMarker.remove();
@@ -2093,7 +2137,8 @@
     const TOPIC_STATUS = 'yadah/radio/flota/status';
     const TOPIC_BASE = 'yadah/radio/flota/base';
     const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
-    const TOPIC_POI = 'yadah/radio/flota/poi'; // Canal para sincronizar puntos locales
+    const TOPIC_POI = 'yadah/radio/flota/poi';
+    const TOPIC_ASSIGN = 'yadah/radio/flota/assignment'; // Canal para asignación de tareas a móviles
 
     function triggerSOS() {
       isSosActive = !isSosActive;
@@ -2152,7 +2197,8 @@
         mqttClient.subscribe(TOPIC_STATUS);
         mqttClient.subscribe(TOPIC_BASE);
         mqttClient.subscribe(TOPIC_MODULATOR);
-        mqttClient.subscribe(TOPIC_POI); // Suscribirse al canal de puntos globales
+        mqttClient.subscribe(TOPIC_POI);
+        mqttClient.subscribe(TOPIC_ASSIGN); // Suscripción para recibir tareas asignadas
 
         if (isDriver()) {
           mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
@@ -2162,7 +2208,19 @@
       mqttClient.on('message', (topic, message) => {
         try {
           const text = message.toString();
-          if (topic === TOPIC_POI) {
+          if (topic === TOPIC_ASSIGN) {
+            const assignData = JSON.parse(text);
+            // Si el mensaje es para este móvil específico
+            if (isDriver() && assignData.targetUnit === currentUnit) {
+              playBeep(880, 0.1);
+              alert(`🎯 ¡Nueva misión asignada por Central!\nDestino: ${assignData.label}`);
+              
+              // Trazar automáticamente la ruta hacia el destino asignado
+              pendingDestination = { lon: assignData.lon, lat: assignData.lat, label: assignData.label };
+              lblRouteStats.textContent = `📍 [Asignado] ${assignData.label}. ¿Deseas iniciar marcha?`;
+              navRouteInfo.style.display = 'flex';
+            }
+          } else if (topic === TOPIC_POI) {
             const poiData = JSON.parse(text);
             if (poiData && poiData.action === 'sync' && poiData.pois) {
               localStorage.setItem('yadah_custom_pois', JSON.stringify(poiData.pois));
