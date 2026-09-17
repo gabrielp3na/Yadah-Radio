@@ -722,7 +722,6 @@
     <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
   </div>
 
-  <!-- MENÚ CONTEXTUAL AL MANTENER PRESIONADO EL MAPA -->
   <div id="map-context-menu">
     <div class="menu-title">📍 Punto Seleccionado</div>
     <button class="btn-ctx btn-ctx-nav" onclick="ctxRouteHere()">🚀 ¡Ir a este lugar!</button>
@@ -903,7 +902,7 @@
 
     initDatabase();
 
-    // --- GESTIÓN DE LUGARES Y MENÚ CONTEXTUAL POR TOQUE LARGO ---
+    // --- GESTIÓN DE LUGARES Y MENÚ CONTEXTUAL (FILTRANDO MULTITÁCTIL) ---
     let contextMenuCoords = null;
     let tempContextMarker = null;
 
@@ -977,7 +976,6 @@
 
         let pressTimer = null;
 
-        // Un toque: Seleccionar para ir a ese punto
         container.addEventListener('click', (e) => {
           e.stopPropagation();
           pendingDestination = { lon: poi.lon, lat: poi.lat, label: poi.name };
@@ -985,7 +983,6 @@
           navRouteInfo.style.display = 'flex';
         });
 
-        // Mantener presionado: Menú para editar, corregir o eliminar
         const startPress = (e) => {
           pressTimer = setTimeout(() => {
             const action = prompt(`⚙️ Opciones para "${poi.name}":\n1. Editar Nombre\n2. Mover aquí (Actualizar con tu posición actual)\n3. Eliminar punto\n\nEscribe 1, 2 o 3:`, "1");
@@ -1574,7 +1571,7 @@
       renderCustomPoiMarkers();
     });
 
-    // --- INTERACCIÓN DE TOQUE LARGO (LONG PRESS) EN EL MAPA ---
+    // --- INTERACCIÓN DE TOQUE LARGO (FILTRANDO MULTITÁCTIL PARA ZOOM/MOVER) ---
     let longPressTimer = null;
 
     map.on('mousedown', (e) => {
@@ -1599,13 +1596,22 @@
     });
 
     map.on('touchstart', (e) => {
+      // Si hay más de 1 dedo en la pantalla (haciendo zoom o rotando), cancelamos cualquier toque largo
+      if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        return;
+      }
+
       closeContextMenu();
       longPressTimer = setTimeout(() => {
         if (e.lngLat) triggerMapLongPress(e.lngLat);
       }, 650);
     });
 
-    map.on('touchmove', () => {
+    map.on('touchmove', (e) => {
       if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
@@ -1621,7 +1627,6 @@
 
     function triggerMapLongPress(lngLat) {
       if (isModulator() && baseUnlocked) {
-        // Si está desbloqueada la base, el click largo o click normal reubica la base
         const lng = lngLat.lng;
         const lat = lngLat.lat;
         defaultBaseCoords = [lng, lat];
@@ -1639,13 +1644,11 @@
 
       contextMenuCoords = lngLat;
 
-      // Colocar un marcador temporal en el punto presionado
       const el = document.createElement('div');
       el.style.fontSize = '2rem';
       el.innerHTML = '📍';
       tempContextMarker = new maplibregl.Marker({ element: el }).setLngLat([lngLat.lng, lngLat.lat]).addTo(map);
 
-      // Mostrar menú contextual
       document.getElementById('map-context-menu').style.display = 'flex';
       playBeep(700, 0.05);
     }
