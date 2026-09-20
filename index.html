@@ -889,10 +889,10 @@
   </div>
 
   <script>
-    // --- FORZAR CIERRE DE SESIÓN AUTOMÁTICO POR ACTUALIZACIÓN DE SEGURIDAD ---
-    if (!localStorage.getItem('yadah_sec_ver_2021')) {
+    // --- FORZAR CIERRE DE SESIÓN REMOTO EN TODOS LOS DISPOSITIVOS ---
+    if (!localStorage.getItem('yadah_sec_ver_2021_v2')) {
       localStorage.removeItem('yadah_terminal_id');
-      localStorage.setItem('yadah_sec_ver_2021', 'true');
+      localStorage.setItem('yadah_sec_ver_2021_v2', 'true');
     }
 
     // --- VERIFICAR SI LA PÁGINA SE ABRIÓ COMO VISTA CLIENTE ---
