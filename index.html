@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -94,8 +95,18 @@ button {
 
 .connected { color: #34d399; }
 .error { color: #f87171; }
-.transmitting { background: #b91c1c; color: white; border-color: #ef4444; }
-.receiving { background: #047857; color: white; border-color: #10b981; }
+
+.transmitting {
+  background: #b91c1c;
+  color: white;
+  border-color: #ef4444;
+}
+
+.receiving {
+  background: #047857;
+  color: white;
+  border-color: #10b981;
+}
 
 .ptt-button {
   width: 100%;
@@ -114,8 +125,16 @@ button {
   touch-action: none;
 }
 
-.microphone { font-size: 58px; pointer-events: none; }
-.button-text { font-size: 17px; font-weight: 900; pointer-events: none; }
+.microphone {
+  font-size: 58px;
+  pointer-events: none;
+}
+
+.button-text {
+  font-size: 17px;
+  font-weight: 900;
+  pointer-events: none;
+}
 
 .ptt-button.active {
   background: #f59e0b;
@@ -124,9 +143,12 @@ button {
   transform: scale(.98);
 }
 
-.ptt-button:disabled { opacity: .6; }
+.ptt-button:disabled {
+  opacity: .6;
+}
 
-.info, .connection-info {
+.info,
+.connection-info {
   text-align: center;
   color: #94a3b8;
   font-size: 13px;
@@ -178,6 +200,17 @@ button {
   font-size: 13px;
   text-align: center;
 }
+
+.transcript-live {
+  margin-top: 15px;
+  background: #030712;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px;
+  color: #cbd5e1;
+  font-size: 13px;
+  min-height: 45px;
+}
 </style>
 </head>
 
@@ -196,14 +229,23 @@ button {
 
 <button class="ptt-button" id="ptt-button" disabled>
 <span class="microphone">🎙️</span>
-<span class="button-text">MANTÉN PRESIONADO<br>PARA HABLAR</span>
+<span class="button-text">
+MANTÉN PRESIONADO<br>
+PARA HABLAR
+</span>
 </button>
 
-<div class="info">
-Radio P2P + Transcripción y Censura en tiempo real.
+<div class="transcript-live" id="transcript-live">
+📝 Transcripción: esperando...
 </div>
 
-<div class="connection-info" id="connection-info">Preparando conexión...</div>
+<div class="info">
+Radio P2P + Transcripción y censura de texto.
+</div>
+
+<div class="connection-info" id="connection-info">
+Preparando conexión...
+</div>
 
 <section class="history">
 <h2>📁 Buzón de 24 Horas</h2>
@@ -219,9 +261,18 @@ Radio P2P + Transcripción y Censura en tiempo real.
 <script>
 "use strict";
 
+// ==========================================
+// CONFIGURACIÓN
+// ==========================================
+
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-const SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v5";
-const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v3";
+
+const SIGNAL_TOPIC =
+  "yadah/radio/webrtc/signaling/v6";
+
+const AUDIO_SHARE_TOPIC =
+  "yadah/radio/shared/audio/v4";
+
 const ROOM_NAME = "yadah-radio-prueba";
 
 const STUN_SERVERS = [
@@ -229,18 +280,48 @@ const STUN_SERVERS = [
   { urls: "stun:stun1.l.google.com:19302" }
 ];
 
-// Lista personalizada de palabras restringidas
-const PALABRAS_PROHIBIDAS = ["maitra", "maitro", "babosada", "mierda", "puta"];
+// ==========================================
+// PALABRAS RESTRINGIDAS
+// ==========================================
+
+const PALABRAS_PROHIBIDAS = [
+  "maitra",
+  "maitro",
+  "babosada",
+  "mierda",
+  "puta"
+];
+
+function escaparRegex(texto) {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function filtrarTexto(texto) {
-  let textoLimpio = texto;
+  if (!texto || typeof texto !== "string") {
+    return "";
+  }
+
+  let resultado = texto;
+
   PALABRAS_PROHIBIDAS.forEach(palabra => {
-    const regex = new RegExp(palabra, "gi");
+    const palabraSegura = escaparRegex(palabra);
+
+    const regex = new RegExp(
+      "\\b" + palabraSegura + "\\b",
+      "giu"
+    );
+
     const censura = "*".repeat(palabra.length);
-    textoLimpio = textoLimpio.replace(regex, censura);
+
+    resultado = resultado.replace(regex, censura);
   });
-  return textoLimpio;
+
+  return resultado;
 }
+
+// ==========================================
+// ELEMENTOS
+// ==========================================
 
 const unitInput = document.getElementById("unit-input");
 const saveButton = document.getElementById("save-button");
@@ -249,9 +330,18 @@ const pttButton = document.getElementById("ptt-button");
 const remoteAudio = document.getElementById("remote-audio");
 const connectionInfo = document.getElementById("connection-info");
 const audioHistory = document.getElementById("audio-history");
+const transcriptLive = document.getElementById("transcript-live");
 
-let currentUnit = localStorage.getItem("yadah_radio_unit") || "Móvil 01";
-let deviceId = currentUnit + "_" + Math.random().toString(16).substring(2,10);
+// ==========================================
+// VARIABLES
+// ==========================================
+
+let currentUnit =
+  localStorage.getItem("yadah_radio_unit") || "Móvil 01";
+
+let deviceId =
+  currentUnit + "_" +
+  Math.random().toString(16).substring(2, 10);
 
 let client = null;
 let localStream = null;
@@ -261,35 +351,180 @@ let pendingCandidates = [];
 
 let isConnecting = false;
 let isTalking = false;
+
 let mediaRecorder = null;
 let recordedChunks = [];
 
 let recognition = null;
 let currentTranscript = "";
+let recognitionActive = false;
 
-if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+// ==========================================
+// ESTADO
+// ==========================================
+
+function setStatus(message, type = "") {
+  statusElement.textContent = message;
+  statusElement.className = "status";
+
+  if (type) {
+    statusElement.classList.add(type);
+  }
+}
+
+function showTranscript(texto) {
+  transcriptLive.textContent =
+    "📝 Transcripción: " +
+    (texto || "esperando...");
+}
+
+// ==========================================
+// GUARDAR UNIDAD
+// ==========================================
+
+unitInput.value = currentUnit;
+
+saveButton.addEventListener("click", function() {
+  const newName = unitInput.value.trim();
+
+  if (!newName) {
+    alert("Escribe el nombre de la unidad.");
+    return;
+  }
+
+  currentUnit = newName;
+
+  localStorage.setItem(
+    "yadah_radio_unit",
+    currentUnit
+  );
+
+  alert("Unidad guardada: " + currentUnit);
+});
+
+// ==========================================
+// TRANSCRIPCIÓN
+// ==========================================
+
+function configurarTranscripcion() {
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    recognition = null;
+    showTranscript("No disponible en este navegador.");
+    return;
+  }
+
   recognition = new SpeechRecognition();
-  recognition.lang = 'es-ES';
+
+  recognition.lang = "es-SV";
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = function() {
+    recognitionActive = true;
+  };
 
   recognition.onresult = function(event) {
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      interim += event.results[i][0].transcript;
+    let textoNuevo = "";
+
+    for (
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ) {
+      textoNuevo +=
+        event.results[i][0].transcript;
     }
-    currentTranscript += " " + filtrarTexto(interim);
+
+    const textoCensurado =
+      filtrarTexto(textoNuevo);
+
+    showTranscript(
+      currentTranscript + " " + textoCensurado
+    );
+
+    // Solo agrega resultados finales para
+    // evitar duplicaciones.
+    for (
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ) {
+      if (event.results[i].isFinal) {
+        const finalTexto =
+          filtrarTexto(
+            event.results[i][0].transcript
+          );
+
+        currentTranscript +=
+          (currentTranscript ? " " : "") +
+          finalTexto;
+      }
+    }
+
+    showTranscript(currentTranscript);
+  };
+
+  recognition.onerror = function(event) {
+    console.log(
+      "Error de transcripción:",
+      event.error
+    );
+  };
+
+  recognition.onend = function() {
+    recognitionActive = false;
+
+    // Reinicia únicamente mientras se habla.
+    if (isTalking) {
+      try {
+        recognition.start();
+      } catch (error) {}
+    }
   };
 }
 
+function iniciarTranscripcion() {
+  if (!recognition) return;
+
+  try {
+    recognition.start();
+  } catch (error) {
+    console.log("La transcripción ya estaba iniciada.");
+  }
+}
+
+function detenerTranscripcion() {
+  if (!recognition) return;
+
+  try {
+    recognition.stop();
+  } catch (error) {}
+}
+
+// ==========================================
+// BASE DE DATOS LOCAL
+// ==========================================
+
 let database;
-const databaseRequest = indexedDB.open("YadahRadioCensoredDBv2", 1);
+
+const databaseRequest = indexedDB.open(
+  "YadahRadioCensoredDBv6",
+  1
+);
 
 databaseRequest.onupgradeneeded = function(event) {
   database = event.target.result;
+
   if (!database.objectStoreNames.contains("audios")) {
-    database.createObjectStore("audios", { keyPath: "id", autoIncrement: true });
+    database.createObjectStore("audios", {
+      keyPath: "id",
+      autoIncrement: true
+    });
   }
 };
 
@@ -298,297 +533,771 @@ databaseRequest.onsuccess = function(event) {
   loadAudioHistory();
 };
 
-function setStatus(message, type = "") {
-  statusElement.textContent = message;
-  statusElement.className = "status";
-  if (type) statusElement.classList.add(type);
-}
-
-saveButton.addEventListener("click", function() {
-  const newName = unitInput.value.trim();
-  if (!newName) return alert("Escribe el nombre.");
-  currentUnit = newName;
-  localStorage.setItem("yadah_radio_unit", currentUnit);
-  alert("Unidad guardada: " + currentUnit);
-});
-
-unitInput.value = currentUnit;
+// ==========================================
+// MQTT
+// ==========================================
 
 function connectMQTT() {
   if (isConnecting) return;
+
   isConnecting = true;
+
   setStatus("● CONECTANDO...");
 
-  client = mqtt.connect(MQTT_URL, { clientId: "yadah_" + Math.random().toString(16).substring(2,10), clean: true });
+  client = mqtt.connect(MQTT_URL, {
+    clientId:
+      "yadah_" +
+      Math.random().toString(16).substring(2, 10),
+
+    clean: true,
+    reconnectPeriod: 3000
+  });
 
   client.on("connect", function() {
     isConnecting = false;
+
     client.subscribe(SIGNAL_TOPIC);
     client.subscribe(AUDIO_SHARE_TOPIC);
+
     setStatus("● RADIO CONECTADO", "connected");
+
+    connectionInfo.textContent =
+      "MQTT conectado. Preparando micrófono...";
+
     pttButton.disabled = false;
-    sendSignal({ type: "hello" });
+
+    sendSignal({
+      type: "hello"
+    });
+  });
+
+  client.on("reconnect", function() {
+    setStatus("● RECONECTANDO...");
+    pttButton.disabled = true;
+  });
+
+  client.on("error", function(error) {
+    console.log("MQTT error:", error);
+
+    setStatus(
+      "● ERROR DE CONEXIÓN",
+      "error"
+    );
+  });
+
+  client.on("offline", function() {
+    pttButton.disabled = true;
+    setStatus("● RADIO DESCONECTADO", "error");
   });
 
   client.on("message", function(topic, message) {
-    if (topic === SIGNAL_TOPIC) receiveSignal(message);
-    if (topic === AUDIO_SHARE_TOPIC) receiveSharedAudio(message);
+    if (topic === SIGNAL_TOPIC) {
+      receiveSignal(message);
+    }
+
+    if (topic === AUDIO_SHARE_TOPIC) {
+      receiveSharedAudio(message);
+    }
   });
 }
 
 function sendSignal(data) {
   if (!client || !client.connected) return;
-  client.publish(SIGNAL_TOPIC, JSON.stringify({ room: ROOM_NAME, sender: currentUnit, deviceId: deviceId, timestamp: Date.now(), ...data }));
+
+  client.publish(
+    SIGNAL_TOPIC,
+    JSON.stringify({
+      room: ROOM_NAME,
+      sender: currentUnit,
+      deviceId: deviceId,
+      timestamp: Date.now(),
+      ...data
+    })
+  );
 }
+
+// ==========================================
+// WEBRTC
+// ==========================================
 
 async function receiveSignal(message) {
   try {
     const data = JSON.parse(message.toString());
-    if (data.room !== ROOM_NAME || data.deviceId === deviceId || (data.target && data.target !== deviceId)) return;
+
+    if (data.room !== ROOM_NAME) return;
+    if (data.deviceId === deviceId) return;
+
+    if (
+      data.target &&
+      data.target !== deviceId
+    ) {
+      return;
+    }
+
     remoteUnit = data.sender;
-    if (data.type === "hello") await handleHello(data);
-    if (data.type === "offer") await handleOffer(data);
-    if (data.type === "answer") await handleAnswer(data);
-    if (data.type === "candidate") await handleCandidate(data);
-  } catch(e){}
-}
 
-async function createPeerConnection(otherDeviceId) {
-  if (peerConnection) return peerConnection;
-  peerConnection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
-
-  peerConnection.onicecandidate = function(event) {
-    if (event.candidate) sendSignal({ type: "candidate", target: otherDeviceId, candidate: event.candidate });
-  };
-
-  peerConnection.ontrack = function(event) {
-    if (event.streams && event.streams[0]) {
-      remoteAudio.srcObject = event.streams[0];
-      remoteAudio.play().catch(()=>{});
-      setStatus("▼ RECIBIENDO: " + remoteUnit, "receiving");
+    if (data.type === "hello") {
+      await handleHello(data);
     }
-  };
 
-  peerConnection.onconnectionstatechange = function() {
-    if (peerConnection && peerConnection.connectionState === "connected") {
-      setStatus("● CONEXIÓN DIRECTA ACTIVA", "connected");
+    if (data.type === "offer") {
+      await handleOffer(data);
     }
-  };
 
-  if (!localStream) await initializeMicrophone();
-  const audioTrack = localStream.getAudioTracks()[0];
-  if (audioTrack) {
-    audioTrack.enabled = false;
-    peerConnection.addTrack(audioTrack, localStream);
+    if (data.type === "answer") {
+      await handleAnswer(data);
+    }
+
+    if (data.type === "candidate") {
+      await handleCandidate(data);
+    }
+
+  } catch (error) {
+    console.log("Error de señal:", error);
   }
-  return peerConnection;
 }
 
 async function initializeMicrophone() {
   if (localStream) return true;
+
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-    localStream.getAudioTracks()[0].enabled = false;
+    localStream =
+      await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+    const track =
+      localStream.getAudioTracks()[0];
+
+    if (track) {
+      track.enabled = false;
+    }
+
     return true;
-  } catch(e) {
-    alert("Permiso de micrófono denegado.");
+
+  } catch (error) {
+    alert(
+      "No se pudo acceder al micrófono. " +
+      "Revisa los permisos del navegador."
+    );
+
     return false;
   }
 }
 
+async function createPeerConnection(otherDeviceId) {
+  if (peerConnection) {
+    return peerConnection;
+  }
+
+  peerConnection =
+    new RTCPeerConnection({
+      iceServers: STUN_SERVERS
+    });
+
+  peerConnection.onicecandidate = function(event) {
+    if (event.candidate) {
+      sendSignal({
+        type: "candidate",
+        target: otherDeviceId,
+        candidate: event.candidate
+      });
+    }
+  };
+
+  peerConnection.ontrack = function(event) {
+    if (
+      event.streams &&
+      event.streams[0]
+    ) {
+      remoteAudio.srcObject =
+        event.streams[0];
+
+      remoteAudio.play().catch(() => {});
+
+      setStatus(
+        "▼ RECIBIENDO: " + remoteUnit,
+        "receiving"
+      );
+    }
+  };
+
+  peerConnection.onconnectionstatechange =
+    function() {
+      if (!peerConnection) return;
+
+      const state =
+        peerConnection.connectionState;
+
+      if (state === "connected") {
+        setStatus(
+          "● CONEXIÓN DIRECTA ACTIVA",
+          "connected"
+        );
+
+        connectionInfo.textContent =
+          "Conexión de voz establecida.";
+      }
+
+      if (
+        state === "failed" ||
+        state === "disconnected"
+      ) {
+        setStatus(
+          "● CONEXIÓN INTERRUMPIDA",
+          "error"
+        );
+      }
+    };
+
+  const microphoneReady =
+    await initializeMicrophone();
+
+  if (!microphoneReady) {
+    return null;
+  }
+
+  const audioTrack =
+    localStream.getAudioTracks()[0];
+
+  if (audioTrack) {
+    audioTrack.enabled = false;
+
+    peerConnection.addTrack(
+      audioTrack,
+      localStream
+    );
+  }
+
+  return peerConnection;
+}
+
 async function handleHello(data) {
-  if (currentUnit.toLowerCase() < data.sender.toLowerCase()) return;
-  const connection = await createPeerConnection(data.deviceId);
+  if (
+    currentUnit.toLowerCase() <
+    data.sender.toLowerCase()
+  ) {
+    return;
+  }
+
+  const connection =
+    await createPeerConnection(data.deviceId);
+
   if (!connection) return;
-  const offer = await connection.createOffer();
+
+  const offer =
+    await connection.createOffer();
+
   await connection.setLocalDescription(offer);
-  sendSignal({ type: "offer", target: data.deviceId, offer: offer });
+
+  sendSignal({
+    type: "offer",
+    target: data.deviceId,
+    offer: offer
+  });
 }
 
 async function handleOffer(data) {
-  const connection = await createPeerConnection(data.deviceId);
+  const connection =
+    await createPeerConnection(data.deviceId);
+
   if (!connection) return;
-  await connection.setRemoteDescription(new RTCSessionDescription(data.offer));
-  for (const c of pendingCandidates) await connection.addIceCandidate(c);
+
+  await connection.setRemoteDescription(
+    new RTCSessionDescription(data.offer)
+  );
+
+  for (
+    const candidate of pendingCandidates
+  ) {
+    try {
+      await connection.addIceCandidate(candidate);
+    } catch (error) {}
+  }
+
   pendingCandidates = [];
-  const answer = await connection.createAnswer();
+
+  const answer =
+    await connection.createAnswer();
+
   await connection.setLocalDescription(answer);
-  sendSignal({ type: "answer", target: data.deviceId, answer: answer });
+
+  sendSignal({
+    type: "answer",
+    target: data.deviceId,
+    answer: answer
+  });
 }
 
 async function handleAnswer(data) {
   if (!peerConnection) return;
-  await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-  for (const c of pendingCandidates) await connection.addIceCandidate(c);
+
+  await peerConnection.setRemoteDescription(
+    new RTCSessionDescription(data.answer)
+  );
+
+  for (
+    const candidate of pendingCandidates
+  ) {
+    try {
+      await peerConnection.addIceCandidate(
+        candidate
+      );
+    } catch (error) {}
+  }
+
   pendingCandidates = [];
 }
 
 async function handleCandidate(data) {
-  const candidate = new RTCIceCandidate(data.candidate);
-  if (peerConnection && peerConnection.remoteDescription) {
-    try { await peerConnection.addIceCandidate(candidate); } catch(e){}
+  const candidate =
+    new RTCIceCandidate(data.candidate);
+
+  if (
+    peerConnection &&
+    peerConnection.remoteDescription
+  ) {
+    try {
+      await peerConnection.addIceCandidate(
+        candidate
+      );
+    } catch (error) {}
   } else {
     pendingCandidates.push(candidate);
   }
 }
 
+// ==========================================
+// GRABACIÓN
+// ==========================================
+
 function startRecording() {
   if (!localStream) return;
+
   recordedChunks = [];
   currentTranscript = "";
 
-  if (recognition) {
-    try { recognition.start(); } catch(e){}
-  }
+  showTranscript("Escuchando...");
+
+  iniciarTranscripcion();
 
   try {
-    mediaRecorder = new MediaRecorder(localStream);
-    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.onstop = () => {
-      if (recognition) {
-        try { recognition.stop(); } catch(e){}
+    const options = {
+      audioBitsPerSecond: 64000
+    };
+
+    if (
+      MediaRecorder.isTypeSupported(
+        "audio/webm;codecs=opus"
+      )
+    ) {
+      options.mimeType =
+        "audio/webm;codecs=opus";
+    }
+
+    mediaRecorder =
+      new MediaRecorder(
+        localStream,
+        options
+      );
+
+    mediaRecorder.ondataavailable =
+      function(event) {
+        if (
+          event.data &&
+          event.data.size > 0
+        ) {
+          recordedChunks.push(event.data);
+        }
+      };
+
+    mediaRecorder.onstop = function() {
+      detenerTranscripcion();
+
+      const audioBlob =
+        new Blob(
+          recordedChunks,
+          {
+            type:
+              mediaRecorder.mimeType ||
+              "audio/webm"
+          }
+        );
+
+      if (audioBlob.size === 0) {
+        showTranscript("No se grabó audio.");
+        return;
       }
 
-      const audioBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
       const reader = new FileReader();
+
       reader.readAsDataURL(audioBlob);
-      reader.onloadend = () => {
-        if (client && client.connected) {
-          client.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
-            unit: currentUnit,
-            date: new Date().toLocaleString("es-SV"),
-            timestamp: Date.now(),
-            transcript: currentTranscript.trim() || "Sin transcripción",
-            payload: reader.result
-          }));
+
+      reader.onloadend = function() {
+        if (
+          client &&
+          client.connected
+        ) {
+          client.publish(
+            AUDIO_SHARE_TOPIC,
+            JSON.stringify({
+              unit: currentUnit,
+              date: new Date().toLocaleString(
+                "es-SV"
+              ),
+              timestamp: Date.now(),
+              transcript:
+                currentTranscript.trim() ||
+                "Sin transcripción",
+              payload: reader.result
+            })
+          );
         }
       };
     };
+
     mediaRecorder.start();
-  } catch(e){}
+
+  } catch (error) {
+    console.log(
+      "Error al grabar:",
+      error
+    );
+  }
 }
 
 function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+  if (
+    mediaRecorder &&
+    mediaRecorder.state !== "inactive"
+  ) {
+    mediaRecorder.stop();
+  }
 }
+
+// ==========================================
+// AUDIOS COMPARTIDOS
+// ==========================================
 
 function receiveSharedAudio(message) {
   try {
-    const data = JSON.parse(message.toString());
+    const data =
+      JSON.parse(message.toString());
+
+    // Evita guardar dos veces el mismo audio
+    if (
+      data.deviceId &&
+      data.deviceId === deviceId
+    ) {
+      return;
+    }
+
     fetch(data.payload)
-      .then(res => res.blob())
+      .then(response => response.blob())
       .then(blob => {
         saveAudioToDB({
           unit: data.unit,
           date: data.date,
           timestamp: data.timestamp,
-          transcript: data.transcript,
+          transcript: filtrarTexto(
+            data.transcript
+          ),
           blob: blob
         });
+      })
+      .catch(error => {
+        console.log(
+          "No se pudo recibir el audio:",
+          error
+        );
       });
-  } catch(e){}
+
+  } catch (error) {
+    console.log(
+      "Error en audio compartido:",
+      error
+    );
+  }
 }
 
-function saveAudioToDB(audioObj) {
+function saveAudioToDB(audioObject) {
   if (!database) return;
-  const transaction = database.transaction(["audios"], "readwrite");
-  const store = transaction.objectStore("audios");
-  store.add(audioObj);
-  transaction.oncomplete = () => loadAudioHistory();
+
+  const transaction =
+    database.transaction(
+      ["audios"],
+      "readwrite"
+    );
+
+  const store =
+    transaction.objectStore("audios");
+
+  store.add(audioObject);
+
+  transaction.oncomplete =
+    function() {
+      loadAudioHistory();
+    };
 }
+
+// ==========================================
+// HISTORIAL DE 24 HORAS
+// ==========================================
 
 function loadAudioHistory() {
   if (!database) return;
+
   audioHistory.innerHTML = "";
-  const transaction = database.transaction(["audios"], "readwrite");
-  const store = transaction.objectStore("audios");
-  const request = store.getAll();
 
-  request.onsuccess = function() {
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    
-    const validAudios = [];
-    request.result.forEach(audioData => {
-      if (now - audioData.timestamp > twentyFourHours) {
-        store.delete(audioData.id);
-      } else {
-        validAudios.push(audioData);
+  const transaction =
+    database.transaction(
+      ["audios"],
+      "readwrite"
+    );
+
+  const store =
+    transaction.objectStore("audios");
+
+  const request =
+    store.getAll();
+
+  request.onsuccess =
+    function() {
+      const now = Date.now();
+
+      const twentyFourHours =
+        24 * 60 * 60 * 1000;
+
+      const validAudios = [];
+
+      request.result.forEach(
+        function(audioData) {
+          if (
+            now - audioData.timestamp >
+            twentyFourHours
+          ) {
+            store.delete(audioData.id);
+          } else {
+            validAudios.push(audioData);
+          }
+        }
+      );
+
+      const audios =
+        validAudios.sort(
+          (a, b) =>
+            b.timestamp - a.timestamp
+        );
+
+      if (!audios.length) {
+        audioHistory.innerHTML =
+          '<p class="empty-history">' +
+          'No hay audios en las últimas 24 horas.' +
+          '</p>';
+
+        return;
       }
-    });
 
-    const audios = validAudios.sort((a, b) => b.timestamp - a.timestamp);
-    if (!audios.length) {
-      audioHistory.innerHTML = '<p class="empty-history">No hay audios en las últimas 24 horas.</p>';
-      return;
-    }
+      audios.forEach(
+        function(audioData) {
+          const item =
+            document.createElement("div");
 
-    audios.forEach(audioData => {
-      const item = document.createElement("div");
-      item.className = "audio-item";
+          item.className = "audio-item";
 
-      const title = document.createElement("strong");
-      title.textContent = "🎙️ " + audioData.unit;
+          const title =
+            document.createElement("strong");
 
-      const date = document.createElement("small");
-      date.textContent = audioData.date;
+          title.textContent =
+            "🎙️ " + audioData.unit;
 
-      const textPara = document.createElement("p");
-      textPara.textContent = "💬 " + audioData.transcript;
+          const date =
+            document.createElement("small");
 
-      const audio = document.createElement("audio");
-      audio.controls = true;
-      audio.preload = "metadata";
-      audio.src = URL.createObjectURL(audioData.blob);
+          date.textContent =
+            audioData.date;
 
-      item.appendChild(title);
-      item.appendChild(date);
-      item.appendChild(textPara);
-      item.appendChild(audio);
-      audioHistory.appendChild(item);
-    });
-  };
+          const textPara =
+            document.createElement("p");
+
+          textPara.textContent =
+            "💬 " +
+            filtrarTexto(
+              audioData.transcript
+            );
+
+          const audio =
+            document.createElement("audio");
+
+          audio.controls = true;
+          audio.preload = "metadata";
+
+          audio.src =
+            URL.createObjectURL(
+              audioData.blob
+            );
+
+          item.appendChild(title);
+          item.appendChild(date);
+          item.appendChild(textPara);
+          item.appendChild(audio);
+
+          audioHistory.appendChild(item);
+        }
+      );
+    };
 }
 
-async function startPTT(e) {
-  if (e) e.preventDefault();
-  if (isTalking || !peerConnection || peerConnection.connectionState !== "connected") return;
-  if (!localStream) await initializeMicrophone();
+// ==========================================
+// BOTÓN PTT
+// ==========================================
 
-  const audioTrack = localStream.getAudioTracks()[0];
+async function startPTT(event) {
+  if (event) {
+    event.preventDefault();
+  }
+
+  if (
+    isTalking ||
+    !peerConnection ||
+    peerConnection.connectionState !==
+      "connected"
+  ) {
+    return;
+  }
+
+  if (!localStream) {
+    const ready =
+      await initializeMicrophone();
+
+    if (!ready) return;
+  }
+
+  const audioTrack =
+    localStream.getAudioTracks()[0];
+
   if (!audioTrack) return;
 
   audioTrack.enabled = true;
+
   isTalking = true;
+
   pttButton.classList.add("active");
-  setStatus("▲ TRANSMITIENDO: " + currentUnit, "transmitting");
+
+  setStatus(
+    "▲ TRANSMITIENDO: " + currentUnit,
+    "transmitting"
+  );
+
   startRecording();
-  if (navigator.vibrate) navigator.vibrate(50);
+
+  if (navigator.vibrate) {
+    navigator.vibrate(50);
+  }
 }
 
-function stopPTT(e) {
-  if (e) e.preventDefault();
+function stopPTT(event) {
+  if (event) {
+    event.preventDefault();
+  }
+
   if (!isTalking) return;
 
-  const audioTrack = localStream && localStream.getAudioTracks()[0];
-  if (audioTrack) audioTrack.enabled = false;
+  const audioTrack =
+    localStream &&
+    localStream.getAudioTracks()[0];
+
+  if (audioTrack) {
+    audioTrack.enabled = false;
+  }
 
   isTalking = false;
+
   pttButton.classList.remove("active");
-  setStatus("● CONEXIÓN DIRECTA ACTIVA", "connected");
+
+  setStatus(
+    "● CONEXIÓN DIRECTA ACTIVA",
+    "connected"
+  );
+
   stopRecording();
 }
 
-pttButton.addEventListener("pointerdown", e => { e.preventDefault(); startPTT(e); });
-pttButton.addEventListener("pointerup", e => { e.preventDefault(); stopPTT(e); });
-pttButton.addEventListener("pointercancel", e => { e.preventDefault(); stopPTT(e); });
+pttButton.addEventListener(
+  "pointerdown",
+  function(event) {
+    event.preventDefault();
+    startPTT(event);
+  }
+);
 
-window.addEventListener("keydown", e => { if (e.code === "Space" && !e.repeat && document.activeElement !== unitInput) startPTT(e); });
-window.addEventListener("keyup", e => { if (e.code === "Space") stopPTT(e); });
+pttButton.addEventListener(
+  "pointerup",
+  function(event) {
+    event.preventDefault();
+    stopPTT(event);
+  }
+);
 
-document.addEventListener("click", () => { remoteAudio.play().catch(()=>{}); }, { passive: true });
+pttButton.addEventListener(
+  "pointercancel",
+  function(event) {
+    event.preventDefault();
+    stopPTT(event);
+  }
+);
 
+pttButton.addEventListener(
+  "pointerleave",
+  function(event) {
+    if (isTalking) {
+      stopPTT(event);
+    }
+  }
+);
+
+window.addEventListener(
+  "keydown",
+  function(event) {
+    if (
+      event.code === "Space" &&
+      !event.repeat &&
+      document.activeElement !== unitInput
+    ) {
+      startPTT(event);
+    }
+  }
+);
+
+window.addEventListener(
+  "keyup",
+  function(event) {
+    if (event.code === "Space") {
+      stopPTT(event);
+    }
+  }
+);
+
+document.addEventListener(
+  "click",
+  function() {
+    remoteAudio.play().catch(() => {});
+  },
+  { passive: true }
+);
+
+// ==========================================
+// INICIO
+// ==========================================
+
+configurarTranscripcion();
 connectMQTT();
+
 </script>
+
 </body>
 </html>
