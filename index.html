@@ -1132,14 +1132,21 @@
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
-    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (CORREGIDO)
+    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (BLINDADO)
     function selectUnit(id) {
+      const screen = document.getElementById('login-screen');
+      if (screen) {
+        screen.style.display = 'none';
+        screen.style.visibility = 'hidden';
+        screen.style.zIndex = '-999';
+      }
+
       currentUnit = id;
       localStorage.setItem('yadah_terminal_id', id);
       deviceId = currentUnit + "_" + Math.random().toString(16).substring(2, 10);
-      lblUnit.textContent = id;
       
-      loginScreen.style.display = 'none';
+      const lbl = document.getElementById('lbl-unit');
+      if (lbl) lbl.textContent = id;
 
       firstPersonMode = isDriver();
       if (btnSos) btnSos.style.display = isDriver() ? 'flex' : 'none';
@@ -1149,17 +1156,17 @@
 
       updateViewButtonUI();
       applyNightModeTheme();
-      connectMQTT();
-      connectSignaling();
+
+      try {
+        connectMQTT();
+        connectSignaling();
+      } catch (e) {}
 
       setTimeout(() => {
         if (map) {
           map.resize();
-          if (myLastCoords) {
-            map.jumpTo({ center: [myLastCoords.lon, myLastCoords.lat] });
-          }
         }
-      }, 200);
+      }, 100);
     }
 
     function logoutUnit() {
