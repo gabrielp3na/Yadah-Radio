@@ -983,7 +983,7 @@
 
     if (!trackingUnit) initDatabase();
 
-    // --- SISTEMA DE SEGURIDAD POR PERFIL (1994, 3 INTENTOS, 15 MIN BLOQUEO) ---
+    // --- SISTEMA DE SEGURIDAD POR PERFIL (2021, 3 INTENTOS, 15 MIN BLOQUEO) ---
     const INTENTOS_KEY = 'yadah_intentos_perfiles';
     const BLOQUEO_KEY = 'yadah_bloqueo_perfiles';
 
@@ -1016,7 +1016,7 @@
       const passIngresada = prompt(`🔐 Ingrese la contraseña de seguridad para [ ${id} ]:`);
       if (passIngresada === null) return;
 
-      if (passIngresada === "1994") {
+      if (passIngresada === "2021") {
         intentos[id] = 0;
         delete bloqueos[id];
         guardarIntentosYBloqueos(intentos, bloqueos);
