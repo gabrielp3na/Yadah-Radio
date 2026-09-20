@@ -2,395 +2,865 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Yadah Radio WebRTC</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <title>Yadah Radio</title>
 
-<style>
-*{box-sizing:border-box}
-body{
- margin:0;
- min-height:100vh;
- background:#0b0f19;
- color:white;
- font-family:Arial,sans-serif;
- display:flex;
- align-items:center;
- justify-content:center;
- padding:20px
-}
-.radio{
- width:100%;
- max-width:420px;
- background:#111827;
- border:2px solid #334155;
- border-radius:18px;
- padding:22px
-}
-h2{text-align:center;color:#fbbf24}
-input,button{
- width:100%;
- padding:14px;
- margin-top:10px;
- border-radius:9px;
- border:0;
- font-weight:bold
-}
-input{background:#020617;color:white;border:1px solid #475569}
-button{background:#fbbf24;color:#111827}
-#status{
- text-align:center;
- background:#020617;
- padding:14px;
- border-radius:8px;
- margin:16px 0
-}
-#ptt{
- height:130px;
- border:4px solid #fbbf24;
- background:#1e293b;
- color:#fbbf24;
- font-size:18px
-}
-#ptt.active{background:#dc2626;color:white}
-#users{font-size:13px;color:#94a3b8;margin-top:15px}
-</style>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: #090e1a;
+      color: #f8fafc;
+      font-family: Arial, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .radio-container {
+      width: 100%;
+      max-width: 420px;
+      background: #111827;
+      border: 2px solid #263449;
+      border-radius: 22px;
+      padding: 25px 20px;
+      box-shadow: 0 10px 35px rgba(0,0,0,.5);
+    }
+
+    h1 {
+      text-align: center;
+      color: #fbbf24;
+      font-size: 1.7rem;
+      margin-bottom: 25px;
+    }
+
+    .unit-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    input {
+      min-width: 0;
+      flex: 1;
+      background: #030712;
+      color: white;
+      border: 1px solid #475569;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: bold;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    button {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .save-button {
+      background: #fbbf24;
+      color: #111827;
+      border: none;
+      border-radius: 12px;
+      padding: 0 15px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .status {
+      background: #030712;
+      color: #cbd5e1;
+      border: 1px solid #263449;
+      border-radius: 12px;
+      padding: 17px 10px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      min-height: 52px;
+    }
+
+    .status.connected {
+      color: #34d399;
+    }
+
+    .status.error {
+      color: #f87171;
+    }
+
+    .status.transmitting {
+      background: #b91c1c;
+      color: white;
+      border-color: #ef4444;
+    }
+
+    .status.receiving {
+      background: #047857;
+      color: white;
+      border-color: #10b981;
+    }
+
+    .ptt-button {
+      width: 100%;
+      min-height: 190px;
+      border: 5px solid #fbbf24;
+      border-radius: 28px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      color: #fbbf24;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      text-align: center;
+      touch-action: none;
+    }
+
+    .microphone {
+      font-size: 58px;
+      pointer-events: none;
+    }
+
+    .button-text {
+      font-size: 17px;
+      font-weight: 900;
+      pointer-events: none;
+    }
+
+    .ptt-button.active {
+      background: #f59e0b;
+      color: #111827;
+      border-color: #fef08a;
+      transform: scale(.98);
+    }
+
+    .ptt-button:disabled {
+      opacity: .6;
+    }
+
+    .info {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 20px;
+    }
+
+    .connection-info {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 13px;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 
 <body>
-<div class="radio">
-<h2>📻 YADAH RADIO</h2>
-
-<input id="unit" placeholder="Nombre de unidad" value="Móvil 01">
-<button id="save">Guardar unidad</button>
-
-<div id="status">● CONECTANDO...</div>
-
-<button id="ptt">
-🎙️<br>
-MANTÉN PRESIONADO PARA HABLAR
-</button>
-
-<div id="users">Dispositivos conectados: 0</div>
-</div>
-
-<script>
-const BROKER = "wss://broker.emqx.io:8084/mqtt";
-const ROOM = "yadah/radio/webrtc/1";
-
-let unit = localStorage.getItem("yadah_unit") || "Móvil 01";
-let clientId = "yadah_" + Math.random().toString(16).slice(2,10);
-
-let mqttClient;
-let localStream = null;
-let localTrack = null;
-let peers = {};
-let pendingCandidates = {};
-let remoteUsers = new Set();
-
-const status = document.getElementById("status");
-const ptt = document.getElementById("ptt");
-const unitInput = document.getElementById("unit");
-const usersLabel = document.getElementById("users");
-
-unitInput.value = unit;
-
-function setStatus(text){
- status.textContent = text;
-}
-
-function signal(message){
- if(mqttClient && mqttClient.connected){
-   mqttClient.publish(ROOM, JSON.stringify({
-     ...message,
-     sender: clientId,
-     unit
-   }));
- }
-}
-
-function createPeer(remoteId, remoteUnit){
- if(peers[remoteId]) return peers[remoteId];
-
- const pc = new RTCPeerConnection({
-   iceServers:[
-     {urls:"stun:stun.l.google.com:19302"},
-     {urls:"stun:stun1.l.google.com:19302"}
-   ]
- });
-
- peers[remoteId] = pc;
- pendingCandidates[remoteId] = [];
-
- pc.onicecandidate = event => {
-   if(event.candidate){
-     signal({
-       type:"ice",
-       target:remoteId,
-       candidate:event.candidate
-     });
-   }
- };
-
- pc.ontrack = event => {
-   let audio = document.getElementById("audio_"+remoteId);
-
-   if(!audio){
-     audio = document.createElement("audio");
-     audio.id = "audio_"+remoteId;
-     audio.autoplay = true;
-     audio.playsInline = true;
-     document.body.appendChild(audio);
-   }
-
-   audio.srcObject = event.streams[0];
-   audio.play().catch(()=>{});
- };
-
- pc.onconnectionstatechange = () => {
-   if(["failed","closed","disconnected"].includes(pc.connectionState)){
-     delete peers[remoteId];
-     remoteUsers.delete(remoteId);
-     updateUsers();
-   }
- };
-
- if(localStream){
-   localStream.getTracks().forEach(track=>{
-     pc.addTrack(track,localStream);
-   });
- }
 
- return pc;
-}
-
-async function prepareMicrophone(){
- if(localStream) return;
+  <main class="radio-container">
 
- localStream = await navigator.mediaDevices.getUserMedia({
-   audio:{
-     echoCancellation:true,
-     noiseSuppression:true,
-     autoGainControl:true
-   }
- });
-
- localTrack = localStream.getAudioTracks()[0];
- localTrack.enabled = false;
-
- Object.keys(peers).forEach(id=>{
-   localStream.getTracks().forEach(track=>{
-     peers[id].addTrack(track,localStream);
-   });
- });
-}
-
-async function makeOffer(remoteId,remoteUnit){
- const pc = createPeer(remoteId,remoteUnit);
-
- if(clientId > remoteId) return;
+    <h1>📻 YADAH RADIO</h1>
 
- const offer = await pc.createOffer();
- await pc.setLocalDescription(offer);
-
- signal({
-   type:"offer",
-   target:remoteId,
-   offer:pc.localDescription
- });
-}
-
-async function handleOffer(data){
- if(data.target !== clientId) return;
+    <div class="unit-row">
+      <input
+        id="unit-input"
+        type="text"
+        maxlength="30"
+        placeholder="Nombre de unidad"
+        value="Móvil 01"
+      >
+
+      <button class="save-button" id="save-button">
+        Guardar
+      </button>
+    </div>
+
+    <div class="status" id="status">
+      ● CONECTANDO...
+    </div>
 
- const pc = createPeer(data.sender,data.unit);
-
- await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    <button
+      class="ptt-button"
+      id="ptt-button"
+      type="button"
+    >
+      <span class="microphone">🎙️</span>
 
- for(const candidate of pendingCandidates[data.sender]){
-   await pc.addIceCandidate(candidate).catch(()=>{});
- }
+      <span class="button-text">
+        MANTÉN PRESIONADO<br>
+        PARA HABLAR
+      </span>
+    </button>
 
- pendingCandidates[data.sender] = [];
+    <div class="info">
+      Mantén presionado para grabar.<br>
+      Suelta para enviar el mensaje.
+    </div>
 
- const answer = await pc.createAnswer();
- await pc.setLocalDescription(answer);
-
- signal({
-   type:"answer",
-   target:data.sender,
-   answer:pc.localDescription
- });
-}
+    <div class="connection-info" id="connection-info">
+      Preparando radio...
+    </div>
 
-async function handleAnswer(data){
- if(data.target !== clientId) return;
-
- const pc = peers[data.sender];
- if(!pc) return;
-
- await pc.setRemoteDescription(
-   new RTCSessionDescription(data.answer)
- );
-
- for(const candidate of pendingCandidates[data.sender]){
-   await pc.addIceCandidate(candidate).catch(()=>{});
- }
-
- pendingCandidates[data.sender] = [];
-}
-
-async function handleIce(data){
- if(data.target !== clientId) return;
+  </main>
 
- const pc = peers[data.sender] || createPeer(data.sender,data.unit);
- const candidate = new RTCIceCandidate(data.candidate);
-
- if(pc.remoteDescription){
-   await pc.addIceCandidate(candidate).catch(()=>{});
- }else{
-   pendingCandidates[data.sender].push(candidate);
- }
-}
-
-function updateUsers(){
- usersLabel.textContent =
- "Dispositivos conectados: "+remoteUsers.size;
-}
-
-function connect(){
- mqttClient = mqtt.connect(BROKER,{
-   clientId,
-   clean:true,
-   reconnectPeriod:3000
- });
-
- mqttClient.on("connect",()=>{
-   mqttClient.subscribe(ROOM);
-   setStatus("● CONECTADO");
-   signal({type:"hello"});
- });
-
- mqttClient.on("reconnect",()=>{
-   setStatus("● RECONECTANDO...");
- });
-
- mqttClient.on("error",()=>{
-   setStatus("● ERROR DE CONEXIÓN");
- });
-
- mqttClient.on("message",async(topic,message)=>{
-   try{
-     const data = JSON.parse(message.toString());
-
-     if(data.sender === clientId) return;
-
-     if(data.type === "hello"){
-       remoteUsers.add(data.sender);
-       updateUsers();
-
-       signal({
-         type:"hello_ack",
-         target:data.sender
-       });
-
-       createPeer(data.sender,data.unit);
-
-       if(clientId < data.sender){
-         await makeOffer(data.sender,data.unit);
-       }
-     }
-
-     if(data.type === "hello_ack" && data.target === clientId){
-       remoteUsers.add(data.sender);
-       updateUsers();
-
-       createPeer(data.sender,data.unit);
-
-       if(clientId < data.sender){
-         await makeOffer(data.sender,data.unit);
-       }
-     }
-
-     if(data.type === "offer") await handleOffer(data);
-     if(data.type === "answer") await handleAnswer(data);
-     if(data.type === "ice") await handleIce(data);
-
-     if(data.type === "talking"){
-       if(data.target === clientId){
-         setStatus("🔊 HABLANDO: "+data.unit);
-       }
-     }
-
-     if(data.type === "stopped"){
-       if(data.target === clientId){
-         setStatus("● CONECTADO");
-       }
-     }
-
-   }catch(error){
-     console.error("Error de señalización:",error);
-   }
- });
-}
-
-async function startTalking(event){
- event.preventDefault();
-
- try{
-   await prepareMicrophone();
-
-   if(!localTrack) return;
-
-   localTrack.enabled = true;
-   ptt.classList.add("active");
-   setStatus("🔴 TRANSMITIENDO");
-
-   Object.keys(peers).forEach(id=>{
-     signal({
-       type:"talking",
-       target:id
-     });
-   });
-
- }catch(error){
-   console.error(error);
-   setStatus("❌ PERMISO DE MICRÓFONO DENEGADO");
- }
-}
-
-function stopTalking(event){
- if(event) event.preventDefault();
-
- if(localTrack){
-   localTrack.enabled = false;
- }
-
- ptt.classList.remove("active");
- setStatus("● CONECTADO");
-
- Object.keys(peers).forEach(id=>{
-   signal({
-     type:"stopped",
-     target:id
-   });
- }
-}
-
-document.getElementById("save").onclick=()=>{
- unit=unitInput.value.trim() || "Móvil 01";
- localStorage.setItem("yadah_unit",unit);
- setStatus("● UNIDAD: "+unit);
-};
-
-ptt.addEventListener("pointerdown",startTalking);
-ptt.addEventListener("pointerup",stopTalking);
-ptt.addEventListener("pointerleave",stopTalking);
-ptt.addEventListener("pointercancel",stopTalking);
-
-connect();
-</script>
+  <audio id="audio-player" playsinline></audio>
+
+  <script>
+    "use strict";
+
+    /*
+      CONFIGURACIÓN MQTT
+    */
+
+    const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
+
+    /*
+      Canal nuevo de prueba.
+      Todos los dispositivos deben usar exactamente
+      estos mismos canales.
+    */
+
+    const VOICE_TOPIC = "yadah/radio/flota/voice/v2";
+    const STATUS_TOPIC = "yadah/radio/flota/status/v2";
+
+    /*
+      ELEMENTOS
+    */
+
+    const unitInput = document.getElementById("unit-input");
+    const saveButton = document.getElementById("save-button");
+    const statusElement = document.getElementById("status");
+    const pttButton = document.getElementById("ptt-button");
+    const audioPlayer = document.getElementById("audio-player");
+    const connectionInfo = document.getElementById("connection-info");
+
+    /*
+      VARIABLES
+    */
+
+    let currentUnit =
+      localStorage.getItem("yadah_radio_unit") || "Móvil 01";
+
+    let mqttClient = null;
+    let audioStream = null;
+    let mediaRecorder = null;
+
+    let isRecording = false;
+    let isConnecting = false;
+    let recordedChunks = [];
+
+    let audioQueue = [];
+    let isPlaying = false;
+
+    unitInput.value = currentUnit;
+
+    /*
+      INTERFAZ
+    */
+
+    function setStatus(message, type = "") {
+      statusElement.textContent = message;
+      statusElement.className = "status";
+
+      if (type) {
+        statusElement.classList.add(type);
+      }
+    }
+
+    function saveUnitName() {
+      const newName = unitInput.value.trim();
+
+      if (!newName) {
+        alert("Escribe el nombre de la unidad.");
+        return;
+      }
+
+      currentUnit = newName;
+      localStorage.setItem("yadah_radio_unit", currentUnit);
+
+      alert("Unidad guardada: " + currentUnit);
+    }
+
+    saveButton.addEventListener("click", saveUnitName);
+
+    /*
+      CONEXIÓN MQTT
+    */
+
+    function connectNetwork() {
+      if (isConnecting) return;
+
+      isConnecting = true;
+
+      setStatus("● CONECTANDO...", "");
+      connectionInfo.textContent = "Conectando al servidor de radio...";
+
+      const clientId =
+        "yadah_" +
+        Math.random().toString(16).substring(2, 10) +
+        "_" +
+        Date.now();
+
+      try {
+        mqttClient = mqtt.connect(MQTT_URL, {
+          clientId: clientId,
+          clean: true,
+          connectTimeout: 10000,
+          reconnectPeriod: 5000
+        });
+
+        mqttClient.on("connect", function() {
+          isConnecting = false;
+
+          setStatus("● RADIO CONECTADO", "connected");
+          connectionInfo.textContent = "Servidor conectado";
+
+          mqttClient.subscribe(
+            VOICE_TOPIC,
+            { qos: 0 },
+            function(error) {
+              if (error) {
+                setStatus("Error al suscribirse", "error");
+                return;
+              }
+
+              console.log("Canal de voz conectado");
+            }
+          );
+
+          mqttClient.subscribe(
+            STATUS_TOPIC,
+            { qos: 0 },
+            function(error) {
+              if (error) {
+                console.log("Error en canal de estado:", error);
+              }
+            }
+          );
+        });
+
+        mqttClient.on("reconnect", function() {
+          setStatus("● RECONECTANDO...", "");
+          connectionInfo.textContent = "Intentando reconectar...";
+        });
+
+        mqttClient.on("offline", function() {
+          setStatus("● SIN CONEXIÓN", "error");
+          connectionInfo.textContent = "Servidor desconectado";
+        });
+
+        mqttClient.on("error", function(error) {
+          console.log("MQTT error:", error);
+          setStatus("● ERROR DE CONEXIÓN", "error");
+        });
+
+        mqttClient.on("message", function(topic, message) {
+          receiveMessage(topic, message);
+        });
+
+      } catch (error) {
+        isConnecting = false;
+        console.log("Error de conexión:", error);
+        setStatus("● ERROR DE RADIO", "error");
+      }
+    }
+
+    /*
+      RECEPCIÓN DE MENSAJES
+    */
+
+    function receiveMessage(topic, message) {
+      try {
+        const data = JSON.parse(message.toString());
+
+        if (!data.sender || data.sender === currentUnit) {
+          return;
+        }
+
+        if (topic === STATUS_TOPIC) {
+          if (data.type === "speaking") {
+            setStatus(
+              "▼ HABLANDO: " + data.sender,
+              "receiving"
+            );
+          }
+
+          if (data.type === "stopped" && !isPlaying) {
+            setStatus("● RADIO CONECTADO", "connected");
+          }
+
+          return;
+        }
+
+        if (topic === VOICE_TOPIC) {
+          if (data.payload) {
+            audioQueue.push(data);
+
+            if (!isPlaying) {
+              processAudioQueue();
+            }
+          }
+        }
+
+      } catch (error) {
+        console.log("Error al recibir mensaje:", error);
+      }
+    }
+
+    /*
+      MICRÓFONO
+    */
+
+    async function initializeMicrophone() {
+      if (audioStream) {
+        return true;
+      }
+
+      if (!navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia) {
+        alert("Este navegador no permite usar el micrófono.");
+        return false;
+      }
+
+      try {
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+
+        return true;
+
+      } catch (error) {
+        console.log("Permiso de micrófono rechazado:", error);
+
+        alert(
+          "Debes permitir el acceso al micrófono " +
+          "para utilizar el radio."
+        );
+
+        return false;
+      }
+    }
+
+    /*
+      ENVÍO DE ESTADO
+    */
+
+    function publishStatus(type) {
+      if (!mqttClient || !mqttClient.connected) {
+        return;
+      }
+
+      const data = {
+        sender: currentUnit,
+        type: type,
+        timestamp: Date.now()
+      };
+
+      mqttClient.publish(
+        STATUS_TOPIC,
+        JSON.stringify(data),
+        { qos: 0 }
+      );
+    }
+
+    /*
+      INICIAR TRANSMISIÓN
+    */
+
+    async function startPTT(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (isRecording) {
+        return;
+      }
+
+      if (!mqttClient || !mqttClient.connected) {
+        setStatus("● RADIO SIN CONEXIÓN", "error");
+        return;
+      }
+
+      const microphoneReady = await initializeMicrophone();
+
+      if (!microphoneReady) {
+        return;
+      }
+
+      if (isRecording) {
+        return;
+      }
+
+      isRecording = true;
+      recordedChunks = [];
+
+      try {
+        let mimeType = "";
+
+        if (
+          typeof MediaRecorder !== "undefined" &&
+          MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ) {
+          mimeType = "audio/webm;codecs=opus";
+        } else if (
+          typeof MediaRecorder !== "undefined" &&
+          MediaRecorder.isTypeSupported("audio/webm")
+        ) {
+          mimeType = "audio/webm";
+        }
+
+        mediaRecorder = mimeType
+          ? new MediaRecorder(audioStream, {
+              mimeType: mimeType,
+              audioBitsPerSecond: 32000
+            })
+          : new MediaRecorder(audioStream);
+
+        mediaRecorder.ondataavailable = function(event) {
+          if (event.data && event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = function() {
+          sendRecordedAudio();
+        };
+
+        mediaRecorder.onerror = function(error) {
+          console.log("Error de grabación:", error);
+          resetRecording();
+        };
+
+        mediaRecorder.start();
+
+        pttButton.classList.add("active");
+
+        setStatus(
+          "▲ TRANSMITIENDO: " + currentUnit,
+          "transmitting"
+        );
+
+        publishStatus("speaking");
+
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+
+      } catch (error) {
+        console.log("No se pudo iniciar grabación:", error);
+        resetRecording();
+        setStatus("Error del micrófono", "error");
+      }
+    }
+
+    /*
+      DETENER TRANSMISIÓN
+    */
+
+    function stopPTT(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (!isRecording) {
+        return;
+      }
+
+      isRecording = false;
+
+      pttButton.classList.remove("active");
+
+      setStatus("● ENVIANDO AUDIO...", "");
+
+      publishStatus("stopped");
+
+      if (
+        mediaRecorder &&
+        mediaRecorder.state !== "inactive"
+      ) {
+        mediaRecorder.stop();
+      } else {
+        resetRecording();
+      }
+    }
+
+    /*
+      ENVIAR GRABACIÓN COMPLETA
+    */
+
+    function sendRecordedAudio() {
+      if (!recordedChunks.length) {
+        resetRecording();
+        setStatus("● RADIO CONECTADO", "connected");
+        return;
+      }
+
+      const audioBlob = new Blob(recordedChunks, {
+        type: mediaRecorder.mimeType || "audio/webm"
+      });
+
+      if (audioBlob.size <= 0) {
+        resetRecording();
+        setStatus("● RADIO CONECTADO", "connected");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onloadend = function() {
+        if (
+          mqttClient &&
+          mqttClient.connected &&
+          reader.result
+        ) {
+          const message = {
+            sender: currentUnit,
+            payload: reader.result,
+            timestamp: Date.now()
+          };
+
+          mqttClient.publish(
+            VOICE_TOPIC,
+            JSON.stringify(message),
+            { qos: 0 },
+            function(error) {
+              if (error) {
+                console.log("Error al enviar audio:", error);
+                setStatus("Error al enviar", "error");
+              } else {
+                setStatus("● RADIO CONECTADO", "connected");
+              }
+            }
+          );
+        } else {
+          setStatus("Sin conexión para enviar", "error");
+        }
+
+        resetRecording();
+      };
+
+      reader.readAsDataURL(audioBlob);
+    }
+
+    /*
+      REINICIAR GRABACIÓN
+    */
+
+    function resetRecording() {
+      isRecording = false;
+      recordedChunks = [];
+      mediaRecorder = null;
+      pttButton.classList.remove("active");
+
+      if (
+        mqttClient &&
+        mqttClient.connected &&
+        !isPlaying
+      ) {
+        setStatus("● RADIO CONECTADO", "connected");
+      }
+    }
+
+    /*
+      COLA DE AUDIO RECIBIDO
+    */
+
+    function processAudioQueue() {
+      if (audioQueue.length === 0) {
+        isPlaying = false;
+
+        if (mqttClient && mqttClient.connected) {
+          setStatus("● RADIO CONECTADO", "connected");
+        }
+
+        return;
+      }
+
+      isPlaying = true;
+
+      const item = audioQueue.shift();
+
+      try {
+        const audioData = item.payload;
+
+        const audioBlob = dataURLToBlob(audioData);
+        const audioURL = URL.createObjectURL(audioBlob);
+
+        setStatus(
+          "▼ RECIBIENDO: " + item.sender,
+          "receiving"
+        );
+
+        audioPlayer.src = audioURL;
+        audioPlayer.volume = 1.0;
+
+        const playPromise = audioPlayer.play();
+
+        if (playPromise !== undefined) {
+          playPromise.catch(function(error) {
+            console.log("Reproducción bloqueada:", error);
+
+            setStatus(
+              "Toca la pantalla para activar el audio",
+              "error"
+            );
+
+            finishAudio(audioURL);
+          });
+        }
+
+        audioPlayer.onended = function() {
+          finishAudio(audioURL);
+        };
+
+        audioPlayer.onerror = function() {
+          finishAudio(audioURL);
+        };
+
+      } catch (error) {
+        console.log("Error al reproducir:", error);
+        processAudioQueue();
+      }
+    }
+
+    /*
+      CONVERTIR BASE64 A BLOB
+    */
+
+    function dataURLToBlob(dataURL) {
+      const parts = dataURL.split(",");
+      const mimeMatch = parts[0].match(/:(.*?);/);
+
+      const mime = mimeMatch
+        ? mimeMatch[1]
+        : "audio/webm";
+
+      const binary = atob(parts[1]);
+      const length = binary.length;
+      const bytes = new Uint8Array(length);
+
+      for (let i = 0; i < length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      return new Blob([bytes], { type: mime });
+    }
+
+    /*
+      FINALIZAR AUDIO
+    */
+
+    function finishAudio(audioURL) {
+      URL.revokeObjectURL(audioURL);
+
+      audioPlayer.onended = null;
+      audioPlayer.onerror = null;
+
+      processAudioQueue();
+    }
+
+    /*
+      EVENTOS DEL BOTÓN
+    */
+
+    pttButton.addEventListener(
+      "pointerdown",
+      function(event) {
+        event.preventDefault();
+
+        if (pttButton.setPointerCapture) {
+          try {
+            pttButton.setPointerCapture(event.pointerId);
+          } catch (error) {}
+        }
+
+        startPTT(event);
+      }
+    );
+
+    pttButton.addEventListener(
+      "pointerup",
+      function(event) {
+        event.preventDefault();
+        stopPTT(event);
+      }
+    );
+
+    pttButton.addEventListener(
+      "pointercancel",
+      function(event) {
+        event.preventDefault();
+        stopPTT(event);
+      }
+    );
+
+    pttButton.addEventListener(
+      "lostpointercapture",
+      function(event) {
+        if (isRecording) {
+          stopPTT(event);
+        }
+      }
+    );
+
+    /*
+      TECLADO DE COMPUTADORA
+    */
+
+    window.addEventListener("keydown", function(event) {
+      if (
+        event.code === "Space" &&
+        !event.repeat &&
+        document.activeElement !== unitInput
+      ) {
+        startPTT(event);
+      }
+    });
+
+    window.addEventListener("keyup", function(event) {
+      if (event.code === "Space") {
+        stopPTT(event);
+      }
+    });
+
+    /*
+      ACTIVAR AUDIO AL TOCAR LA PANTALLA
+    */
+
+    document.addEventListener(
+      "click",
+      function() {
+        audioPlayer.play().catch(function() {});
+      },
+      { passive: true }
+    );
+
+    /*
+      INICIAR RADIO
+    */
+
+    connectNetwork();
+
+  </script>
+
 </body>
 </html>
