@@ -794,7 +794,7 @@
     'use strict';
 
     // ==========================================
-    // CONFIGURACIÓN DE RADIO Y MQTT UNIFICADA
+    // CONFIGURACIÓN DE RADIO, MQTT Y GPS
     // ==========================================
     const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
     const RADIO_SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v9";
@@ -832,7 +832,7 @@
 
     let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
     
-    // VARIABLES DEL RADIO (DECLARADAS UNA SOLA VEZ)
+    // VARIABLES GLOBALES
     let radioClient = null;
     let radioLocalStream = null;
     let radioLocalTrack = null;
@@ -878,10 +878,6 @@
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTraffic = true;
     let isSosActive = false;
-    let sirenInterval = null;
-    let activeSosCoords = null;
-    let pendingDestination = null;
-    let gpsPermissionGranted = false;
     let searchTimeout = null;
     let userMovedMap = false;
     let isNavigating = false;
@@ -1209,6 +1205,84 @@
     }
 
     // ==========================================
+    // MAPA Y ACTUALIZACIÓN DE VEHÍCULOS (FLEET GPS)
+    // ==========================================
+    function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
+      if (!lon || !lat || !map) return;
+      if (!fleetMarkers[unitId]) {
+        const container = document.createElement('div');
+        container.className = 'car-marker-container';
+        const badge = document.createElement('div');
+        badge.className = 'car-badge';
+        badge.textContent = unitId;
+        container.appendChild(badge);
+
+        const rotator = document.createElement('div');
+        rotator.className = 'car-svg-rotator';
+        rotator.innerHTML = `
+          <svg viewBox="0 0 24 24" width="44" height="44">
+            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z" fill="${unitId === currentUnit ? '#38bdf8' : '#f59e0b'}"/>
+          </svg>`;
+        container.appendChild(rotator);
+
+        const marker = new maplibregl.Marker({ element: container }).setLngLat([lon, lat]).addTo(map);
+        fleetMarkers[unitId] = { marker, rotator, badge, container };
+      } else {
+        fleetMarkers[unitId].marker.setLngLat([lon, lat]);
+        fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
+      }
+    }
+
+    function updateGpsLockState(allowed) {
+      gpsPermissionGranted = allowed;
+      if (isModulator()) {
+        lblGpsStatus.textContent = 'Central';
+        lblGpsStatus.className = 'status-active';
+        gpsLockBanner.style.display = 'none';
+        return;
+      }
+      if (allowed) {
+        lblGpsStatus.textContent = 'Activo';
+        lblGpsStatus.className = 'status-active';
+        gpsLockBanner.style.display = 'none';
+      } else {
+        lblGpsStatus.textContent = 'Sin GPS';
+        lblGpsStatus.className = 'status-warning';
+        gpsLockBanner.style.display = 'flex';
+      }
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          updateGpsLockState(true);
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          mySpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+          myHeading = pos.coords.heading ? Math.round(pos.coords.heading) : myHeading;
+          myLastCoords = { lon, lat };
+
+          lblSpeed.textContent = `${mySpeed} km/h`;
+          lblHeading.textContent = `${myHeading}°`;
+
+          // Mostrar mi propia posición en el mapa también
+          if (currentUnit) {
+            updateVehicleOnMap(currentUnit, lon, lat, myHeading, mySpeed, isSosActive);
+          }
+
+          if (isDriver()) {
+            updateNavigationCamera(lon, lat, mySpeed, myHeading);
+            if (radioClient && radioClient.connected) {
+              radioClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
+            }
+          }
+        },
+        () => updateGpsLockState(false),
+        { enableHighAccuracy: true, maximumAge: 1000 }
+      );
+    }
+
+    // ==========================================
     // SISTEMA DE RADIO UNIFICADO Y ROBUSTO
     // ==========================================
     function initializeRadio() {
@@ -1246,6 +1320,7 @@
           sendRadioSignal({ type: "hello" });
         });
         radioClient.subscribe(AUDIO_SHARE_TOPIC);
+        radioClient.subscribe(TOPIC_GPS); // Suscribirnos al GPS de la flota
       });
 
       radioClient.on("error", (error) => {
@@ -1264,6 +1339,13 @@
           receiveRadioSignal(message);
         } else if (topic === AUDIO_SHARE_TOPIC) {
           receiveSharedAudio(message);
+        } else if (topic === TOPIC_GPS) {
+          try {
+            const data = JSON.parse(message.toString());
+            if (data.unit && data.unit !== currentUnit) {
+              updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
+            }
+          } catch(e){}
         }
       });
     }
@@ -1315,7 +1397,6 @@
 
       const microphoneReady = await getRadioMicrophone();
       
-      // Validar si el usuario soltó el botón mientras se pedía el permiso
       if (!radioButtonPressed || currentSession !== radioTalkSession) {
         if (radioLocalTrack) radioLocalTrack.enabled = false;
         return;
@@ -1473,79 +1554,6 @@
     }
 
     // ==========================================
-    // MAPA VEHÍCULOS Y GPS FLEET
-    // ==========================================
-    function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
-      if (!lon || !lat || !map) return;
-      if (!fleetMarkers[unitId]) {
-        const container = document.createElement('div');
-        container.className = 'car-marker-container';
-        const badge = document.createElement('div');
-        badge.className = 'car-badge';
-        badge.textContent = unitId;
-        container.appendChild(badge);
-
-        const rotator = document.createElement('div');
-        rotator.className = 'car-svg-rotator';
-        rotator.innerHTML = `
-          <svg viewBox="0 0 24 24" width="44" height="44">
-            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z" fill="${unitId === currentUnit ? '#38bdf8' : '#f59e0b'}"/>
-          </svg>`;
-        container.appendChild(rotator);
-
-        const marker = new maplibregl.Marker({ element: container }).setLngLat([lon, lat]).addTo(map);
-        fleetMarkers[unitId] = { marker, rotator, badge, container };
-      } else {
-        fleetMarkers[unitId].marker.setLngLat([lon, lat]);
-        fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
-      }
-    }
-
-    function updateGpsLockState(allowed) {
-      gpsPermissionGranted = allowed;
-      if (isModulator()) {
-        lblGpsStatus.textContent = 'Central';
-        lblGpsStatus.className = 'status-active';
-        gpsLockBanner.style.display = 'none';
-        return;
-      }
-      if (allowed) {
-        lblGpsStatus.textContent = 'Activo';
-        lblGpsStatus.className = 'status-active';
-        gpsLockBanner.style.display = 'none';
-      } else {
-        lblGpsStatus.textContent = 'Sin GPS';
-        lblGpsStatus.className = 'status-warning';
-        gpsLockBanner.style.display = 'flex';
-      }
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          updateGpsLockState(true);
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          mySpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-          myHeading = pos.coords.heading ? Math.round(pos.coords.heading) : myHeading;
-          myLastCoords = { lon, lat };
-
-          lblSpeed.textContent = `${mySpeed} km/h`;
-          lblHeading.textContent = `${myHeading}°`;
-
-          if (isDriver()) {
-            updateNavigationCamera(lon, lat, mySpeed, myHeading);
-            if (radioClient && radioClient.connected) {
-              radioClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
-            }
-          }
-        },
-        () => updateGpsLockState(false),
-        { enableHighAccuracy: true, maximumAge: 1000 }
-      );
-    }
-
-    // ==========================================
     // TRANSCRIPCIÓN Y BUZÓN DE 24H
     // ==========================================
     function configurarTranscripcion() {
@@ -1598,7 +1606,7 @@
     }
 
     // ==========================================
-    // EVENTOS PTT ROBUSTOS (POINTER EVENTS & WINDOW BLUR)
+    // EVENTOS PTT ROBUSTOS (POINTER EVENTS)
     // ==========================================
     if (pttButton) {
       pttButton.addEventListener("pointerdown", startRadioTalking);
