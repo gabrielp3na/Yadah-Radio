@@ -823,8 +823,8 @@
 
     let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
     let client = null;
-    let localStream = null;
     let peerConnection = null;
+    let localStream = null;
     let remoteUnit = "";
     let pendingCandidates = [];
     let isConnecting = false;
@@ -1132,9 +1132,8 @@
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
-    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (SUPER BLINDADO)
+    // GESTIÓN DE PERFILES Y AUTENTICACIÓN
     function selectUnit(id) {
-      // Remover del DOM de inmediato el login para liberar la pantalla
       const screen = document.getElementById('login-screen');
       if (screen) {
         screen.remove();
@@ -1254,9 +1253,6 @@
     }
 
     // MQTT & WEBRTC RADIO AUDIO & TRANSCRIPCIÓN
-    let peerConnection = null;
-    let localStream = null;
-
     function connectMQTT() {
       client = mqtt.connect(MQTT_URL, { clientId: 'yadah_fleet_' + Math.random().toString(16).substring(2, 8), clean: true });
       client.on('connect', () => {
