@@ -2586,9 +2586,13 @@
       document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
     }
 
+    // ==========================================
+    // MÓDULO DE AUDIO (Transmisión de Audio Completo al Soltar)
+    // ==========================================
     let mediaRecorder = null;
     let audioStream = null;
     let isRecording = false;
+    let audioChunks = [];
     let audioQueue = [];
     let isPlayingQueue = false;
 
@@ -2621,9 +2625,11 @@
 
       if (isRecording) return;
       isRecording = true;
+      audioChunks = [];
 
       unlockAudioHardware();
       await initAudioEngine();
+
       if (!audioStream) {
         isRecording = false;
         return;
@@ -2634,45 +2640,88 @@
       playBeep(920, 0.04);
       btnPtt.classList.add('active');
       channelStatus.className = 'channel-status transmitting';
-      channelStatus.textContent = '▲ TRANSMITIENDO EN DIRECTO...';
+      channelStatus.textContent = '▲ GRABANDO AUDIO...';
 
       if (mqttClient && mqttClient.connected) {
-        mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
+        mqttClient.publish(
+          TOPIC_ALERT,
+          JSON.stringify({ sender: currentUnit })
+        );
       }
 
       try {
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType: mime, bitsPerSecond: 12800 });
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+
+        mediaRecorder = new MediaRecorder(audioStream, {
+          mimeType: mime,
+          bitsPerSecond: 12800
+        });
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0 && isRecording) {
-            const reader = new FileReader();
-            reader.readAsDataURL(event.data);
-            reader.onloadend = () => {
-              if (mqttClient && mqttClient.connected && isRecording) {
-                mqttClient.publish(TOPIC_VOICE, JSON.stringify({
-                  sender: currentUnit,
-                  payload: reader.result,
-                  timestamp: Date.now()
-                }));
-              }
-            };
+          if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
           }
         };
 
-        mediaRecorder.start(120);
+        mediaRecorder.start();
+
       } catch (err) {
+        console.error('Error iniciando grabación:', err);
         isRecording = false;
+        btnPtt.classList.remove('active');
       }
     }
 
     function stopAudioRecording(e) {
       if (e) e.preventDefault();
       if (!isRecording) return;
+
       isRecording = false;
 
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+      const recorder = mediaRecorder;
+
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.onstop = () => {
+          if (audioChunks.length === 0) {
+            audioChunks = [];
+            return;
+          }
+
+          const completeBlob = new Blob(audioChunks, {
+            type: recorder.mimeType || 'audio/webm'
+          });
+
+          audioChunks = [];
+
+          const reader = new FileReader();
+
+          reader.onloadend = () => {
+            if (
+              reader.result &&
+              mqttClient &&
+              mqttClient.connected
+            ) {
+              mqttClient.publish(
+                TOPIC_VOICE,
+                JSON.stringify({
+                  sender: currentUnit,
+                  payload: reader.result,
+                  timestamp: Date.now()
+                })
+              );
+            }
+          };
+
+          reader.onerror = () => {
+            console.error('Error convirtiendo el audio a Base64');
+          };
+
+          reader.readAsDataURL(completeBlob);
+        };
+
+        recorder.stop();
       }
 
       btnPtt.classList.remove('active');
@@ -2688,6 +2737,7 @@
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
 
       audioQueue.push(voiceData);
+
       if (!isPlayingQueue) {
         processAudioQueue();
       }
