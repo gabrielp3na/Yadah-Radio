@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<title>Yadah Radio WebRTC</title>
+<title>Yadah Radio WebRTC - Canal Compartido</title>
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
@@ -93,25 +92,10 @@ button {
   min-height: 52px;
 }
 
-.connected {
-  color: #34d399;
-}
-
-.error {
-  color: #f87171;
-}
-
-.transmitting {
-  background: #b91c1c;
-  color: white;
-  border-color: #ef4444;
-}
-
-.receiving {
-  background: #047857;
-  color: white;
-  border-color: #10b981;
-}
+.connected { color: #34d399; }
+.error { color: #f87171; }
+.transmitting { background: #b91c1c; color: white; border-color: #ef4444; }
+.receiving { background: #047857; color: white; border-color: #10b981; }
 
 .ptt-button {
   width: 100%;
@@ -130,16 +114,8 @@ button {
   touch-action: none;
 }
 
-.microphone {
-  font-size: 58px;
-  pointer-events: none;
-}
-
-.button-text {
-  font-size: 17px;
-  font-weight: 900;
-  pointer-events: none;
-}
+.microphone { font-size: 58px; pointer-events: none; }
+.button-text { font-size: 17px; font-weight: 900; pointer-events: none; }
 
 .ptt-button.active {
   background: #f59e0b;
@@ -148,12 +124,9 @@ button {
   transform: scale(.98);
 }
 
-.ptt-button:disabled {
-  opacity: .6;
-}
+.ptt-button:disabled { opacity: .6; }
 
-.info,
-.connection-info {
+.info, .connection-info {
   text-align: center;
   color: #94a3b8;
   font-size: 13px;
@@ -191,15 +164,6 @@ button {
   width: 100%;
 }
 
-.delete-audio {
-  background: #b91c1c;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 7px 10px;
-  margin-top: 8px;
-}
-
 .empty-history {
   color: #94a3b8;
   font-size: 13px;
@@ -215,44 +179,27 @@ button {
 <h1>📻 YADAH RADIO</h1>
 
 <div class="unit-row">
-<input
-  id="unit-input"
-  type="text"
-  maxlength="30"
-  placeholder="Nombre de unidad"
-  value="Móvil 01">
-
-<button class="save-button" id="save-button">
-Guardar
-</button>
+<input id="unit-input" type="text" maxlength="30" value="Móvil 01">
+<button class="save-button" id="save-button">Guardar</button>
 </div>
 
-<div class="status" id="status">
-● CONECTANDO...
-</div>
+<div class="status" id="status">● CONECTANDO...</div>
 
 <button class="ptt-button" id="ptt-button" disabled>
 <span class="microphone">🎙️</span>
-
-<span class="button-text">
-MANTÉN PRESIONADO<br>
-PARA HABLAR
-</span>
+<span class="button-text">MANTÉN PRESIONADO<br>PARA HABLAR</span>
 </button>
 
 <div class="info">
-Mantén presionado para hablar.<br>
-El audio se transmite en tiempo real.
+Canal de voz en tiempo real y buzón protegido compartido.
 </div>
 
-<div class="connection-info" id="connection-info">
-Preparando conexión...
-</div>
+<div class="connection-info" id="connection-info">Preparando conexión...</div>
 
 <section class="history">
-<h2>📁 Historial de audios</h2>
+<h2>📁 Buzón Compartido (Protegido)</h2>
 <div id="audio-history">
-<p class="empty-history">No hay audios guardados.</p>
+<p class="empty-history">No hay audios en el canal.</p>
 </div>
 </section>
 
@@ -263,52 +210,26 @@ Preparando conexión...
 <script>
 "use strict";
 
-/* CONFIGURACIÓN */
-
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-
-const SIGNAL_TOPIC =
-"yadah/radio/webrtc/signaling/v2";
-
-const ROOM_NAME =
-"yadah-radio-prueba";
+const SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v3";
+const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v1";
+const ROOM_NAME = "yadah-radio-prueba";
 
 const STUN_SERVERS = [
-{ urls: "stun:stun.l.google.com:19302" },
-{ urls: "stun:stun1.l.google.com:19302" }
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" }
 ];
 
-/* ELEMENTOS */
+const unitInput = document.getElementById("unit-input");
+const saveButton = document.getElementById("save-button");
+const statusElement = document.getElementById("status");
+const pttButton = document.getElementById("ptt-button");
+const remoteAudio = document.getElementById("remote-audio");
+const connectionInfo = document.getElementById("connection-info");
+const audioHistory = document.getElementById("audio-history");
 
-const unitInput =
-document.getElementById("unit-input");
-
-const saveButton =
-document.getElementById("save-button");
-
-const statusElement =
-document.getElementById("status");
-
-const pttButton =
-document.getElementById("ptt-button");
-
-const remoteAudio =
-document.getElementById("remote-audio");
-
-const connectionInfo =
-document.getElementById("connection-info");
-
-const audioHistory =
-document.getElementById("audio-history");
-
-/* VARIABLES */
-
-let currentUnit =
-localStorage.getItem("yadah_radio_unit") || "Móvil 01";
-
-let deviceId =
-currentUnit + "_" +
-Math.random().toString(16).substring(2,10);
+let currentUnit = localStorage.getItem("yadah_radio_unit") || "Móvil 01";
+let deviceId = currentUnit + "_" + Math.random().toString(16).substring(2,10);
 
 let client = null;
 let localStream = null;
@@ -318,27 +239,16 @@ let pendingCandidates = [];
 
 let isConnecting = false;
 let isTalking = false;
-let microphoneReady = false;
-
 let mediaRecorder = null;
 let recordedChunks = [];
-let recordingStartedAt = null;
-
-/* BASE DE DATOS LOCAL */
 
 let database;
-
-const databaseRequest =
-indexedDB.open("YadahRadioDatabase", 1);
+const databaseRequest = indexedDB.open("YadahRadioSharedDB", 1);
 
 databaseRequest.onupgradeneeded = function(event) {
   database = event.target.result;
-
   if (!database.objectStoreNames.contains("audios")) {
-    database.createObjectStore("audios", {
-      keyPath: "id",
-      autoIncrement: true
-    });
+    database.createObjectStore("audios", { keyPath: "id", autoIncrement: true });
   }
 };
 
@@ -347,704 +257,273 @@ databaseRequest.onsuccess = function(event) {
   loadAudioHistory();
 };
 
-databaseRequest.onerror = function() {
-  console.log("No se pudo abrir la base de datos.");
-};
-
-/* INTERFAZ */
-
 function setStatus(message, type = "") {
   statusElement.textContent = message;
   statusElement.className = "status";
-
-  if (type) {
-    statusElement.classList.add(type);
-  }
+  if (type) statusElement.classList.add(type);
 }
 
-function saveUnitName() {
+saveButton.addEventListener("click", function() {
   const newName = unitInput.value.trim();
-
-  if (!newName) {
-    alert("Escribe el nombre de la unidad.");
-    return;
-  }
-
+  if (!newName) return alert("Escribe el nombre.");
   currentUnit = newName;
   localStorage.setItem("yadah_radio_unit", currentUnit);
-
   alert("Unidad guardada: " + currentUnit);
-}
-
-saveButton.addEventListener("click", saveUnitName);
+});
 
 unitInput.value = currentUnit;
 
-/* MQTT */
-
 function connectMQTT() {
   if (isConnecting) return;
-
   isConnecting = true;
-
   setStatus("● CONECTANDO...");
-  connectionInfo.textContent =
-    "Conectando al servidor de señalización...";
 
-  const clientId =
-    "yadah_" +
-    Math.random().toString(16).substring(2,10) +
-    "_" +
-    Date.now();
+  client = mqtt.connect(MQTT_URL, { clientId: "yadah_" + Math.random().toString(16).substring(2,10), clean: true });
 
-  try {
-    client = mqtt.connect(MQTT_URL, {
-      clientId: clientId,
-      clean: true,
-      connectTimeout: 10000,
-      reconnectPeriod: 5000
-    });
-
-    client.on("connect", function() {
-      isConnecting = false;
-
-      client.subscribe(
-        SIGNAL_TOPIC,
-        { qos: 0 },
-        function(error) {
-          if (error) {
-            setStatus("Error de señalización", "error");
-            return;
-          }
-
-          setStatus("● RADIO CONECTADO", "connected");
-
-          connectionInfo.textContent =
-            "Esperando otra unidad...";
-
-          pttButton.disabled = false;
-
-          sendSignal({
-            type: "hello"
-          });
-        }
-      );
-    });
-
-    client.on("reconnect", function() {
-      setStatus("● RECONECTANDO...");
-      connectionInfo.textContent =
-        "Intentando reconectar...";
-    });
-
-    client.on("offline", function() {
-      setStatus("● SIN CONEXIÓN", "error");
-      pttButton.disabled = true;
-    });
-
-    client.on("error", function(error) {
-      console.log("Error MQTT:", error);
-    });
-
-    client.on("message", function(topic, message) {
-      if (topic === SIGNAL_TOPIC) {
-        receiveSignal(message);
-      }
-    });
-
-  } catch (error) {
+  client.on("connect", function() {
     isConnecting = false;
-    setStatus("● ERROR DE RADIO", "error");
-  }
+    client.subscribe(SIGNAL_TOPIC);
+    client.subscribe(AUDIO_SHARE_TOPIC);
+    setStatus("● RADIO CONECTADO", "connected");
+    pttButton.disabled = false;
+    sendSignal({ type: "hello" });
+  });
+
+  client.on("message", function(topic, message) {
+    if (topic === SIGNAL_TOPIC) receiveSignal(message);
+    if (topic === AUDIO_SHARE_TOPIC) receiveSharedAudio(message);
+  });
 }
 
 function sendSignal(data) {
   if (!client || !client.connected) return;
-
-  const message = {
-    room: ROOM_NAME,
-    sender: currentUnit,
-    deviceId: deviceId,
-    timestamp: Date.now(),
-    ...data
-  };
-
-  client.publish(
-    SIGNAL_TOPIC,
-    JSON.stringify(message),
-    { qos: 0 }
-  );
+  client.publish(SIGNAL_TOPIC, JSON.stringify({ room: ROOM_NAME, sender: currentUnit, deviceId: deviceId, timestamp: Date.now(), ...data }));
 }
 
 async function receiveSignal(message) {
   try {
     const data = JSON.parse(message.toString());
-
-    if (!data.sender || !data.deviceId) return;
-    if (data.room !== ROOM_NAME) return;
-    if (data.deviceId === deviceId) return;
-    if (data.target && data.target !== deviceId) return;
-
+    if (data.room !== ROOM_NAME || data.deviceId === deviceId || (data.target && data.target !== deviceId)) return;
     remoteUnit = data.sender;
-
-    if (data.type === "hello") {
-      await handleHello(data);
-    }
-
-    if (data.type === "offer") {
-      await handleOffer(data);
-    }
-
-    if (data.type === "answer") {
-      await handleAnswer(data);
-    }
-
-    if (data.type === "candidate") {
-      await handleCandidate(data);
-    }
-
-  } catch (error) {
-    console.log("Error en señalización:", error);
-  }
+    if (data.type === "hello") await handleHello(data);
+    if (data.type === "offer") await handleOffer(data);
+    if (data.type === "answer") await handleAnswer(data);
+    if (data.type === "candidate") await handleCandidate(data);
+  } catch(e){}
 }
-
-/* WEBRTC */
 
 async function createPeerConnection(otherDeviceId) {
   if (peerConnection) return peerConnection;
-
-  peerConnection = new RTCPeerConnection({
-    iceServers: STUN_SERVERS
-  });
+  peerConnection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
 
   peerConnection.onicecandidate = function(event) {
-    if (event.candidate) {
-      sendSignal({
-        type: "candidate",
-        target: otherDeviceId,
-        candidate: event.candidate
-      });
-    }
+    if (event.candidate) sendSignal({ type: "candidate", target: otherDeviceId, candidate: event.candidate });
   };
 
   peerConnection.ontrack = function(event) {
-    if (!event.streams || !event.streams[0]) return;
-
-    remoteAudio.srcObject = event.streams[0];
-
-    remoteAudio.play().catch(function(error) {
-      console.log("El navegador bloqueó el audio:", error);
-    });
-
-    setStatus(
-      "▼ RECIBIENDO: " + remoteUnit,
-      "receiving"
-    );
+    if (event.streams && event.streams[0]) {
+      remoteAudio.srcObject = event.streams[0];
+      remoteAudio.play().catch(()=>{});
+      setStatus("▼ RECIBIENDO: " + remoteUnit, "receiving");
+    }
   };
 
   peerConnection.onconnectionstatechange = function() {
-    if (!peerConnection) return;
-
-    const state = peerConnection.connectionState;
-
-    if (state === "connected") {
-      setStatus(
-        "● CONEXIÓN DIRECTA ACTIVA",
-        "connected"
-      );
-
-      connectionInfo.textContent =
-        "Audio en tiempo real conectado";
-    }
-
-    if (state === "disconnected" || state === "failed") {
-      setStatus("● CONEXIÓN PERDIDA", "error");
-
-      connectionInfo.textContent =
-        "Intentando recuperar conexión...";
+    if (peerConnection && peerConnection.connectionState === "connected") {
+      setStatus("● CONEXIÓN DIRECTA ACTIVA", "connected");
     }
   };
 
-  if (!localStream) {
-    const ready = await initializeMicrophone();
-
-    if (!ready) return null;
-  }
-
-  const audioTrack =
-    localStream.getAudioTracks()[0];
-
+  if (!localStream) await initializeMicrophone();
+  const audioTrack = localStream.getAudioTracks()[0];
   if (audioTrack) {
     audioTrack.enabled = false;
-
-    peerConnection.addTrack(
-      audioTrack,
-      localStream
-    );
+    peerConnection.addTrack(audioTrack, localStream);
   }
-
   return peerConnection;
 }
 
 async function initializeMicrophone() {
   if (localStream) return true;
-
-  if (
-    !navigator.mediaDevices ||
-    !navigator.mediaDevices.getUserMedia
-  ) {
-    alert("Este navegador no permite usar el micrófono.");
-    return false;
-  }
-
   try {
-    localStream =
-      await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-
-    const audioTrack =
-      localStream.getAudioTracks()[0];
-
-    if (audioTrack) {
-      audioTrack.enabled = false;
-    }
-
-    microphoneReady = true;
-
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    localStream.getAudioTracks()[0].enabled = false;
     return true;
-
-  } catch (error) {
-    alert("Debes permitir el acceso al micrófono.");
+  } catch(e) {
+    alert("Permiso de micrófono denegado.");
     return false;
   }
 }
 
 async function handleHello(data) {
-  remoteUnit = data.sender;
-
-  if (
-    currentUnit.toLowerCase() <
-    data.sender.toLowerCase()
-  ) {
-    return;
-  }
-
-  const connection =
-    await createPeerConnection(data.deviceId);
-
+  if (currentUnit.toLowerCase() < data.sender.toLowerCase()) return;
+  const connection = await createPeerConnection(data.deviceId);
   if (!connection) return;
-
-  const offer =
-    await connection.createOffer();
-
+  const offer = await connection.createOffer();
   await connection.setLocalDescription(offer);
-
-  sendSignal({
-    type: "offer",
-    target: data.deviceId,
-    offer: offer
-  });
-
-  connectionInfo.textContent =
-    "Conectando con " + data.sender + "...";
+  sendSignal({ type: "offer", target: data.deviceId, offer: offer });
 }
 
 async function handleOffer(data) {
-  const connection =
-    await createPeerConnection(data.deviceId);
-
+  const connection = await createPeerConnection(data.deviceId);
   if (!connection) return;
-
-  await connection.setRemoteDescription(
-    new RTCSessionDescription(data.offer)
-  );
-
-  for (const candidate of pendingCandidates) {
-    try {
-      await connection.addIceCandidate(candidate);
-    } catch (error) {
-      console.log("Error ICE:", error);
-    }
-  }
-
+  await connection.setRemoteDescription(new RTCSessionDescription(data.offer));
+  for (const c of pendingCandidates) await connection.addIceCandidate(c);
   pendingCandidates = [];
-
-  const answer =
-    await connection.createAnswer();
-
+  const answer = await connection.createAnswer();
   await connection.setLocalDescription(answer);
-
-  sendSignal({
-    type: "answer",
-    target: data.deviceId,
-    answer: answer
-  });
-
-  connectionInfo.textContent =
-    "Respondiendo a " + data.sender + "...";
+  sendSignal({ type: "answer", target: data.deviceId, answer: answer });
 }
 
 async function handleAnswer(data) {
   if (!peerConnection) return;
-
-  await peerConnection.setRemoteDescription(
-    new RTCSessionDescription(data.answer)
-  );
-
-  for (const candidate of pendingCandidates) {
-    try {
-      await peerConnection.addIceCandidate(candidate);
-    } catch (error) {
-      console.log("Error ICE:", error);
-    }
-  }
-
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+  for (const c of pendingCandidates) await connection.addIceCandidate(c);
   pendingCandidates = [];
-
-  connectionInfo.textContent =
-    "Estableciendo audio directo...";
 }
 
 async function handleCandidate(data) {
-  const candidate =
-    new RTCIceCandidate(data.candidate);
-
-  if (
-    peerConnection &&
-    peerConnection.remoteDescription
-  ) {
-    try {
-      await peerConnection.addIceCandidate(candidate);
-    } catch (error) {
-      console.log("Error ICE:", error);
-    }
+  const candidate = new RTCIceCandidate(data.candidate);
+  if (peerConnection && peerConnection.remoteDescription) {
+    try { await peerConnection.addIceCandidate(candidate); } catch(e){}
   } else {
     pendingCandidates.push(candidate);
   }
 }
 
-/* GRABACIÓN */
+/* GRABACIÓN Y COMPARTIR AUDIO */
 
 function startRecording() {
   if (!localStream) return;
-
-  if (!window.MediaRecorder) {
-    console.log("MediaRecorder no disponible.");
-    return;
-  }
-
   recordedChunks = [];
-
   try {
-    mediaRecorder =
-      new MediaRecorder(localStream);
-
-    recordingStartedAt = new Date();
-
-    mediaRecorder.ondataavailable = function(event) {
-      if (event.data && event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
+    mediaRecorder = new MediaRecorder(localStream);
+    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = () => {
+        if (client && client.connected) {
+          client.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
+            unit: currentUnit,
+            date: new Date().toLocaleString("es-SV"),
+            timestamp: Date.now(),
+            payload: reader.result
+          }));
+        }
+      };
     };
-
-    mediaRecorder.onstop = function() {
-      const audioBlob =
-        new Blob(recordedChunks, {
-          type: mediaRecorder.mimeType || "audio/webm"
-        });
-
-      saveAudioLocally(audioBlob);
-
-      recordedChunks = [];
-      mediaRecorder = null;
-    };
-
     mediaRecorder.start();
-
-  } catch (error) {
-    console.log("No se pudo iniciar la grabación:", error);
-  }
+  } catch(e){}
 }
 
 function stopRecording() {
-  if (
-    mediaRecorder &&
-    mediaRecorder.state !== "inactive"
-  ) {
-    mediaRecorder.stop();
-  }
+  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
 }
 
-function saveAudioLocally(audioBlob) {
-  if (!database || !audioBlob.size) return;
-
-  const transaction =
-    database.transaction(["audios"], "readwrite");
-
-  const store =
-    transaction.objectStore("audios");
-
-  store.add({
-    unit: currentUnit,
-    date: new Date().toLocaleString("es-SV"),
-    timestamp: Date.now(),
-    blob: audioBlob
-  });
-
-  transaction.oncomplete = function() {
-    loadAudioHistory();
-  };
+function receiveSharedAudio(message) {
+  try {
+    const data = JSON.parse(message.toString());
+    fetch(data.payload)
+      .then(res => res.blob())
+      .then(blob => {
+        saveAudioToDB({
+          unit: data.unit,
+          date: data.date,
+          timestamp: data.timestamp,
+          blob: blob
+        });
+      });
+  } catch(e){}
 }
 
-/* HISTORIAL */
+function saveAudioToDB(audioObj) {
+  if (!database) return;
+  const transaction = database.transaction(["audios"], "readwrite");
+  const store = transaction.objectStore("audios");
+  store.add(audioObj);
+  transaction.oncomplete = () => loadAudioHistory();
+}
 
 function loadAudioHistory() {
   if (!database) return;
-
   audioHistory.innerHTML = "";
-
-  const transaction =
-    database.transaction(["audios"], "readonly");
-
-  const store =
-    transaction.objectStore("audios");
-
+  const transaction = database.transaction(["audios"], "readonly");
+  const store = transaction.objectStore("audios");
   const request = store.getAll();
 
   request.onsuccess = function() {
-    const audios = request.result.reverse();
-
+    const audios = request.result.sort((a, b) => b.timestamp - a.timestamp);
     if (!audios.length) {
-      audioHistory.innerHTML =
-        '<p class="empty-history">No hay audios guardados.</p>';
+      audioHistory.innerHTML = '<p class="empty-history">No hay audios en el canal.</p>';
       return;
     }
 
-    audios.forEach(function(audioData) {
-      const item =
-        document.createElement("div");
-
+    audios.forEach(audioData => {
+      const item = document.createElement("div");
       item.className = "audio-item";
 
-      const title =
-        document.createElement("strong");
+      const title = document.createElement("strong");
+      title.textContent = "🎙️ " + audioData.unit;
 
-      title.textContent =
-        "🎙️ " + audioData.unit;
+      const date = document.createElement("small");
+      date.textContent = audioData.date;
 
-      const date =
-        document.createElement("small");
-
-      date.textContent =
-        audioData.date;
-
-      const audio =
-        document.createElement("audio");
-
+      const audio = document.createElement("audio");
       audio.controls = true;
       audio.preload = "metadata";
-
-      audio.src =
-        URL.createObjectURL(audioData.blob);
-
-      const deleteButton =
-        document.createElement("button");
-
-      deleteButton.className = "delete-audio";
-      deleteButton.textContent = "Eliminar";
-
-      deleteButton.addEventListener("click", function() {
-        deleteAudio(audioData.id);
-      });
+      audio.src = URL.createObjectURL(audioData.blob);
 
       item.appendChild(title);
       item.appendChild(date);
       item.appendChild(audio);
-      item.appendChild(deleteButton);
-
       audioHistory.appendChild(item);
     });
   };
 }
 
-function deleteAudio(id) {
-  if (!database) return;
+/* PTT */
 
-  const transaction =
-    database.transaction(["audios"], "readwrite");
+async function startPTT(e) {
+  if (e) e.preventDefault();
+  if (isTalking || !peerConnection || peerConnection.connectionState !== "connected") return;
+  if (!localStream) await initializeMicrophone();
 
-  const store =
-    transaction.objectStore("audios");
-
-  store.delete(id);
-
-  transaction.oncomplete = function() {
-    loadAudioHistory();
-  };
-}
-
-/* BOTÓN PTT */
-
-async function startPTT(event) {
-  if (event) event.preventDefault();
-
-  if (isTalking) return;
-
-  if (
-    !peerConnection ||
-    peerConnection.connectionState !== "connected"
-  ) {
-    setStatus(
-      "● ESPERANDO CONEXIÓN DE OTRA UNIDAD",
-      "error"
-    );
-    return;
-  }
-
-  if (!localStream) {
-    const ready =
-      await initializeMicrophone();
-
-    if (!ready) return;
-  }
-
-  const audioTrack =
-    localStream.getAudioTracks()[0];
-
+  const audioTrack = localStream.getAudioTracks()[0];
   if (!audioTrack) return;
 
   audioTrack.enabled = true;
-
   isTalking = true;
-
   pttButton.classList.add("active");
-
-  setStatus(
-    "▲ TRANSMITIENDO: " + currentUnit,
-    "transmitting"
-  );
-
-  sendSignal({
-    type: "talk-start"
-  });
-
+  setStatus("▲ TRANSMITIENDO: " + currentUnit, "transmitting");
   startRecording();
-
-  if (navigator.vibrate) {
-    navigator.vibrate(50);
-  }
+  if (navigator.vibrate) navigator.vibrate(50);
 }
 
-function stopPTT(event) {
-  if (event) event.preventDefault();
-
+function stopPTT(e) {
+  if (e) e.preventDefault();
   if (!isTalking) return;
 
-  const audioTrack =
-    localStream &&
-    localStream.getAudioTracks()[0];
-
-  if (audioTrack) {
-    audioTrack.enabled = false;
-  }
+  const audioTrack = localStream && localStream.getAudioTracks()[0];
+  if (audioTrack) audioTrack.enabled = false;
 
   isTalking = false;
-
   pttButton.classList.remove("active");
-
-  setStatus(
-    "● CONEXIÓN DIRECTA ACTIVA",
-    "connected"
-  );
-
-  sendSignal({
-    type: "talk-stop"
-  });
-
+  setStatus("● CONEXIÓN DIRECTA ACTIVA", "connected");
   stopRecording();
 }
 
-/* CONTROLES TÁCTILES */
+pttButton.addEventListener("pointerdown", e => { e.preventDefault(); startPTT(e); });
+pttButton.addEventListener("pointerup", e => { e.preventDefault(); stopPTT(e); });
+pttButton.addEventListener("pointercancel", e => { e.preventDefault(); stopPTT(e); });
 
-pttButton.addEventListener(
-  "pointerdown",
-  function(event) {
-    event.preventDefault();
+window.addEventListener("keydown", e => { if (e.code === "Space" && !e.repeat && document.activeElement !== unitInput) startPTT(e); });
+window.addEventListener("keyup", e => { if (e.code === "Space") stopPTT(e); });
 
-    if (pttButton.setPointerCapture) {
-      try {
-        pttButton.setPointerCapture(
-          event.pointerId
-        );
-      } catch (error) {}
-    }
-
-    startPTT(event);
-  }
-);
-
-pttButton.addEventListener(
-  "pointerup",
-  function(event) {
-    event.preventDefault();
-    stopPTT(event);
-  }
-);
-
-pttButton.addEventListener(
-  "pointercancel",
-  function(event) {
-    event.preventDefault();
-    stopPTT(event);
-  }
-);
-
-pttButton.addEventListener(
-  "lostpointercapture",
-  function(event) {
-    if (isTalking) {
-      stopPTT(event);
-    }
-  }
-);
-
-/* TECLADO */
-
-window.addEventListener("keydown", function(event) {
-  if (
-    event.code === "Space" &&
-    !event.repeat &&
-    document.activeElement !== unitInput
-  ) {
-    startPTT(event);
-  }
-});
-
-window.addEventListener("keyup", function(event) {
-  if (event.code === "Space") {
-    stopPTT(event);
-  }
-});
-
-/* ACTIVAR AUDIO */
-
-document.addEventListener(
-  "click",
-  function() {
-    remoteAudio.play().catch(function() {});
-  },
-  { passive: true }
-);
-
-/* INICIO */
+document.addEventListener("click", () => { remoteAudio.play().catch(()=>{}); }, { passive: true });
 
 connectMQTT();
-
 </script>
 </body>
 </html>
