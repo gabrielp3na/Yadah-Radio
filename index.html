@@ -1132,12 +1132,13 @@
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
-    // GESTIÓN DE PERFILES Y AUTENTICACIÓN
+    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (CORREGIDO)
     function selectUnit(id) {
       currentUnit = id;
       localStorage.setItem('yadah_terminal_id', id);
       deviceId = currentUnit + "_" + Math.random().toString(16).substring(2, 10);
       lblUnit.textContent = id;
+      
       loginScreen.style.display = 'none';
 
       firstPersonMode = isDriver();
@@ -1150,6 +1151,15 @@
       applyNightModeTheme();
       connectMQTT();
       connectSignaling();
+
+      setTimeout(() => {
+        if (map) {
+          map.resize();
+          if (myLastCoords) {
+            map.jumpTo({ center: [myLastCoords.lon, myLastCoords.lat] });
+          }
+        }
+      }, 200);
     }
 
     function logoutUnit() {
