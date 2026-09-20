@@ -3,24 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Yadah Radio 3D Flota - Zello Mode</title>
-
-  <!-- MapLibre GL JS -->
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-
+  <title>Yadah Radio - Módulo PTT Aislado</title>
   <!-- MQTT WebSockets -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
       background-color: #0b0f19;
       color: #f8fafc;
@@ -29,465 +16,145 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-    }
-
-    #login-screen {
-      position: fixed;
-      inset: 0;
-      background: #0b0f19;
-      z-index: 4000;
-      display: flex;
-      flex-direction: column;
+      justify-content: space-between;
       padding: 20px;
-      overflow-y: auto;
     }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-
-    .login-header h1 {
-      color: #f59e0b;
-      font-size: 1.4rem;
-      margin-bottom: 4px;
-    }
-
-    .login-header p {
-      color: #94a3b8;
-      font-size: 0.85rem;
-    }
-
-    .grid-units {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      max-width: 420px;
-      margin: 0 auto;
+    .radio-container {
+      max-width: 400px;
+      margin: auto;
       width: 100%;
-      padding-bottom: 30px;
-    }
-
-    .btn-unit-select {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #f8fafc;
-      padding: 12px 6px;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .btn-unit-select.modulador {
-      grid-column: span 2;
-      background: #1e3a8a;
-      border-color: #3b82f6;
-      color: #dbeafe;
-      font-size: 1rem;
-    }
-
-    .btn-unit-select:active {
-      background: #f59e0b;
-      color: #0b0f19;
-    }
-
-    header {
-      background-color: #111827;
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #1f2937;
-      z-index: 1000;
-      flex-shrink: 0;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #f59e0b;
-      white-space: nowrap;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      align-items: center;
-    }
-
-    .btn-header {
-      background: #1f2937;
-      border: 1px solid #374151;
-      color: #cbd5e1;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    #gps-lock-banner {
-      background: #dc2626;
-      color: #ffffff;
-      padding: 6px 12px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 2200;
-    }
-
-    #map-container {
-      flex: 1;
-      width: 100%;
-      position: relative;
-      overflow: hidden;
-      background-color: #0f172a;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-
-    .map-night-mode .maplibregl-canvas {
-      filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(110%);
-    }
-
-    .map-floating-controls {
-      position: absolute;
-      top: 65px;
-      right: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      z-index: 2500;
-    }
-
-    .btn-float-action {
-      width: 46px;
-      height: 46px;
-      border-radius: 12px;
       background: #111827;
-      border: 2px solid #f59e0b;
-      color: #f59e0b;
-      font-size: 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    .controls-panel {
-      background-color: #111827;
-      padding: 10px 14px;
-      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      border: 2px solid #1f2937;
+      border-radius: 16px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      border-top: 1px solid #1f2937;
-      z-index: 1000;
-      flex-shrink: 0;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }
-
-    .status-bar {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      color: #94a3b8;
-    }
-
-    .status-active { color: #10b981; font-weight: 600; }
-    .status-warning { color: #ef4444; font-weight: 700; }
-
-    .channel-status {
-      background-color: #030712;
+    .header-title {
       text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 0.85rem;
+      color: #f59e0b;
+      font-size: 1.2rem;
       font-weight: 800;
-      letter-spacing: 0.5px;
+    }
+    .status-box {
+      background: #030712;
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 800;
       color: #94a3b8;
       border: 1px solid #1f2937;
       transition: all 0.2s ease;
     }
-
-    .channel-status.transmitting {
+    .status-box.transmitting {
       background-color: #dc2626;
       color: #ffffff;
       border-color: #ef4444;
       box-shadow: 0 0 15px rgba(220, 38, 38, 0.6);
-      animation: pulse 0.6s infinite alternate;
     }
-
-    .channel-status.receiving {
+    .status-box.receiving {
       background-color: #059669;
       color: #ffffff;
       border-color: #10b981;
       box-shadow: 0 0 15px rgba(5, 150, 105, 0.6);
     }
-
-    .channel-status.blocked {
-      background-color: #450a0a;
-      color: #fca5a5;
-      border-color: #dc2626;
-    }
-
-    @keyframes pulse { from { opacity: 0.8; transform: scale(1); } to { opacity: 1; transform: scale(1.02); } }
-
-    /* BOTÓN PTT GIGANTE ESTILO ZELLO */
     .btn-ptt {
       width: 100%;
-      height: 80px;
+      height: 120px;
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
       border: 4px solid #f59e0b;
-      border-radius: 20px;
+      border-radius: 24px;
       color: #f59e0b;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       font-weight: 900;
-      letter-spacing: 1.5px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 8px;
       cursor: pointer;
       touch-action: none;
       box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-      transition: transform 0.1s ease, background 0.1s ease;
     }
-
-    .btn-ptt:active, .btn-ptt.active { 
+    .btn-ptt:active, .btn-ptt.active {
       background: radial-gradient(circle, #f59e0b 0%, #d97706 100%);
       color: #030712;
       border-color: #fef08a;
       transform: scale(0.97);
       box-shadow: 0 0 25px rgba(245, 158, 11, 0.8);
     }
-
-    .btn-ptt.gps-disabled {
-      background-color: #1e293b !important;
-      border-color: #475569 !important;
-      color: #64748b !important;
-      cursor: not-allowed !important;
-      opacity: 0.65;
-    }
-
-    #history-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 3500;
-      display: none;
-      align-items: flex-end;
-    }
-
-    .history-card {
-      width: 100%;
-      background: #111827;
-      border-top: 2px solid #f59e0b;
-      border-radius: 16px 16px 0 0;
-      padding: 16px;
-      max-height: 65vh;
+    .unit-input-group {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .history-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: bold;
-      color: #f59e0b;
-    }
-
-    .history-list {
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
       gap: 8px;
-      padding-bottom: 20px;
     }
-
-    .history-item {
-      background: #1e293b;
-      padding: 10px 12px;
-      border-radius: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.82rem;
+    .unit-input-group input {
+      flex: 1;
+      background: #030712;
       border: 1px solid #334155;
+      padding: 10px;
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
     }
-
-    .btn-play-audio {
+    .unit-input-group button {
       background: #f59e0b;
       border: none;
-      color: #111827;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: bold;
+      color: #0b0f19;
+      font-weight: 800;
+      padding: 0 14px;
+      border-radius: 8px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-  <!-- ELEMENTO DE AUDIO NATIVO PARA REPRODUCIR STREAMING ZELLO -->
   <audio id="radio-speaker" playsinline preload="auto"></audio>
 
-  <div id="gps-lock-banner">
-    <span>⚠️ GPS DENEGADO O APAGADO. La radio está bloqueada hasta activar la ubicación.</span>
-  </div>
-
-  <div id="login-screen">
-    <div class="login-header">
-      <h1>📻 Zello Radio Flota</h1>
-      <p>Selecciona tu terminal de despacho (Clave: 2021)</p>
-    </div>
-    <div class="grid-units">
-      <button class="btn-unit-select modulador" onclick="solicitarAccesoPerfil('Modulador')">
-        <span>🏢</span> Modulador / Base Central
-      </button>
-      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 01')"><span>🚘</span> Móvil 01</button>
-      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 02')"><span>🚘</span> Móvil 02</button>
-      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 03')"><span>🚘</span> Móvil 03</button>
-      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 04')"><span>🚘</span> Móvil 04</button>
-      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 05')"><span>🚘</span> Móvil 05</button>
-    </div>
-  </div>
-
-  <header>
-    <div class="brand">
-      <span>📻</span> Zello PTT Directo
-    </div>
-    <div class="header-actions">
-      <button class="btn-header" onclick="toggleHistory(true)">📁 Buzón de Voz</button>
-    </div>
-  </header>
-
-  <div id="map-container">
-    <div id="map"></div>
-    <div class="map-floating-controls">
-      <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
-    </div>
-  </div>
-
-  <div class="controls-panel">
-    <div class="status-bar">
-      <span>Unidad: <b style="color:#f59e0b;" id="lbl-unit">--</b></span>
-      <span>GPS: <b id="lbl-gps-status" class="status-warning">Comprobando...</b></span>
-      <span>Vel: <b class="status-active" id="lbl-speed">0 km/h</b></span>
+  <div class="radio-container">
+    <div class="header-title">📻 Yadah PTT - Módulo de Radio</div>
+    
+    <div class="unit-input-group">
+      <input type="text" id="input-unit" value="Móvil 01" placeholder="Nombre de tu unidad">
+      <button onclick="setUnitName()">Fijar</button>
     </div>
 
-    <!-- PANTALLA DE ESTADO ZELLO -->
-    <div class="channel-status" id="channel-status">
-      ● CANAL LISTO (LIBRE)
+    <div class="status-box" id="channel-status">
+      ● CANAL LIBRE
     </div>
 
-    <!-- BOTÓN GIGANTE PTT TIPO ZELLO -->
     <button class="btn-ptt" id="btn-ptt">
-      <span>🎙️</span> MANTÉN PRESIONADO PARA HABLAR
+      <span style="font-size: 2rem;">🎙️</span>
+      <span>MANTÉN PRESIONADO PARA HABLAR</span>
     </button>
-  </div>
-
-  <div id="history-modal" onclick="toggleHistory(false)">
-    <div class="history-card" onclick="event.stopPropagation()">
-      <div class="history-head">
-        <span>Buzón de Voz (24h)</span>
-        <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem; padding:4px;" onclick="toggleHistory(false)">✕</span>
-      </div>
-      <div class="history-list" id="history-list">
-        <p style="color:#64748b; font-size:0.85rem;">No hay transmisiones registradas.</p>
-      </div>
+    
+    <div style="font-size: 0.75rem; color: #64748b; text-align: center;">
+      Tip: También puedes usar la barra <b>Espacio</b> del teclado para transmitir.
     </div>
   </div>
 
   <script>
-    let currentUnit = localStorage.getItem('yadah_terminal_id');
-    const isDriver = () => currentUnit && currentUnit !== 'Modulador';
-    const isModulator = () => currentUnit === 'Modulador';
+    let currentUnit = localStorage.getItem('isolated_unit') || 'Móvil 01';
+    document.getElementById('input-unit').value = currentUnit;
 
-    const loginScreen = document.getElementById('login-screen');
-    const lblUnit = document.getElementById('lbl-unit');
-    const lblSpeed = document.getElementById('lbl-speed');
-    const lblGpsStatus = document.getElementById('lbl-gps-status');
+    function setUnitName() {
+      const val = document.getElementById('input-unit').value.trim();
+      if (val) {
+        currentUnit = val;
+        localStorage.setItem('isolated_unit', val);
+        alert(`Unidad configurada como: ${val}`);
+      }
+    }
+
     const channelStatus = document.getElementById('channel-status');
-    const radioSpeaker = document.getElementById('radio-speaker');
-    const gpsLockBanner = document.getElementById('gps-lock-banner');
     const btnPtt = document.getElementById('btn-ptt');
+    const radioSpeaker = document.getElementById('radio-speaker');
 
-    let gpsPermissionGranted = false;
-
-    function solicitarAccesoPerfil(id) {
-      const pass = prompt(`🔐 Ingrese la contraseña de seguridad para [ ${id} ]:`, "2021");
-      if (pass === "2021") {
-        selectUnit(id);
-      } else if (pass !== null) {
-        alert("❌ Contraseña incorrecta (Usa: 2021).");
-      }
-    }
-
-    function selectUnit(id) {
-      currentUnit = id;
-      localStorage.setItem('yadah_terminal_id', id);
-      lblUnit.textContent = id;
-      loginScreen.style.display = 'none';
-      unlockAudioHardware();
-      connectNetwork();
-    }
-
-    function updateGpsLockState(allowed) {
-      gpsPermissionGranted = allowed;
-      if (isModulator() || allowed) {
-        lblGpsStatus.textContent = 'Activo';
-        lblGpsStatus.className = 'status-active';
-        btnPtt.classList.remove('gps-disabled');
-        btnPtt.innerHTML = '<span>🎙️</span> MANTÉN PRESIONADO PARA HABLAR';
-        gpsLockBanner.style.display = 'none';
-      } else {
-        lblGpsStatus.textContent = 'Denegado/Apagado';
-        lblGpsStatus.className = 'status-warning';
-        btnPtt.classList.add('gps-disabled');
-        btnPtt.innerHTML = '<span>🚫</span> GPS REQUERIDO';
-        gpsLockBanner.style.display = 'flex';
-      }
-    }
-
-    // --- MAPA LEAFLET/MAPLIBRE BÁSICO ---
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [-89.3562, 13.7242],
-      zoom: 15
-    });
-
-    function toggleFullScreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-
-    // --- AUDIO HARDWARE UNLOCK (Zello Style) ---
+    // Desbloqueo de Audio Context
     let audioCtx = null;
-
     function unlockAudioHardware() {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -516,15 +183,14 @@
       } catch (e) {}
     }
 
-    // --- MQTT NETWORK ZELLO ---
+    // MQTT Conexión
     let mqttClient = null;
     const TOPIC_VOICE = 'yadah/radio/flota/voice';
     const TOPIC_ALERT = 'yadah/radio/flota/alert';
 
     function connectNetwork() {
-      if (mqttClient && mqttClient.connected) return;
       mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-        clientId: 'zello_' + Math.random().toString(16).substring(2, 9),
+        clientId: 'iso_' + Math.random().toString(16).substring(2, 9),
         clean: true
       });
 
@@ -535,102 +201,75 @@
 
       mqttClient.on('message', (topic, message) => {
         try {
-          const text = message.toString();
-          if (topic === TOPIC_ALERT) {
-            const data = JSON.parse(text);
-            if (data.sender !== currentUnit) {
-              channelStatus.className = 'channel-status receiving';
-              channelStatus.textContent = `▼ ENTRANTE: ${data.sender}`;
-              playBeep(660, 0.06);
-            }
-          } else if (topic === TOPIC_VOICE) {
-            const voice = JSON.parse(text);
-            if (voice.sender !== currentUnit) {
-              receiveVoiceZello(voice);
-            }
+          const data = JSON.parse(message.toString());
+          if (topic === TOPIC_ALERT && data.sender !== currentUnit) {
+            channelStatus.className = 'status-box receiving';
+            channelStatus.textContent = `▼ HABLANDO: ${data.sender}`;
+            playBeep(660, 0.06);
+          } else if (topic === TOPIC_VOICE && data.sender !== currentUnit) {
+            queueVoice(data);
           }
-        } catch (e) {}
+        } catch(e){}
       });
     }
+    connectNetwork();
 
-    // ==========================================
-    // MOTOR DE AUDIO TIPO ZELLO (Streaming ultrarrápido)
-    // ==========================================
+    // Grabación y Reproducción PTT
     let mediaRecorder = null;
     let audioStream = null;
     let isRecording = false;
     let audioQueue = [];
-    let isPlayingQueue = false;
+    let isPlaying = false;
 
-    async function initAudioEngine() {
-      try {
-        if (!audioStream) {
-          audioStream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { 
-              echoCancellation: true, 
-              noiseSuppression: true, 
-              autoGainControl: true,
-              sampleRate: 16000 
-            } 
-          });
-        }
-      } catch (err) {
-        alert("⚠️ Error al acceder al micrófono. Asegúrate de dar permisos en tu navegador.");
+    async function initMic() {
+      if (!audioStream) {
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
+        });
       }
     }
 
-    async function startAudioRecording(e) {
+    async function startPTT(e) {
       if (e) e.preventDefault();
-      if (isDriver() && !gpsPermissionGranted) return;
       if (isRecording) return;
       isRecording = true;
 
       unlockAudioHardware();
-      await initAudioEngine();
-      if (!audioStream) {
-        isRecording = false;
-        return;
-      }
+      await initMic();
+      if (!audioStream) { isRecording = false; return; }
 
-      if (navigator.vibrate) navigator.vibrate(60); // Vibración táctil Zello style
-      playBeep(920, 0.05); // Sonido de "bip" al abrir canal
-      
+      if (navigator.vibrate) navigator.vibrate(60);
+      playBeep(920, 0.05);
+
       btnPtt.classList.add('active');
-      channelStatus.className = 'channel-status transmitting';
-      channelStatus.textContent = '▲ TRANSMITIENDO (EN VIVO)...';
+      channelStatus.className = 'status-box transmitting';
+      channelStatus.textContent = '▲ TRANSMITIENDO EN VIVO...';
 
       if (mqttClient && mqttClient.connected) {
         mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
       }
 
-      try {
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType: mime, bitsPerSecond: 12800 });
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      mediaRecorder = new MediaRecorder(audioStream, { mimeType: mime, bitsPerSecond: 12800 });
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0 && isRecording) {
-            const reader = new FileReader();
-            reader.readAsDataURL(event.data);
-            reader.onloadend = () => {
-              if (mqttClient && mqttClient.connected && isRecording) {
-                mqttClient.publish(TOPIC_VOICE, JSON.stringify({
-                  sender: currentUnit,
-                  payload: reader.result,
-                  timestamp: Date.now()
-                }));
-              }
-            };
-          }
-        };
-
-        // Fragmentación cada 100ms para menor latencia (modo Zello)
-        mediaRecorder.start(100);
-      } catch (err) {
-        isRecording = false;
-      }
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0 && isRecording) {
+          const reader = new FileReader();
+          reader.readAsDataURL(event.data);
+          reader.onloadend = () => {
+            if (mqttClient && mqttClient.connected && isRecording) {
+              mqttClient.publish(TOPIC_VOICE, JSON.stringify({
+                sender: currentUnit,
+                payload: reader.result
+              }));
+            }
+          };
+        }
+      };
+      mediaRecorder.start(100);
     }
 
-    function stopAudioRecording(e) {
+    function stopPTT(e) {
       if (e) e.preventDefault();
       if (!isRecording) return;
       isRecording = false;
@@ -640,151 +279,62 @@
       }
 
       btnPtt.classList.remove('active');
-      channelStatus.className = 'channel-status';
-      channelStatus.textContent = '● CANAL LISTO (LIBRE)';
-      playBeep(500, 0.05); // Sonido de "bip" al cerrar canal
+      channelStatus.className = 'status-box';
+      channelStatus.textContent = '● CANAL LIBRE';
+      playBeep(500, 0.05);
     }
 
-    function receiveVoiceZello(voiceData) {
-      if (voiceData.sender === currentUnit) return;
-
-      channelStatus.className = 'channel-status receiving';
-      channelStatus.textContent = `▼ ESCUCHANDO A: ${voiceData.sender}`;
-
-      audioQueue.push(voiceData);
-      if (!isPlayingQueue) {
-        processAudioQueue();
-      }
-
-      saveAudioToHistory({
-        sender: voiceData.sender,
-        payload: voiceData.payload,
-        timestamp: voiceData.timestamp || Date.now()
-      });
+    function queueVoice(data) {
+      audioQueue.push(data);
+      if (!isPlaying) processQueue();
     }
 
-    function processAudioQueue() {
+    function processQueue() {
       if (audioQueue.length === 0) {
-        isPlayingQueue = false;
-        channelStatus.className = 'channel-status';
-        channelStatus.textContent = '● CANAL LISTO (LIBRE)';
+        isPlaying = false;
+        channelStatus.className = 'status-box';
+        channelStatus.textContent = '● CANAL LIBRE';
         return;
       }
-
-      isPlayingQueue = true;
-      const voiceData = audioQueue.shift();
+      isPlaying = true;
+      const item = audioQueue.shift();
 
       try {
-        const parts = voiceData.payload.split(';base64,');
-        const contentType = parts[0].split(':')[1] || 'audio/webm';
+        const parts = item.payload.split(';base64,');
         const raw = window.atob(parts[1]);
-        const uInt8Array = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; ++i) {
-          uInt8Array[i] = raw.charCodeAt(i);
-        }
-        const blob = new Blob([uInt8Array], { type: contentType });
-        const audioUrl = URL.createObjectURL(blob);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) arr[i] = raw.charCodeAt(i);
+        const blob = new Blob([arr], { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
 
-        radioSpeaker.src = audioUrl;
+        radioSpeaker.src = url;
         radioSpeaker.volume = 1.0;
-        radioSpeaker.play().catch(() => {});
+        radioSpeaker.play().catch(()=>{});
 
         radioSpeaker.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          processAudioQueue();
+          URL.revokeObjectURL(url);
+          processQueue();
         };
-      } catch (err) {
-        processAudioQueue();
+      } catch(e) {
+        processQueue();
       }
     }
 
-    // --- EVENTOS PTT TÁCTILES Y DE ESCRITORIO ---
-    btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
-    btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
-    btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
-    btnPtt.addEventListener('mousedown', startAudioRecording);
-    btnPtt.addEventListener('mouseup', stopAudioRecording);
-    btnPtt.addEventListener('mouseleave', stopAudioRecording);
+    // Eventos de control
+    btnPtt.addEventListener('touchstart', startPTT, { passive: false });
+    btnPtt.addEventListener('touchend', stopPTT, { passive: false });
+    btnPtt.addEventListener('mousedown', startPTT);
+    btnPtt.addEventListener('mouseup', stopPTT);
+    btnPtt.addEventListener('mouseleave', stopPTT);
 
-    // Tecla Espacio para hablar estilo walkie-talkie
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
-        startAudioRecording(e);
+        startPTT(e);
       }
     });
     window.addEventListener('keyup', (e) => {
-      if (e.code === 'Space') stopAudioRecording(e);
+      if (e.code === 'Space') stopPTT(e);
     });
-
-    // --- GEOLOCALIZACIÓN BÁSICA ---
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          updateGpsLockState(true);
-          lblSpeed.textContent = `${Math.round((pos.coords.speed || 0) * 3.6)} km/h`;
-        },
-        () => { updateGpsLockState(false); },
-        { enableHighAccuracy: true }
-      );
-    } else {
-      updateGpsLockState(false);
-    }
-
-    // --- BUZÓN DE VOZ ---
-    function getStoredAudios() {
-      try {
-        return JSON.parse(localStorage.getItem('zello_audio_history') || '[]');
-      } catch (e) { return []; }
-    }
-
-    function saveAudioToHistory(item) {
-      const list = getStoredAudios();
-      list.unshift(item);
-      if (list.length > 20) list.pop();
-      localStorage.setItem('zello_audio_history', JSON.stringify(list));
-    }
-
-    function toggleHistory(show) {
-      const modal = document.getElementById('history-modal');
-      modal.style.display = show ? 'flex' : 'none';
-      if (show) {
-        const listContainer = document.getElementById('history-list');
-        const audios = getStoredAudios();
-        if (audios.length === 0) {
-          listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">No hay audios guardados.</p>';
-          return;
-        }
-        listContainer.innerHTML = audios.map((item, index) => `
-          <div class="history-item">
-            <div>
-              <b style="color:#f59e0b;">${item.sender}</b>
-              <div style="font-size:0.72rem; color:#94a3b8;">${new Date(item.timestamp).toLocaleTimeString()}</div>
-            </div>
-            <button class="btn-play-audio" onclick="playHistoryAudio(${index})">▶ Oír</button>
-          </div>
-        `).join('');
-      }
-    }
-
-    function playHistoryAudio(index) {
-      unlockAudioHardware();
-      const audios = getStoredAudios();
-      const item = audios[index];
-      if (!item) return;
-      const parts = item.payload.split(';base64,');
-      const raw = window.atob(parts[1]);
-      const uInt8Array = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; ++i) uInt8Array[i] = raw.charCodeAt(i);
-      const blob = new Blob([uInt8Array], { type: 'audio/webm' });
-      radioSpeaker.src = URL.createObjectURL(blob);
-      radioSpeaker.play();
-    }
-
-    if (currentUnit) {
-      loginScreen.style.display = 'none';
-      lblUnit.textContent = currentUnit;
-      connectNetwork();
-    }
   </script>
 </body>
 </html>
