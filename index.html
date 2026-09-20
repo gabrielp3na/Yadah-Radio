@@ -794,7 +794,7 @@
     'use strict';
 
     // ==========================================
-    // CONFIGURACIÓN DE RADIO, MQTT Y GPS
+    // CONFIGURACIÓN DE RADIO Y MQTT
     // ==========================================
     const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
     const RADIO_SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v9";
@@ -832,7 +832,7 @@
 
     let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
     
-    // VARIABLES GLOBALES
+    // VARIABLES GLOBALES (RADIO Y FLOTA)
     let radioClient = null;
     let radioLocalStream = null;
     let radioLocalTrack = null;
@@ -908,7 +908,9 @@
       }
     }
 
+    // ==========================================
     // MAPA MAPLIBRE
+    // ==========================================
     const map = new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
@@ -1205,7 +1207,7 @@
     }
 
     // ==========================================
-    // MAPA Y ACTUALIZACIÓN DE VEHÍCULOS (FLEET GPS)
+    // RASTREO Y RENDERIZADO DE VEHÍCULOS EN MAPA
     // ==========================================
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || !map) return;
@@ -1265,7 +1267,6 @@
           lblSpeed.textContent = `${mySpeed} km/h`;
           lblHeading.textContent = `${myHeading}°`;
 
-          // Mostrar mi propia posición en el mapa también
           if (currentUnit) {
             updateVehicleOnMap(currentUnit, lon, lat, myHeading, mySpeed, isSosActive);
           }
@@ -1283,7 +1284,7 @@
     }
 
     // ==========================================
-    // SISTEMA DE RADIO UNIFICADO Y ROBUSTO
+    // SISTEMA DE RADIO Y MQTT
     // ==========================================
     function initializeRadio() {
       if (radioInitialized) return;
@@ -1320,7 +1321,7 @@
           sendRadioSignal({ type: "hello" });
         });
         radioClient.subscribe(AUDIO_SHARE_TOPIC);
-        radioClient.subscribe(TOPIC_GPS); // Suscribirnos al GPS de la flota
+        radioClient.subscribe(TOPIC_GPS); // Suscripción activa al GPS de la flota
       });
 
       radioClient.on("error", (error) => {
@@ -1606,7 +1607,7 @@
     }
 
     // ==========================================
-    // EVENTOS PTT ROBUSTOS (POINTER EVENTS)
+    // EVENTOS PTT Y TECLADO
     // ==========================================
     if (pttButton) {
       pttButton.addEventListener("pointerdown", startRadioTalking);
