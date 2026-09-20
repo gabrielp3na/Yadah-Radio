@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Yadah Radio - Transcripción, Censura y Navegación 3D</title>
+  <title>Yadah Radio 3D Flota</title>
 
   <!-- MapLibre GL JS -->
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
@@ -185,6 +185,7 @@
 
     .btn-ctx-nav { background: #10b981; color: #ffffff; }
     .btn-ctx-save { background: #f59e0b; color: #0b0f19; }
+    .btn-ctx-assign { background: #3b82f6; color: #ffffff; }
     .btn-ctx-cancel { background: #374151; color: #cbd5e1; }
 
     #fleet-summary-bar {
@@ -254,7 +255,10 @@
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
+      transition: background 0.15s;
     }
+    .unit-card-row:active { background: #334155; }
+
     .unit-card-info b { font-size: 0.85rem; color: #f8fafc; }
     .unit-card-info div { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
 
@@ -304,8 +308,6 @@
       color: #f8fafc;
       font-size: 0.85rem;
       outline: none;
-      user-select: text;
-      -webkit-user-select: text;
     }
 
     .search-input-box button {
@@ -410,6 +412,13 @@
       color: #ffffff;
     }
 
+    .btn-float-action.unlocked {
+      background: #059669;
+      border-color: #10b981;
+      color: #ffffff;
+      animation: pulse-sos 0.8s infinite alternate;
+    }
+
     .btn-sos {
       position: absolute;
       bottom: 20px;
@@ -435,6 +444,15 @@
     @keyframes pulse-sos {
       from { transform: scale(1); background: #dc2626; }
       to { transform: scale(1.15); background: #991b1b; }
+    }
+
+    @keyframes pulse-base {
+      from { transform: scale(1); filter: drop-shadow(0 0 4px #38bdf8); }
+      to { transform: scale(1.12); filter: drop-shadow(0 0 14px #10b981); }
+    }
+
+    .base-active-glow {
+      animation: pulse-base 0.9s infinite alternate;
     }
 
     #sos-alert-banner {
@@ -491,26 +509,20 @@
       border: 1px solid #1f2937;
     }
 
-    .channel-status.success {
-      background-color: #047857;
-      color: white;
-      border-color: #10b981;
-    }
-
-    .channel-status.transmitting, .channel-status.talking {
-      background-color: #b91c1c;
-      color: white;
+    .channel-status.transmitting {
+      background-color: #dc2626;
+      color: #ffffff;
       border-color: #ef4444;
       animation: pulse 0.8s infinite alternate;
     }
 
     .channel-status.receiving {
-      background-color: #047857;
-      color: white;
+      background-color: #059669;
+      color: #ffffff;
       border-color: #10b981;
     }
 
-    .channel-status.error {
+    .channel-status.blocked {
       background-color: #450a0a;
       color: #fca5a5;
       border-color: #dc2626;
@@ -536,9 +548,9 @@
       touch-action: none;
     }
 
-    .btn-ptt.talking, .btn-ptt.active { background-color: #f59e0b; color: #030712; }
+    .btn-ptt.active { background-color: #f59e0b; color: #030712; }
 
-    .btn-ptt:disabled {
+    .btn-ptt.gps-disabled {
       background-color: #1e293b !important;
       border-color: #475569 !important;
       color: #64748b !important;
@@ -583,48 +595,25 @@
       padding-bottom: 20px;
     }
 
-    .audio-item {
-      background: #030712;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-
-    .audio-item p {
-      color: #e2e8f0;
-      font-size: 14px;
-      margin: 6px 0;
-      padding: 6px;
+    .history-item {
       background: #1e293b;
-      border-radius: 6px;
-    }
-
-    .audio-item small {
-      display: block;
-      color: #94a3b8;
-      margin-bottom: 8px;
-    }
-
-    .audio-item audio {
-      width: 100%;
-    }
-
-    .empty-history {
-      color: #94a3b8;
-      font-size: 13px;
-      text-align: center;
-    }
-
-    .transcript-live {
-      margin-top: 8px;
-      background: #030712;
-      border: 1px solid #334155;
+      padding: 10px 12px;
       border-radius: 8px;
-      padding: 8px 10px;
-      color: #cbd5e1;
-      font-size: 12px;
-      min-height: 38px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      border: 1px solid #334155;
+    }
+
+    .btn-play-audio {
+      background: #f59e0b;
+      border: none;
+      color: #111827;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     .car-marker-container {
@@ -654,17 +643,101 @@
       text-align: center;
     }
 
+    .car-badge.base-station {
+      border-color: #38bdf8;
+      background: #0f172a;
+    }
+
+    .car-badge.custom-poi {
+      border-color: #38bdf8;
+      background: #082f49;
+      color: #38bdf8;
+    }
+
     .car-svg-rotator {
       width: 44px;
       height: 44px;
       transition: transform 0.15s linear;
       transform-origin: center center;
     }
+
+    .base-icon {
+      font-size: 1.8rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+    }
+
+    #vehicle-history-card {
+      position: absolute;
+      top: 65px;
+      left: 12px;
+      background: #111827;
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 12px;
+      max-width: 290px;
+      z-index: 2600;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.7);
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .vh-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    .vh-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+    .btn-vh {
+      flex: 1;
+      padding: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-vh-apply { background: #10b981; color: #ffffff; }
+    .btn-vh-close { background: #ef4444; color: #ffffff; }
+
+    #client-tracking-screen {
+      position: fixed;
+      inset: 0;
+      background: #0b0f19;
+      z-index: 5000;
+      display: none;
+      flex-direction: column;
+    }
+    .client-header {
+      background: #111827;
+      padding: 14px;
+      border-bottom: 2px solid #38bdf8;
+      text-align: center;
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 1rem;
+    }
+    .client-map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 <body>
 
-  <audio id="remote-audio" autoplay playsinline></audio>
+  <audio id="radio-speaker" playsinline preload="auto"></audio>
+
+  <div id="client-tracking-screen">
+    <div class="client-header" id="client-header-title">🚘 Tu vehículo en camino - Yadah Fleet</div>
+    <div class="client-map" id="client-map"></div>
+  </div>
 
   <div id="fleet-list-drawer">
     <div class="drawer-header">
@@ -679,8 +752,9 @@
   </div>
 
   <div id="map-context-menu">
-    <div class="menu-title">📍 Punto Seleccionado</div>
-    <button class="btn-ctx btn-ctx-nav" onclick="ctxMainAction()">🚀 ¡Ir a este lugar!</button>
+    <div class="menu-title" id="menu-title-text">📍 Opción de Ubicación</div>
+    <button class="btn-ctx btn-ctx-nav" id="btn-ctx-action" onclick="ctxMainAction()">🚀 ¡Ir a este lugar!</button>
+    <button class="btn-ctx btn-ctx-assign" id="btn-ctx-assign" onclick="ctxAssignAction()" style="display:none;">🎯 Asignar a Móvil & Compartir...</button>
     <button class="btn-ctx btn-ctx-cancel" onclick="closeContextMenu()">Cancelar</button>
   </div>
 
@@ -694,7 +768,7 @@
 
   <div id="nav-search-bar">
     <div class="search-input-box">
-      <input type="text" id="input-destination" placeholder="Escribe el destino o negocio..." oninput="handleSearchInput(this.value)" autocomplete="off" />
+      <input type="text" id="input-destination" placeholder="Escribe el destino, negocio o enlace Google Maps..." oninput="handleSearchInput(this.value)" autocomplete="off" />
       <button onclick="prepareRouteDestination()">Buscar 🔍</button>
     </div>
     <div id="search-suggestions"></div>
@@ -707,26 +781,48 @@
     </div>
   </div>
 
+  <div id="vehicle-history-card">
+    <div class="vh-header">
+      <span id="vh-unit-name">Móvil</span>
+      <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem;" onclick="closeVehicleHistory()">✕</span>
+    </div>
+    <div style="font-size:0.75rem; color:#94a3b8;">Trazar ruta de las últimas 24 horas:</div>
+    <div class="vh-actions">
+      <button class="btn-vh btn-vh-apply" onclick="applyVehicleHistory()">Ver Recorrido 🗺️</button>
+      <button class="btn-vh btn-vh-close" onclick="closeVehicleHistory()">Cerrar ✕</button>
+    </div>
+    <div id="vh-status-info" style="font-size:0.7rem; color:#10b981; text-align:center; margin-top:4px;"></div>
+  </div>
+
   <div id="login-screen">
     <div class="login-header">
-      <h1>📻 Yadah Radio Flota 3D</h1>
-      <p>Selecciona tu terminal o perfil de supervisión</p>
+      <h1>📻 Yadah Radio Flota</h1>
+      <p>Selecciona tu terminal de despacho (Clave requerida)</p>
     </div>
     <div class="grid-units">
-      <button class="btn-unit-select modulador" onclick="selectUnit('Modulador')">
+      <button class="btn-unit-select modulador" onclick="solicitarAccesoPerfil('Modulador')">
         <span>🏢</span> Modulador / Base Central
       </button>
-      <button class="btn-unit-select" onclick="selectUnit('Móvil 01')"><span>🚘</span> Móvil 01</button>
-      <button class="btn-unit-select" onclick="selectUnit('Móvil 02')"><span>🚘</span> Móvil 02</button>
-      <button class="btn-unit-select" onclick="selectUnit('Móvil 03')"><span>🚘</span> Móvil 03</button>
-      <button class="btn-unit-select" onclick="selectUnit('Móvil 04')"><span>🚘</span> Móvil 04</button>
-      <button class="btn-unit-select" onclick="selectUnit('Móvil 05')"><span>🚘</span> Móvil 05</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 01')"><span>🚘</span> Móvil 01</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 02')"><span>🚘</span> Móvil 02</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 03')"><span>🚘</span> Móvil 03</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 04')"><span>🚘</span> Móvil 04</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 05')"><span>🚘</span> Móvil 05</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 06')"><span>🚘</span> Móvil 06</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 07')"><span>🚘</span> Móvil 07</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 08')"><span>🚘</span> Móvil 08</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 09')"><span>🚘</span> Móvil 09</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 10')"><span>🚘</span> Móvil 10</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 11')"><span>🚘</span> Móvil 11</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 12')"><span>🚘</span> Móvil 12</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 13')"><span>🚘</span> Móvil 13</button>
+      <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 14')"><span>🚘</span> Móvil 14</button>
     </div>
   </div>
 
   <header>
     <div class="brand">
-      <span>📻</span> Yadah PTT & Nav
+      <span>📻</span> Yadah PTT
     </div>
     <div class="header-actions">
       <button class="btn-header" id="btn-toggle-fleet" onclick="toggleFleetDrawer(true)" style="display:none; border-color:#38bdf8; color:#38bdf8;">📋 Flota</button>
@@ -737,23 +833,26 @@
   <div id="fleet-summary-bar" onclick="toggleFleetDrawer(true)">
     <span>🏢 <b>Supervisión Flota:</b></span>
     <span><span class="badge-stat online" id="stat-online">0 En línea</span></span>
+    <span><span class="badge-stat at-base" id="stat-base">0 En Base</span></span>
     <span><span class="badge-stat stopped" id="stat-stopped">0 Detenidos</span></span>
-    <span><span class="badge-stat offline" id="stat-offline">5 Apagados</span></span>
+    <span><span class="badge-stat offline" id="stat-offline">14 Apagados</span></span>
   </div>
 
   <div id="map-container">
     <div id="map"></div>
 
-    <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()" style="display:none;">🚨</button>
+    <button class="btn-sos" id="btn-sos" title="Botón de Pánico SOS" onclick="triggerSOS()">🚨</button>
 
     <div class="map-floating-controls">
-      <button class="btn-float-action btn-float-exit" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
+      <button class="btn-float-action btn-float-exit" id="btn-float-logout" title="Cambiar Perfil / Cerrar Sesión" onclick="logoutUnit()">🚪</button>
       <button class="btn-float-action" id="btn-traffic-toggle" title="Tráfico en Vivo">🚦</button>
       <button class="btn-float-action" id="btn-theme-mode" title="Modo Día / Noche">🌙</button>
-      <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital">🚘</button>
+      <button class="btn-float-action" id="btn-view-mode" title="Cambiar Vista 1ª Persona / Cenital Plano">🚘</button>
       <button class="btn-float-action" id="btn-recenter" title="Re-centrar">🎯</button>
       <button class="btn-float-action" title="Acercar Zoom" onclick="zoomIn()">➕</button>
       <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
+      <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
+      <button class="btn-float-action" id="btn-unlock-base" title="Desbloquear para Mover Base" onclick="toggleBaseUnlock()" style="display:none;">🔒</button>
     </div>
   </div>
 
@@ -769,11 +868,7 @@
       ● CANAL LIBRE
     </div>
 
-    <div class="transcript-live" id="transcript-live">
-      📝 Transcripción: esperando...
-    </div>
-
-    <button class="btn-ptt" id="ptt" disabled>
+    <button class="btn-ptt" id="btn-ptt">
       <span>🎙️</span> PULSAR PARA HABLAR (Espacio)
     </button>
   </div>
@@ -781,74 +876,341 @@
   <div id="history-modal" onclick="toggleHistory(false)">
     <div class="history-card" onclick="event.stopPropagation()">
       <div class="history-head">
-        <span>📁 Buzón de Transmisiones (24h)</span>
+        <span>Últimas Transmisiones (24h)</span>
         <span style="cursor:pointer; color:#94a3b8; font-size:1.1rem; padding:4px;" onclick="toggleHistory(false)">✕</span>
       </div>
-      <div class="history-list" id="audio-history">
-        <p class="empty-history">No hay registros recientes.</p>
+      <div class="history-list" id="history-list">
+        <p style="color:#64748b; font-size:0.85rem;">No hay transmisiones registradas.</p>
       </div>
     </div>
   </div>
 
   <script>
-    'use strict';
-
-    // ==========================================
-    // CONFIGURACIÓN DE RADIO Y MQTT
-    // ==========================================
-    const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-    const RADIO_SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v9";
-    const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v5";
-    const TOPIC_GPS = 'yadah/fleet/gps/v2';
-    const ROOM_NAME = "yadah-radio-flota-3d";
-
-    const STUN_SERVERS = [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" }
-    ];
-
-    const PALABRAS_PROHIBIDAS = ["maitra", "maitro", "babosada", "mierda", "puta"];
-
-    function escaparRegex(texto) {
-      return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!localStorage.getItem('yadah_sec_ver_2021_v2')) {
+      localStorage.removeItem('yadah_terminal_id');
+      localStorage.setItem('yadah_sec_ver_2021_v2', 'true');
     }
 
-    function filtrarTexto(texto) {
-      if (!texto || typeof texto !== "string") return "";
-      let resultado = texto;
-      PALABRAS_PROHIBIDAS.forEach(palabra => {
-        const palabraSegura = escaparRegex(palabra);
-        const regex = new RegExp("\\b" + palabraSegura + "\\b", "giu");
-        const censura = "*".repeat(palabra.length);
-        resultado = resultado.replace(regex, censura);
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackingUnit = urlParams.get('track');
+
+    if (trackingUnit) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('client-tracking-screen').style.display = 'flex';
+      document.querySelector('header').style.display = 'none';
+      document.getElementById('map-container').style.display = 'none';
+      document.querySelector('.controls-panel').style.display = 'none';
+
+      window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('client-header-title').textContent = `🚘 Siguiendo a: ${trackingUnit}`;
+        const clientMap = new maplibregl.Map({
+          container: 'client-map',
+          style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+          center: [-89.3562, 13.7242],
+          zoom: 16
+        });
+
+        let clientMarker = null;
+
+        const clientMqtt = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { clientId: 'client_' + Math.random().toString(16).substring(2,8) });
+        clientMqtt.on('connect', () => {
+          clientMqtt.subscribe('yadah/radio/flota/gps');
+        });
+
+        clientMqtt.on('message', (top, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            if (data.unit === trackingUnit && data.lat && data.lon) {
+              const coords = [data.lon, data.lat];
+              if (!clientMarker) {
+                const el = document.createElement('div');
+                el.style.fontSize = '2.2rem';
+                el.innerHTML = '🚗';
+                clientMarker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(clientMap);
+                clientMap.flyTo({ center: coords, zoom: 17 });
+              } else {
+                clientMarker.setLngLat(coords);
+                clientMap.panTo(coords, { duration: 500 });
+              }
+            }
+          } catch(e){}
+        });
       });
-      return resultado;
     }
 
-    const ALL_UNITS = ['Móvil 01', 'Móvil 02', 'Móvil 03', 'Móvil 04', 'Móvil 05'];
-    let currentUnit = localStorage.getItem('yadah_terminal_id') || null;
+    let db = null;
+    const DB_NAME = 'YadahFleetDB';
+    const STORE_NAME = 'gps_points';
+
+    function initDatabase() {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = (e) => {
+        const database = e.target.result;
+        if (!database.objectStoreNames.contains(STORE_NAME)) {
+          const store = database.createObjectStore(STORE_NAME, { autoIncrement: true });
+          store.createIndex('unit_time', ['unit', 'timestamp']);
+          store.createIndex('timestamp', 'timestamp');
+        }
+      };
+      request.onsuccess = (e) => {
+        db = e.target.result;
+        cleanOldTelemetry();
+      };
+    }
+
+    function savePointToDB(unit, lon, lat, speed, heading) {
+      if (!db) return;
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.add({ unit, lon, lat, speed, heading, timestamp: Date.now() });
+    }
+
+    function cleanOldTelemetry() {
+      if (!db) return;
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const index = store.index('timestamp');
+      const req = index.openCursor(IDBKeyRange.upperBound(oneDayAgo));
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          store.delete(cursor.primaryKey);
+          cursor.continue();
+        }
+      };
+    }
+
+    if (!trackingUnit) initDatabase();
+
+    const INTENTOS_KEY = 'yadah_intentos_perfiles';
+    const BLOQUEO_KEY = 'yadah_bloqueo_perfiles';
+
+    function obtenerIntentosYBloqueos() {
+      try {
+        return {
+          intentos: JSON.parse(localStorage.getItem(INTENTOS_KEY) || '{}'),
+          bloqueos: JSON.parse(localStorage.getItem(BLOQUEO_KEY) || '{}')
+        };
+      } catch (e) {
+        return { intentos: {}, bloqueos: {} };
+      }
+    }
+
+    function guardarIntentosYBloqueos(intentos, bloqueos) {
+      localStorage.setItem(INTENTOS_KEY, JSON.stringify(intentos));
+      localStorage.setItem(BLOQUEO_KEY, JSON.stringify(bloqueos));
+    }
+
+    function solicitarAccesoPerfil(id) {
+      const ahora = Date.now();
+      const { intentos, bloqueos } = obtenerIntentosYBloqueos();
+
+      if (bloqueos[id] && ahora < bloqueos[id]) {
+        const minutosRestantes = Math.ceil((bloqueos[id] - ahora) / 60000);
+        alert(`🔒 El perfil de "${id}" está bloqueado temporalmente por seguridad.\nIntente de nuevo en ${minutosRestantes} minutos.`);
+        return;
+      }
+
+      const passIngresada = prompt(`🔐 Ingrese la contraseña de seguridad para [ ${id} ]:`);
+      if (passIngresada === null) return;
+
+      if (passIngresada === "2021") {
+        intentos[id] = 0;
+        delete bloqueos[id];
+        guardarIntentosYBloqueos(intentos, bloqueos);
+        selectUnit(id);
+      } else {
+        intentos[id] = (intentos[id] || 0) + 1;
+        const restantes = 3 - intentos[id];
+
+        if (intentos[id] >= 3) {
+          bloqueos[id] = ahora + (15 * 60 * 1000);
+          guardarIntentosYBloqueos(intentos, bloqueos);
+          alert(`🚨 Demasiados intentos fallidos en "${id}". Este perfil ha sido bloqueado por 15 minutos.`);
+        } else {
+          guardarIntentosYBloqueos(intentos, bloqueos);
+          alert(`❌ Contraseña incorrecta. Te quedan ${restantes} intentos para este perfil.`);
+        }
+      }
+    }
+
+    let contextMenuCoords = null;
+    let tempContextMarker = null;
+    let contextMenuMode = 'nav';
+
+    function getCustomPOIs() {
+      try {
+        return JSON.parse(localStorage.getItem('yadah_custom_pois') || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveAllPOIs(pois, broadcast = true) {
+      localStorage.setItem('yadah_custom_pois', JSON.stringify(pois));
+      renderCustomPoiMarkers();
+      
+      if (broadcast && mqttClient && mqttClient.connected) {
+        mqttClient.publish(TOPIC_POI, JSON.stringify({ action: 'sync', pois: pois }));
+      }
+    }
+
+    function closeContextMenu() {
+      document.getElementById('map-context-menu').style.display = 'none';
+      if (tempContextMarker) {
+        tempContextMarker.remove();
+        tempContextMarker = null;
+      }
+      contextMenuCoords = null;
+    }
+
+    function ctxMainAction() {
+      if (!contextMenuCoords) return;
+      const { lng, lat } = contextMenuCoords;
+      
+      if (contextMenuMode === 'nav') {
+        closeContextMenu();
+        pendingDestination = { lon: lng, lat: lat, label: 'Punto seleccionado' };
+        lblRouteStats.textContent = `📍 Destino seleccionado. ¿Deseas iniciar marcha?`;
+        navRouteInfo.style.display = 'flex';
+      } else if (contextMenuMode === 'save') {
+        closeContextMenu();
+        const placeName = prompt("📍 Nombre del nuevo punto o negocio local (Visible para toda la flota):");
+        if (placeName && placeName.trim().length > 0) {
+          const pois = getCustomPOIs();
+          pois.unshift({ id: 'poi_' + Date.now(), name: placeName.trim(), lon: lng, lat: lat });
+          saveAllPOIs(pois, true);
+          alert(`✅ ¡Punto "${placeName.trim()}" sincronizado con éxito para todos!`);
+        }
+      }
+    }
+
+    function ctxAssignAction() {
+      if (!contextMenuCoords || !isModulator()) return;
+      const { lng, lat } = contextMenuCoords;
+      closeContextMenu();
+
+      const unitListStr = ALL_UNITS.map((u, i) => `${i + 1}. ${u}`).join('\n');
+      const choice = prompt(`🎯 Selecciona el número de la unidad a la que deseas asignar este destino:\n\n${unitListStr}`);
+      
+      if (choice) {
+        const index = parseInt(choice.trim()) - 1;
+        if (index >= 0 && index < ALL_UNITS.length) {
+          const targetUnit = ALL_UNITS[index];
+          const taskName = prompt(`📍 Nombre o referencia del destino para ${targetUnit}:`, "Punto asignado por Central");
+          
+          if (taskName && taskName.trim()) {
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_ASSIGN, JSON.stringify({
+                targetUnit: targetUnit,
+                lon: lng,
+                lat: lat,
+                label: taskName.trim()
+              }));
+              
+              const shareClient = confirm(`✅ ¡Destino enviado a ${targetUnit}!\n\n¿Deseas generar y copiar un ENLACE DE SEGUIMIENTO para enviar al cliente por WhatsApp?`);
+              if (shareClient) {
+                const currentUrl = window.location.href.split('?')[0];
+                const clientLink = `${currentUrl}?track=${encodeURIComponent(targetUnit)}`;
+                
+                navigator.clipboard.writeText(clientLink).then(() => {
+                  alert(`📋 ¡Enlace copiado al portapapeles!\n\nPégalo en WhatsApp para que el cliente vea el viaje de ${targetUnit} en tiempo real:\n\n${clientLink}`);
+                }).catch(() => {
+                  prompt("Copia este enlace para el cliente:", clientLink);
+                });
+              }
+            } else {
+              alert("⚠️ Error: No hay conexión de red para transmitir la asignación.");
+            }
+          }
+        } else {
+          alert("❌ Opción de unidad no válida.");
+        }
+      }
+    }
+
+    let customPoiMarkers = [];
+
+    function renderCustomPoiMarkers() {
+      if (!map) return;
+      customPoiMarkers.forEach(m => m.remove());
+      customPoiMarkers = [];
+
+      const pois = getCustomPOIs();
+      pois.forEach(poi => {
+        const container = document.createElement('div');
+        container.className = 'car-marker-container';
+
+        const badge = document.createElement('div');
+        badge.className = 'car-badge custom-poi';
+        badge.innerHTML = `📍 <b>${poi.name}</b>`;
+        container.appendChild(badge);
+
+        const iconEl = document.createElement('div');
+        iconEl.style.fontSize = '1.6rem';
+        iconEl.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.7))';
+        iconEl.innerHTML = '⭐';
+        container.appendChild(iconEl);
+
+        let pressTimer = null;
+
+        container.addEventListener('click', (e) => {
+          e.stopPropagation();
+          pendingDestination = { lon: poi.lon, lat: poi.lat, label: poi.name };
+          lblRouteStats.textContent = `📍 [Local] Destino: ${poi.name}. ¿Deseas iniciar marcha?`;
+          navRouteInfo.style.display = 'flex';
+        });
+
+        const startPress = () => {
+          pressTimer = setTimeout(() => {
+            const action = prompt(`⚙️ Opciones para "${poi.name}":\n1. Editar Nombre\n2. Mover aquí\n3. Eliminar punto global\n\nEscribe 1, 2 o 3:`, "1");
+            if (action === "1") {
+              const newName = prompt("Nuevo nombre para el punto:", poi.name);
+              if (newName && newName.trim()) {
+                poi.name = newName.trim();
+                saveAllPOIs(getCustomPOIs(), true);
+                alert("✅ Nombre actualizado para todos.");
+              }
+            } else if (action === "2") {
+              if (myLastCoords) {
+                poi.lon = myLastCoords.lon;
+                poi.lat = myLastCoords.lat;
+                saveAllPOIs(getCustomPOIs(), true);
+                alert("✅ Ubicación corregida para todos.");
+              } else {
+                alert("⚠️ No hay señal GPS disponible.");
+              }
+            } else if (action === "3") {
+              if (confirm(`¿Estás seguro de eliminar el punto "${poi.name}" para toda la flota?`)) {
+                const updated = getCustomPOIs().filter(p => p.id !== poi.id);
+                saveAllPOIs(updated, true);
+                alert("🗑️ Punto eliminado de la red.");
+              }
+            }
+          }, 600);
+        };
+
+        const cancelPress = () => {
+          if (pressTimer) clearTimeout(pressTimer);
+        };
+
+        container.addEventListener('mousedown', startPress);
+        container.addEventListener('mouseup', cancelPress);
+        container.addEventListener('touchstart', startPress, { passive: true });
+        container.addEventListener('touchend', cancelPress);
+
+        const marker = new maplibregl.Marker({ element: container })
+          .setLngLat([poi.lon, poi.lat])
+          .addTo(map);
+
+        customPoiMarkers.push(marker);
+      });
+    }
+
+    let currentUnit = localStorage.getItem('yadah_terminal_id');
     const isDriver = () => currentUnit && currentUnit !== 'Modulador';
     const isModulator = () => currentUnit === 'Modulador';
-
-    let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
-    
-    // VARIABLES GLOBALES (RADIO Y FLOTA)
-    let radioClient = null;
-    let radioLocalStream = null;
-    let radioLocalTrack = null;
-    let radioTalking = false;
-    let radioButtonPressed = false;
-    let radioTalkSession = 0;
-    let radioInitialized = false;
-    let remoteUnit = null;
-    const radioPeers = new Map();
-    const radioUnits = new Map();
-    let pendingCandidates = [];
-
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let recognition = null;
-    let currentTranscript = "";
 
     const loginScreen = document.getElementById('login-screen');
     const lblUnit = document.getElementById('lbl-unit');
@@ -856,13 +1218,15 @@
     const lblHeading = document.getElementById('lbl-heading');
     const lblGpsStatus = document.getElementById('lbl-gps-status');
     const channelStatus = document.getElementById('channel-status');
-    const remoteAudio = document.getElementById('remote-audio');
+    const radioSpeaker = document.getElementById('radio-speaker');
     const btnViewMode = document.getElementById('btn-view-mode');
     const btnThemeMode = document.getElementById('btn-theme-mode');
     const btnTrafficToggle = document.getElementById('btn-traffic-toggle');
     const btnSos = document.getElementById('btn-sos');
     const btnToggleFleet = document.getElementById('btn-toggle-fleet');
+    const btnUnlockBase = document.getElementById('btn-unlock-base');
     const mapContainer = document.getElementById('map-container');
+    const vehicleHistoryCard = document.getElementById('vehicle-history-card');
     const navSearchBar = document.getElementById('nav-search-bar');
     const searchSuggestions = document.getElementById('search-suggestions');
     const navRouteInfo = document.getElementById('nav-route-info');
@@ -870,48 +1234,476 @@
     const fleetSummaryBar = document.getElementById('fleet-summary-bar');
     const fleetListDrawer = document.getElementById('fleet-list-drawer');
     const gpsLockBanner = document.getElementById('gps-lock-banner');
-    const pttButton = document.getElementById('ptt');
-    const transcriptLive = document.getElementById('transcript-live');
-    const audioHistory = document.getElementById('audio-history');
+    const btnPtt = document.getElementById('btn-ptt');
 
     let firstPersonMode = true;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTraffic = true;
+    let activeHistoryUnit = null;
     let isSosActive = false;
+    let sirenInterval = null;
+    let activeSosCoords = null;
+    let pendingDestination = null;
+    let gpsPermissionGranted = false;
     let searchTimeout = null;
-    let userMovedMap = false;
-    let isNavigating = false;
-    let lastCameraUpdate = 0;
+    let baseUnlocked = false;
+    let modulatorActiveAtBase = false;
+    let modulatorActivationTime = null;
 
-    let myLastCoords = null;
-    let myHeading = 0;
-    let mySpeed = 0;
-    let activeRouteLayerId = null;
-    let activeRouteSourceId = null;
-
-    const fleetMarkers = {};
+    const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
     const fleetStatusMap = {};
     ALL_UNITS.forEach(id => {
-      fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline' };
+      fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline', arrivalTime: null };
     });
 
-    function showTranscript(texto) {
-      if (transcriptLive) {
-        transcriptLive.textContent = "📝 Transcripción: " + (texto || "esperando...");
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
+      } catch (err) {}
+    }
+
+    function parseGoogleMapsLink(inputStr) {
+      const matchGeo = inputStr.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (matchGeo) return { lat: parseFloat(matchGeo[1]), lon: parseFloat(matchGeo[2]) };
+      
+      const matchQuery = inputStr.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (matchQuery) return { lat: parseFloat(matchQuery[1]), lon: parseFloat(matchQuery[2]) };
+
+      return null;
+    }
+
+    function handleSearchInput(query) {
+      clearTimeout(searchTimeout);
+      if (!query || query.trim().length < 1) {
+        searchSuggestions.style.display = 'none';
+        searchSuggestions.innerHTML = '';
+        return;
+      }
+
+      const parsedGMap = parseGoogleMapsLink(query);
+      if (parsedGMap) {
+        searchSuggestions.innerHTML = `
+          <div class="suggestion-item" onclick="selectSuggestion(${parsedGMap.lon}, ${parsedGMap.lat}, 'Ubicación de Google Maps compartida', false)">
+            📍🔗 <b>Ubicación de Google Maps detectada</b><br><span style="color:#38bdf8; font-size:0.68rem;">Lat: ${parsedGMap.lat}, Lon: ${parsedGMap.lon}</span>
+          </div>
+        `;
+        searchSuggestions.style.display = 'flex';
+        return;
+      }
+
+      const qLower = query.toLowerCase();
+      const localPOIs = getCustomPOIs().filter(p => p.name.toLowerCase().includes(qLower));
+
+      searchTimeout = setTimeout(async () => {
+        try {
+          let externalResults = [];
+          if (query.trim().length >= 2) {
+            let suggestUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=4`;
+            if (myLastCoords) {
+              const delta = 0.5;
+              const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+              suggestUrl += `&viewbox=${viewbox}&bounded=1`;
+            }
+            const resp = await fetch(suggestUrl);
+            externalResults = await resp.json();
+          }
+
+          let htmlContent = '';
+
+          localPOIs.forEach(poi => {
+            htmlContent += `
+              <div class="suggestion-item" onclick="selectSuggestion(${poi.lon}, ${poi.lat}, '${poi.name.replace(/'/g, "")}', true)">
+                📍⭐ <b>[Local] ${poi.name}</b><br><span style="color:#38bdf8; font-size:0.68rem;">Punto registrado en tu flota</span>
+              </div>
+            `;
+          });
+
+          if (externalResults && externalResults.length > 0) {
+            externalResults.forEach(item => {
+              htmlContent += `
+                <div class="suggestion-item" onclick="selectSuggestion(${item.lon}, ${item.lat}, '${item.display_name.replace(/'/g, "")}', false)">
+                  📍 <b>${item.display_name.split(',')[0]}</b><br><span style="color:#94a3b8; font-size:0.68rem;">${item.display_name}</span>
+                </div>
+              `;
+            });
+          }
+
+          if (htmlContent) {
+            searchSuggestions.innerHTML = htmlContent;
+            searchSuggestions.style.display = 'flex';
+          } else {
+            searchSuggestions.style.display = 'none';
+          }
+        } catch (e) {
+          console.error("Error buscando sugerencias:", e);
+        }
+      }, 300);
+    }
+
+    function selectSuggestion(lon, lat, displayName, isLocal) {
+      document.getElementById('input-destination').value = displayName.split(',')[0];
+      searchSuggestions.style.display = 'none';
+      pendingDestination = { lon, lat, label: displayName.split(',')[0] };
+      const prefix = isLocal ? '📍 [Local] Destino:' : '📍 Destino:';
+      lblRouteStats.textContent = `${prefix} ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
+      navRouteInfo.style.display = 'flex';
+    }
+
+    async function prepareRouteDestination() {
+      searchSuggestions.style.display = 'none';
+      const query = document.getElementById('input-destination').value.trim();
+      if (!query) return;
+
+      const parsedGMap = parseGoogleMapsLink(query);
+      if (parsedGMap) {
+        selectSuggestion(parsedGMap.lon, parsedGMap.lat, 'Ubicación de Google Maps', false);
+        return;
+      }
+
+      const localPOIs = getCustomPOIs();
+      const foundLocal = localPOIs.find(p => p.name.toLowerCase() === query.toLowerCase());
+      if (foundLocal) {
+        selectSuggestion(foundLocal.lon, foundLocal.lat, foundLocal.name, true);
+        return;
+      }
+
+      try {
+        lblRouteStats.textContent = 'Buscando lugar...';
+        navRouteInfo.style.display = 'flex';
+
+        let searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+        if (myLastCoords) {
+          const delta = 0.5;
+          const viewbox = `${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}`;
+          searchUrl += `&viewbox=${viewbox}&bounded=1`;
+        }
+
+        const resp = await fetch(searchUrl);
+        const results = await resp.json();
+
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          pendingDestination = { lon, lat, label: results[0].display_name.split(',')[0] };
+          lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
+        } else {
+          alert("Lugar no encontrado. Intenta con un nombre más específico, selecciónalo de las sugerencias o toca directamente el mapa.");
+          navRouteInfo.style.display = 'none';
+        }
+      } catch (err) {
+        console.error("Error buscando:", err);
       }
     }
 
-    function updateRadioStatus(msg, type="") {
-      if (channelStatus) {
-        channelStatus.textContent = "● " + msg;
-        channelStatus.className = "channel-status " + type;
+    function startNavigationMatch() {
+      if (!pendingDestination) {
+        alert("Primero selecciona o busca un destino.");
+        return;
+      }
+      firstPersonMode = true;
+      updateViewButtonUI();
+      requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
+    }
+
+    function updateGpsLockState(allowed) {
+      gpsPermissionGranted = allowed;
+
+      if (isModulator()) {
+        lblGpsStatus.textContent = 'Base Central';
+        lblGpsStatus.className = 'status-active';
+        btnPtt.classList.remove('gps-disabled');
+        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
+        gpsLockBanner.style.display = 'none';
+        return;
+      }
+
+      if (allowed) {
+        lblGpsStatus.textContent = 'Activo';
+        lblGpsStatus.className = 'status-active';
+        btnPtt.classList.remove('gps-disabled');
+        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
+        gpsLockBanner.style.display = 'none';
+      } else {
+        lblGpsStatus.textContent = 'Denegado/Apagado';
+        lblGpsStatus.className = 'status-warning';
+        btnPtt.classList.add('gps-disabled');
+        btnPtt.innerHTML = '<span>🚫</span> GPS REQUERIDO PARA TRANSMITIR';
+        gpsLockBanner.style.display = 'flex';
       }
     }
 
-    // ==========================================
-    // MAPA MAPLIBRE
-    // ==========================================
-    const map = new maplibregl.Map({
+    function checkAuth() {
+      if (currentUnit) {
+        loginScreen.style.display = 'none';
+        lblUnit.textContent = currentUnit;
+        firstPersonMode = isDriver();
+        btnSos.style.display = isDriver() ? 'flex' : 'none';
+        navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+        btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+        fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+        btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
+        if (!isModulator()) vehicleHistoryCard.style.display = 'none';
+        updateViewButtonUI();
+        applyNightModeTheme();
+        btnTrafficToggle.classList.toggle('active', showTraffic);
+        requestWakeLock();
+        connectNetwork();
+        applyCameraPerspective();
+      } else {
+        loginScreen.style.display = 'flex';
+      }
+    }
+
+    function selectUnit(id) {
+      currentUnit = id;
+      localStorage.setItem('yadah_terminal_id', id);
+      lblUnit.textContent = id;
+      loginScreen.style.display = 'none';
+      firstPersonMode = isDriver();
+      btnSos.style.display = isDriver() ? 'flex' : 'none';
+      navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+      btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+      fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+      btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
+      if (!isModulator()) vehicleHistoryCard.style.display = 'none';
+      updateViewButtonUI();
+      applyNightModeTheme();
+      btnTrafficToggle.classList.toggle('active', showTraffic);
+      requestWakeLock();
+      unlockAudioHardware();
+      connectNetwork();
+      applyCameraPerspective();
+    }
+
+    function logoutUnit() {
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish('yadah/radio/flota/status', JSON.stringify({ unit: currentUnit, status: 'offline', cause: 'desconexion_inesperada' }), { retain: true });
+        mqttClient.end(true);
+        mqttClient = null;
+      }
+
+      Object.keys(fleetMarkers).forEach(k => {
+        if (k !== 'BASE_PERMANENTE') {
+          fleetMarkers[k].marker.remove();
+          delete fleetMarkers[k];
+        }
+      });
+
+      localStorage.removeItem('yadah_terminal_id');
+      currentUnit = null;
+
+      silenceSOS();
+      cancelNavigation();
+      closeVehicleHistory();
+      toggleFleetDrawer(false);
+      closeContextMenu();
+      baseUnlocked = false;
+      btnUnlockBase.textContent = '🔒';
+      btnUnlockBase.classList.remove('unlocked');
+
+      loginScreen.style.display = 'flex';
+      lblUnit.textContent = '--';
+      fleetSummaryBar.style.display = 'none';
+      btnToggleFleet.style.display = 'none';
+      btnUnlockBase.style.display = 'none';
+      navSearchBar.style.display = 'none';
+      btnSos.style.display = 'none';
+    }
+
+    function toggleBaseUnlock() {
+      if (!isModulator()) return;
+
+      if (!baseUnlocked) {
+        const pass = prompt("🔐 Ingresa la contraseña de seguridad para mover la Base Central:");
+        if (pass === "1234") {
+          baseUnlocked = true;
+          btnUnlockBase.textContent = '🔓';
+          btnUnlockBase.classList.add('unlocked');
+          alert("✅ Modo de edición desbloqueado. Ahora haz UN CLIC en el mapa donde quieras colocar la Base Central.");
+        } else if (pass !== null) {
+          alert("❌ Contraseña incorrecta.");
+        }
+      } else {
+        baseUnlocked = false;
+        btnUnlockBase.textContent = '🔒';
+        btnUnlockBase.classList.remove('unlocked');
+        alert("🔒 Base Central bloqueada de nuevo con seguridad.");
+      }
+    }
+
+    function updateViewButtonUI() {
+      btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
+      btnViewMode.classList.toggle('active', firstPersonMode);
+    }
+
+    function applyNightModeTheme() {
+      if (isNightMode) {
+        mapContainer.classList.add('map-night-mode');
+        btnThemeMode.textContent = '☀️';
+        btnThemeMode.classList.add('active');
+      } else {
+        mapContainer.classList.remove('map-night-mode');
+        btnThemeMode.textContent = '🌙';
+        btnThemeMode.classList.remove('active');
+      }
+      localStorage.setItem('yadah_night_mode', isNightMode);
+    }
+
+    btnThemeMode.addEventListener('click', () => {
+      isNightMode = !isNightMode;
+      applyNightModeTheme();
+    });
+
+    btnTrafficToggle.addEventListener('click', () => {
+      showTraffic = !showTraffic;
+      btnTrafficToggle.classList.toggle('active', showTraffic);
+      if (map.getLayer('google-traffic-layer')) {
+        map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
+      }
+    });
+
+    function zoomIn() { map.zoomIn({ duration: 300 }); }
+    function zoomOut() { map.zoomOut({ duration: 300 }); }
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          alert(`Error al intentar activar pantalla completa: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+    }
+
+    function formatTimeAgo(ms) {
+      const sec = Math.floor(ms / 1000);
+      if (sec < 60) return `${sec}s`;
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `${min}m`;
+      const hrs = Math.floor(min / 60);
+      return `${hrs}h ${min % 60}m`;
+    }
+
+    function toggleFleetDrawer(show) {
+      fleetListDrawer.style.display = show ? 'flex' : 'none';
+      if (show) renderFleetList();
+    }
+
+    function renderFleetList() {
+      const container = document.getElementById('fleet-items-list');
+      const now = Date.now();
+
+      container.innerHTML = ALL_UNITS.map(unitId => {
+        const data = fleetStatusMap[unitId] || {};
+        let statusBadge = '<span class="badge-stat offline">Apagado</span>';
+        let detailTxt = 'Sin conexión';
+
+        if (data.state === 'at-base') {
+          statusBadge = '<span class="badge-stat at-base">En Base 🏢</span>';
+          const arrTime = data.arrivalTime ? new Date(data.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          detailTxt = `Llegada a base: <b>${arrTime}</b>`;
+        } else if (data.state === 'online') {
+          statusBadge = '<span class="badge-stat online">En Marcha</span>';
+          detailTxt = `Velocidad: <b>${Math.round(data.speed)} km/h</b>`;
+        } else if (data.state === 'stopped') {
+          const stopTime = data.stoppedSince ? formatTimeAgo(now - data.stoppedSince) : '0s';
+          statusBadge = '<span class="badge-stat stopped">Detenido</span>';
+          detailTxt = `Detenido hace: <b>${stopTime}</b>`;
+        } else if (data.lastSeen > 0) {
+          const offTime = formatTimeAgo(now - data.lastSeen);
+          detailTxt = `Última señal hace: <b>${offTime}</b>`;
+        }
+
+        return `
+          <div class="unit-card-row" onclick="openVehicleHistoryFromList('${unitId}')">
+            <div class="unit-card-info">
+              <b>🚘 ${unitId}</b>
+              <div>${detailTxt} (Toca para ver historial o compartir enlace)</div>
+            </div>
+            <div>${statusBadge}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openVehicleHistoryFromList(unitId) {
+      if (!isModulator()) return;
+      
+      const shareAgain = confirm(`🚘 Opciones para ${unitId}:\n\n1. Ver historial de 24 horas\n2. Copiar enlace de seguimiento para cliente (WhatsApp)\n\n¿Deseas copiar el enlace de seguimiento en tiempo real para este móvil?`);
+      if (shareAgain) {
+        toggleFleetDrawer(false);
+        const currentUrl = window.location.href.split('?')[0];
+        const clientLink = `${currentUrl}?track=${encodeURIComponent(unitId)}`;
+        navigator.clipboard.writeText(clientLink).then(() => {
+          alert(`📋 ¡Enlace de ${unitId} copiado al portapapeles!\n\n${clientLink}`);
+        }).catch(() => {
+          prompt(`Copia el enlace para ${unitId}:`, clientLink);
+        });
+        return;
+      }
+
+      toggleFleetDrawer(false);
+      activeHistoryUnit = unitId;
+      document.getElementById('vh-unit-name').textContent = unitId;
+      document.getElementById('vh-status-info').textContent = 'Listo para trazar ruta';
+      vehicleHistoryCard.style.display = 'flex';
+    }
+
+    let audioCtx = null;
+
+    function unlockAudioHardware() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+        radioSpeaker.play().catch(() => {});
+      } catch (e) {}
+    }
+
+    window.addEventListener('touchstart', unlockAudioHardware, { passive: true });
+    window.addEventListener('click', unlockAudioHardware, { passive: true });
+
+    function playBeep(freq = 880, duration = 0.08) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+
+    function playSiren() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1100, audioCtx.currentTime + 0.3);
+        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.65);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.65);
+      } catch (e) {}
+    }
+
+    let defaultBaseCoords = [-89.356200, 13.724208];
+    const savedBaseCoords = localStorage.getItem('yadah_base_coords');
+    if (savedBaseCoords) {
+      try { defaultBaseCoords = JSON.parse(savedBaseCoords); } catch(e){}
+    }
+
+    const map = !trackingUnit ? new maplibregl.Map({
       container: 'map',
       maxPitch: 85,
       pitchWithRotate: true,
@@ -923,7 +1715,9 @@
             type: 'raster',
             tiles: [
               'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
+              'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+              'https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
             ],
             tileSize: 256
           },
@@ -931,714 +1725,1118 @@
             type: 'raster',
             tiles: [
               'https://mt0.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
-              'https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}'
+              'https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+              'https://mt2.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}',
+              'https://mt3.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}'
             ],
             tileSize: 256
           }
         },
         layers: [
-          { id: 'google-base-layer', type: 'raster', source: 'google-base', minzoom: 0, maxzoom: 22 },
-          { id: 'google-traffic-layer', type: 'raster', source: 'google-traffic', minzoom: 0, maxzoom: 22, layout: { visibility: 'visible' } }
+          {
+            id: 'google-base-layer',
+            type: 'raster',
+            source: 'google-base',
+            minzoom: 0,
+            maxzoom: 22
+          },
+          {
+            id: 'google-traffic-layer',
+            type: 'raster',
+            source: 'google-traffic',
+            minzoom: 0,
+            maxzoom: 22,
+            layout: { visibility: 'visible' }
+          }
         ]
       },
-      center: [-89.3562, 13.7242],
-      zoom: 15,
-      pitch: 45,
+      center: defaultBaseCoords,
+      zoom: 16.5,
+      pitch: 0,
       bearing: 0
-    });
+    }) : null;
 
-    map.on('dragstart', () => { userMovedMap = true; });
-    map.on('rotatestart', () => { userMovedMap = true; });
-    map.on('pitchstart', () => { userMovedMap = true; });
+    let permanentBaseMarker = null;
+    let baseBadgeEl = null;
 
-    let contextMenuCoords = null;
-    map.on('contextmenu', (e) => {
-      e.preventDefault();
-      contextMenuCoords = e.lngLat;
+    function addPermanentBaseMarker() {
+      if (!map) return;
+      const container = document.createElement('div');
+      container.className = 'car-marker-container';
+
+      baseBadgeEl = document.createElement('div');
+      baseBadgeEl.className = 'car-badge base-station';
+      baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#38bdf8;" id="base-status-txt">Inactiva</div>`;
+      container.appendChild(baseBadgeEl);
+
+      const rotator = document.createElement('div');
+      rotator.className = 'car-svg-rotator';
+      rotator.id = 'base-icon-rotator';
+      rotator.innerHTML = `<div class="base-icon">🏢</div>`;
+      container.appendChild(rotator);
+
+      permanentBaseMarker = new maplibregl.Marker({ element: container })
+        .setLngLat(defaultBaseCoords)
+        .addTo(map);
+    }
+
+    if (map) {
+      map.on('load', () => {
+        ensureLayersExist();
+        addPermanentBaseMarker();
+        renderCustomPoiMarkers();
+      });
+    }
+
+    let lastTapTime = 0;
+    let doubleTapHoldTimer = null;
+    let singleTapHoldTimer = null;
+
+    if (map) {
+      map.on('touchstart', (e) => {
+        if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length > 1) {
+          clearTimeout(singleTapHoldTimer);
+          clearTimeout(doubleTapHoldTimer);
+          return;
+        }
+
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+        closeContextMenu();
+
+        if (tapLength < 350 && tapLength > 0) {
+          clearTimeout(singleTapHoldTimer);
+          const lngLat = e.lngLat;
+          doubleTapHoldTimer = setTimeout(() => {
+            if (lngLat) triggerContextMenu(lngLat, 'save');
+          }, 600);
+          lastTapTime = 0;
+        } else {
+          lastTapTime = currentTime;
+          const lngLat = e.lngLat;
+          singleTapHoldTimer = setTimeout(() => {
+            if (lngLat && lastTapTime !== 0) {
+              triggerContextMenu(lngLat, 'nav');
+            }
+          }, 650);
+        }
+      });
+
+      map.on('touchmove', () => {
+        clearTimeout(singleTapHoldTimer);
+        clearTimeout(doubleTapHoldTimer);
+        lastTapTime = 0;
+      });
+
+      map.on('contextmenu', (e) => {
+        e.preventDefault();
+        triggerContextMenu(e.lngLat, 'save');
+      });
+
+      map.on('click', (e) => {
+        if (isModulator() && baseUnlocked) {
+          const lng = e.lngLat.lng;
+          const lat = e.lngLat.lat;
+          defaultBaseCoords = [lng, lat];
+          localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
+          if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords);
+          if (mqttClient && mqttClient.connected) {
+            mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
+          }
+          baseUnlocked = false;
+          btnUnlockBase.textContent = '🔒';
+          btnUnlockBase.classList.remove('unlocked');
+          alert(`📍 ¡Base Central reubicada y sincronizada!`);
+        }
+      });
+    }
+
+    function triggerContextMenu(lngLat, mode) {
+      if (isModulator() && baseUnlocked) return;
+
+      contextMenuCoords = lngLat;
+      contextMenuMode = mode;
+
+      const titleEl = document.getElementById('menu-title-text');
+      const actionBtn = document.getElementById('btn-ctx-action');
+      const assignBtn = document.getElementById('btn-ctx-assign');
+
+      if (mode === 'nav') {
+        titleEl.textContent = '📍 Destino Seleccionado';
+        actionBtn.textContent = '🚀 ¡Ir a este lugar!';
+        actionBtn.style.background = '#10b981';
+      } else {
+        titleEl.textContent = '⭐ Nuevo Punto Local';
+        actionBtn.textContent = '📍 Guardar este punto';
+        actionBtn.style.background = '#f59e0b';
+      }
+
+      if (isModulator()) {
+        assignBtn.style.display = 'block';
+        assignBtn.textContent = '🎯 Asignar a Móvil & Compartir...';
+      } else {
+        assignBtn.style.display = 'none';
+      }
+
+      if (tempContextMarker) tempContextMarker.remove();
+      const el = document.createElement('div');
+      el.style.fontSize = '2rem';
+      el.innerHTML = mode === 'nav' ? '🏁' : '📍';
+      tempContextMarker = new maplibregl.Marker({ element: el }).setLngLat([lngLat.lng, lngLat.lat]).addTo(map);
+
       document.getElementById('map-context-menu').style.display = 'flex';
-    });
-
-    function closeContextMenu() {
-      document.getElementById('map-context-menu').style.display = 'none';
-      contextMenuCoords = null;
+      playBeep(700, 0.05);
     }
 
-    function ctxMainAction() {
-      if (!contextMenuCoords) return;
-      pendingDestination = { lon: contextMenuCoords.lng, lat: contextMenuCoords.lat, label: 'Punto en mapa' };
-      closeContextMenu();
-      lblRouteStats.textContent = `📍 Destino seleccionado. ¿Deseas iniciar marcha?`;
-      navRouteInfo.style.display = 'flex';
+    function ensureLayersExist() {
+      if (!map) return;
+      if (!map.getSource('route-trails')) {
+        map.addSource('route-trails', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      if (!map.getLayer('route-trails-layer')) {
+        map.addLayer({
+          id: 'route-trails-layer',
+          type: 'line',
+          source: 'route-trails',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#0284c7', 'line-width': 6, 'line-opacity': 0.85 }
+        });
+      }
+
+      if (!map.getSource('nav-active-route')) {
+        map.addSource('nav-active-route', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      if (!map.getLayer('nav-active-route-casing')) {
+        map.addLayer({
+          id: 'nav-active-route-casing',
+          type: 'line',
+          source: 'nav-active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#0369a1', 'line-width': 10, 'line-opacity': 0.9 }
+        });
+      }
+      if (!map.getLayer('nav-active-route-layer')) {
+        map.addLayer({
+          id: 'nav-active-route-layer',
+          type: 'line',
+          source: 'nav-active-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#38bdf8', 'line-width': 6, 'line-opacity': 1.0 }
+        });
+      }
     }
 
-    function handleSearchInput(query) {
-      clearTimeout(searchTimeout);
-      if (!query || query.trim().length < 2) {
-        searchSuggestions.style.display = 'none';
+    let destinationMarker = null;
+
+    async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
+      if (!myLastCoords) {
+        alert("Esperando señal de GPS para trazar navegación...");
         return;
       }
-      searchTimeout = setTimeout(async () => {
-        try {
-          const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=4&countrycodes=sv`);
-          const results = await resp.json();
-          if (!results.length) {
-            searchSuggestions.style.display = 'none';
-            return;
-          }
-          searchSuggestions.innerHTML = '';
-          results.forEach(res => {
-            const item = document.createElement('div');
-            item.className = 'suggestion-item';
-            item.innerHTML = `📍 <b>${res.display_name.split(',')[0]}</b><br><span style="color:#94a3b8; font-size:0.7rem;">${res.display_name}</span>`;
-            item.onclick = () => {
-              pendingDestination = { lon: parseFloat(res.lon), lat: parseFloat(res.lat), label: res.display_name.split(',')[0] };
-              document.getElementById('input-destination').value = pendingDestination.label;
-              searchSuggestions.style.display = 'none';
-              lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}`;
-              navRouteInfo.style.display = 'flex';
-              map.flyTo({ center: [pendingDestination.lon, pendingDestination.lat], zoom: 15 });
-            };
-            searchSuggestions.appendChild(item);
+
+      currentDestinationCoords = [destLon, destLat];
+
+      if (destinationMarker) destinationMarker.remove();
+      const el = document.createElement('div');
+      el.style.fontSize = '2.2rem';
+      el.innerHTML = '🏁';
+      destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
+
+      try {
+        lblRouteStats.textContent = 'Calculando trayecto...';
+        navRouteInfo.style.display = 'flex';
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const distKm = (route.distance / 1000).toFixed(1);
+          const mins = Math.round(route.duration / 60);
+
+          lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${distKm} km (~${mins} min). En marcha 🚀`;
+
+          ensureLayersExist();
+          map.getSource('nav-active-route').setData({
+            type: 'FeatureCollection',
+            features: [{ type: 'Feature', geometry: route.geometry, properties: {} }]
           });
-          searchSuggestions.style.display = 'flex';
-        } catch (e) {}
-      }, 400);
-    }
 
-    async function prepareRouteDestination() {
-      searchSuggestions.style.display = 'none';
-      const q = document.getElementById('input-destination').value.trim();
-      if (!q) return;
-      try {
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=sv`);
-        const results = await resp.json();
-        if (!results.length) {
-          alert('Destino no encontrado.');
-          return;
+          if (mqttClient && mqttClient.connected && currentUnit) {
+            mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({
+              unit: currentUnit,
+              geometry: route.geometry,
+              label: label,
+              distKm: distKm,
+              mins: mins
+            }));
+          }
         }
-        pendingDestination = { lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat), label: results[0].display_name.split(',')[0] };
-        lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}`;
-        navRouteInfo.style.display = 'flex';
-        map.flyTo({ center: [pendingDestination.lon, pendingDestination.lat], zoom: 15 });
       } catch (e) {
-        alert('Error buscando destino.');
-      }
-    }
-
-    async function startNavigationMatch() {
-      if (!pendingDestination || !myLastCoords) return;
-      try {
-        lblRouteStats.textContent = 'Calculando ruta...';
-        const url = `https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${pendingDestination.lon},${pendingDestination.lat}?overview=full&steps=true&geometries=geojson`;
-        const resp = await fetch(url);
-        const data = await resp.json();
-
-        if (data.code !== 'Ok' || !data.routes.length) {
-          alert('No se encontró ruta.');
-          return;
-        }
-
-        const route = data.routes[0];
-        const dist = (route.distance / 1000).toFixed(1);
-        const mins = Math.max(1, Math.round(route.duration / 60));
-
-        lblRouteStats.textContent = `🚀 ${pendingDestination.label} · ${dist} km · ${mins} min`;
-        navRouteInfo.style.display = 'flex';
-
-        if (activeRouteLayerId && map.getLayer(activeRouteLayerId)) map.removeLayer(activeRouteLayerId);
-        if (activeRouteSourceId && map.getSource(activeRouteSourceId)) map.removeSource(activeRouteSourceId);
-
-        activeRouteLayerId = 'yadah-route-layer';
-        activeRouteSourceId = 'yadah-route-source';
-
-        map.addSource(activeRouteSourceId, { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: route.geometry } });
-        map.addLayer({
-          id: activeRouteLayerId,
-          type: 'line',
-          source: activeRouteSourceId,
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#38bdf8', 'line-width': 7, 'line-opacity': 0.9 }
-        });
-
-        isNavigating = true;
-        userMovedMap = false;
-        firstPersonMode = true;
-        updateViewButtonUI();
-        if (navSearchBar) navSearchBar.style.display = 'none';
-
-        map.stop();
-        map.easeTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 18, pitch: 60, bearing: myHeading, duration: 1000, essential: true });
-      } catch (e) {
-        alert('Error al trazar ruta.');
+        console.error("Error calculando ruta:", e);
       }
     }
 
     function cancelNavigation() {
       pendingDestination = null;
-      isNavigating = false;
+      currentDestinationCoords = null;
+      if (destinationMarker) {
+        destinationMarker.remove();
+        destinationMarker = null;
+      }
       navRouteInfo.style.display = 'none';
-      if (activeRouteLayerId && map.getLayer(activeRouteLayerId)) map.removeLayer(activeRouteLayerId);
-      if (activeRouteSourceId && map.getSource(activeRouteSourceId)) map.removeSource(activeRouteSourceId);
-      activeRouteLayerId = null;
-      activeRouteSourceId = null;
-      if (navSearchBar) navSearchBar.style.display = 'flex';
       document.getElementById('input-destination').value = '';
-      recenterMap();
-    }
-
-    function updateNavigationCamera(lon, lat, speed, heading) {
-      if (!isNavigating || !firstPersonMode || userMovedMap) return;
-      const now = Date.now();
-      if (now - lastCameraUpdate < 250) return;
-      lastCameraUpdate = now;
-
-      const zoom = speed > 60 ? 17 : speed > 30 ? 17.5 : 18;
-      map.easeTo({ center: [lon, lat], zoom: zoom, pitch: 60, bearing: heading, duration: 450, essential: true });
-    }
-
-    function recenterMap() {
-      if (!myLastCoords) return;
-      userMovedMap = false;
-      firstPersonMode = true;
-      updateViewButtonUI();
-      map.easeTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 18, pitch: 60, bearing: myHeading, duration: 800, essential: true });
-    }
-
-    function applyCameraPerspective() {
-      if (!map || !myLastCoords) return;
-      if (firstPersonMode) {
-        map.easeTo({ center: [myLastCoords.lon, myLastCoords.lat], bearing: myHeading, pitch: 60, zoom: 18, duration: 600 });
-      } else {
-        map.easeTo({ center: [myLastCoords.lon, myLastCoords.lat], zoom: 16, pitch: 0, bearing: 0, duration: 600 });
+      if (map && map.getSource('nav-active-route')) {
+        map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
+      }
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, canceled: true }));
       }
     }
 
-    function updateViewButtonUI() {
-      if (btnViewMode) {
-        btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
-        btnViewMode.classList.toggle('active', firstPersonMode);
+    function closeVehicleHistory() {
+      activeHistoryUnit = null;
+      vehicleHistoryCard.style.display = 'none';
+      if (map && map.getSource('route-trails')) {
+        map.getSource('route-trails').setData({ type: 'FeatureCollection', features: [] });
       }
     }
 
-    if (btnViewMode) {
-      btnViewMode.addEventListener('click', () => {
-        firstPersonMode = !firstPersonMode;
-        updateViewButtonUI();
-        applyCameraPerspective();
-      });
+    function applyVehicleHistory() {
+      if (!isModulator() || !db || !activeHistoryUnit || !map) return;
+      const startTime = Date.now() - (24 * 60 * 60 * 1000);
+
+      const tx = db.transaction([STORE_NAME], 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.openCursor();
+      const historyCoords = [];
+
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          const val = cursor.value;
+          if (val.unit === activeHistoryUnit && val.timestamp >= startTime) {
+            historyCoords.push([val.lon, val.lat]);
+          }
+          cursor.continue();
+        } else {
+          ensureLayersExist();
+          const source = map.getSource('route-trails');
+          if (source) {
+            source.setData({
+              type: 'FeatureCollection',
+              features: historyCoords.length >= 2 ? [{
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: historyCoords },
+                properties: { unit: activeHistoryUnit }
+              }] : []
+            });
+          }
+
+          const statusDiv = document.getElementById('vh-status-info');
+          if (historyCoords.length < 2) {
+            statusDiv.textContent = 'Sin historial registrado en 24h.';
+            statusDiv.style.color = '#ef4444';
+          } else {
+            statusDiv.textContent = `¡Mostrando ${historyCoords.length} puntos!`;
+            statusDiv.style.color = '#10b981';
+            const lastPt = historyCoords[historyCoords.length - 1];
+            map.flyTo({ center: lastPt, zoom: 16, pitch: 0, bearing: 0 });
+          }
+        }
+      };
     }
 
-    function applyNightModeTheme() {
-      if (isNightMode) {
-        mapContainer.classList.add('map-night-mode');
-        if (btnThemeMode) {
-          btnThemeMode.textContent = '☀️';
-          btnThemeMode.classList.add('active');
+    function createMarkerElement(unitName) {
+      const container = document.createElement('div');
+      container.className = 'car-marker-container';
+
+      const badge = document.createElement('div');
+      badge.className = 'car-badge';
+      badge.innerHTML = `<div><strong>${unitName}</strong></div><div class="unit-speed-txt" style="font-size:0.6rem; color:#38bdf8;">Detenido</div>`;
+      container.appendChild(badge);
+
+      const rotator = document.createElement('div');
+      rotator.className = 'car-svg-rotator';
+      rotator.innerHTML = `
+        <svg viewBox="0 0 48 48" width="44" height="44">
+          <ellipse cx="24" cy="24" rx="14" ry="21" fill="rgba(0,0,0,0.5)"/>
+          <rect x="13" y="6" width="22" height="36" rx="8" fill="#111827" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M16 15 L32 15 L29 20 L19 20 Z" fill="#38bdf8"/>
+          <rect x="16" y="21" width="16" height="12" rx="2" fill="#1f2937"/>
+          <path d="M18 34 L30 34 L29 37 L19 37 Z" fill="#38bdf8" opacity="0.8"/>
+          <circle cx="16" cy="7" r="2" fill="#fef08a"/>
+          <circle cx="32" cy="7" r="2" fill="#fef08a"/>
+        </svg>`;
+      container.appendChild(rotator);
+
+      return { container, rotator, badge };
+    }
+
+    const fleetMarkers = {};
+    let myLastCoords = null;
+    let myHeading = 0;
+    let mySpeed = 0;
+
+    let targetPos = null;
+    let currentDisplayPos = null;
+    let targetHeading = 0;
+    let currentDisplayHeading = 0;
+
+    function getDistanceFromBase(lat, lon) {
+      const baseLat = defaultBaseCoords[1];
+      const baseLon = defaultBaseCoords[0];
+      const R = 6371e3; 
+      const φ1 = lat * Math.PI/180;
+      const φ2 = baseLat * Math.PI/180;
+      const Δφ = (baseLat - lat) * Math.PI/180;
+      const Δλ = (baseLon - lon) * Math.PI/180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c; 
+    }
+
+    function updateModulatorState(modLat, modLon) {
+      const dist = getDistanceFromBase(modLat, modLon);
+      const wasActive = modulatorActiveAtBase;
+
+      if (dist <= 18) {
+        modulatorActiveAtBase = true;
+        if (!wasActive) {
+          modulatorActivationTime = Date.now();
         }
       } else {
-        mapContainer.classList.remove('map-night-mode');
-        if (btnThemeMode) {
-          btnThemeMode.textContent = '🌙';
-          btnThemeMode.classList.remove('active');
-        }
-      }
-      localStorage.setItem('yadah_night_mode', isNightMode);
-    }
-
-    if (btnThemeMode) {
-      btnThemeMode.addEventListener('click', () => {
-        isNightMode = !isNightMode;
-        applyNightModeTheme();
-      });
-    }
-
-    if (btnTrafficToggle) {
-      btnTrafficToggle.addEventListener('click', () => {
-        showTraffic = !showTraffic;
-        btnTrafficToggle.classList.toggle('active', showTraffic);
-        if (map.getLayer('google-traffic-layer')) {
-          map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
-        }
-      });
-    }
-
-    function zoomIn() { map.zoomIn(); }
-    function zoomOut() { map.zoomOut(); }
-
-    function selectUnit(id) {
-      const screen = document.getElementById('login-screen');
-      if (screen) {
-        screen.remove();
+        modulatorActiveAtBase = false;
+        modulatorActivationTime = null;
       }
 
-      currentUnit = id;
-      localStorage.setItem('yadah_terminal_id', id);
-      deviceId = currentUnit + "_" + Math.random().toString(16).substring(2, 10);
-      
-      const lbl = document.getElementById('lbl-unit');
-      if (lbl) lbl.textContent = id;
-
-      firstPersonMode = isDriver();
-      if (btnSos) btnSos.style.display = isDriver() ? 'flex' : 'none';
-      if (navSearchBar) navSearchBar.style.display = isDriver() ? 'flex' : 'none';
-      if (btnToggleFleet) btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
-      if (fleetSummaryBar) fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
-
-      updateViewButtonUI();
-      applyNightModeTheme();
-
-      initializeRadio();
-
-      setTimeout(() => {
-        if (map) {
-          map.resize();
+      if (baseBadgeEl) {
+        const iconRotator = document.getElementById('base-icon-rotator');
+        if (modulatorActiveAtBase) {
+          const actTimeStr = modulatorActivationTime ? new Date(modulatorActivationTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+          baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#10b981;">Activa desde ${actTimeStr}</div>`;
+          if (iconRotator) iconRotator.classList.add('base-active-glow');
+        } else {
+          baseBadgeEl.innerHTML = `<div><strong>🏢 Base Central</strong></div><div style="font-size:0.6rem; color:#94a3b8;">Inactiva</div>`;
+          if (iconRotator) iconRotator.classList.remove('base-active-glow');
         }
-      }, 100);
+      }
     }
 
-    function logoutUnit() {
-      localStorage.removeItem('yadah_terminal_id');
-      currentUnit = null;
-      location.reload();
-    }
-
-    if (currentUnit) {
-      selectUnit(currentUnit);
-    }
-
-    // ==========================================
-    // RASTREO Y RENDERIZADO DE VEHÍCULOS EN MAPA
-    // ==========================================
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
-      if (!lon || !lat || !map) return;
+      if (!lon || !lat || isNaN(lon) || isNaN(lat) || !map) return;
+      const now = Date.now();
+
+      if (!fleetStatusMap[unitId]) fleetStatusMap[unitId] = {};
+      const u = fleetStatusMap[unitId];
+      u.lastSeen = now;
+      u.speed = speed;
+      u.lat = lat;
+      u.lon = lon;
+
+      const distanceToBasePath = getDistanceFromBase(lat, lon);
+      if (distanceToBasePath <= 18) {
+        if (u.state !== 'at-base') {
+          u.state = 'at-base';
+          u.arrivalTime = now;
+        }
+      } else {
+        if (speed > 3) {
+          u.state = 'online';
+          u.stoppedSince = null;
+          u.arrivalTime = null;
+        } else {
+          u.state = 'stopped';
+          if (!u.stoppedSince) u.stoppedSince = now;
+        }
+      }
+
+      let speedTxt = '';
+      if (u.state === 'at-base') {
+        const arrTimeStr = u.arrivalTime ? new Date(u.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+        speedTxt = `En Base (${arrTimeStr})`;
+      } else if (u.state === 'online') {
+        speedTxt = `${Math.round(speed)} km/h`;
+      } else {
+        speedTxt = `Detenido hace ${formatTimeAgo(now - u.stoppedSince)}`;
+      }
+
       if (!fleetMarkers[unitId]) {
-        const container = document.createElement('div');
-        container.className = 'car-marker-container';
-        const badge = document.createElement('div');
-        badge.className = 'car-badge';
-        badge.textContent = unitId;
-        container.appendChild(badge);
+        const { container, rotator, badge } = createMarkerElement(unitId);
+        const marker = new maplibregl.Marker({ element: container })
+          .setLngLat([lon, lat])
+          .addTo(map);
 
-        const rotator = document.createElement('div');
-        rotator.className = 'car-svg-rotator';
-        rotator.innerHTML = `
-          <svg viewBox="0 0 24 24" width="44" height="44">
-            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99z" fill="${unitId === currentUnit ? '#38bdf8' : '#f59e0b'}"/>
-          </svg>`;
-        container.appendChild(rotator);
-
-        const marker = new maplibregl.Marker({ element: container }).setLngLat([lon, lat]).addTo(map);
         fleetMarkers[unitId] = { marker, rotator, badge, container };
       } else {
         fleetMarkers[unitId].marker.setLngLat([lon, lat]);
+      }
+
+      const speedDiv = fleetMarkers[unitId].badge.querySelector('.unit-speed-txt');
+      if (speedDiv) speedDiv.textContent = speedTxt;
+
+      if (heading !== undefined && heading !== null) {
         fleetMarkers[unitId].rotator.style.transform = `rotate(${heading}deg)`;
       }
-    }
 
-    function updateGpsLockState(allowed) {
-      gpsPermissionGranted = allowed;
-      if (isModulator()) {
-        lblGpsStatus.textContent = 'Central';
-        lblGpsStatus.className = 'status-active';
-        gpsLockBanner.style.display = 'none';
-        return;
-      }
-      if (allowed) {
-        lblGpsStatus.textContent = 'Activo';
-        lblGpsStatus.className = 'status-active';
-        gpsLockBanner.style.display = 'none';
+      if (isSos) {
+        fleetMarkers[unitId].container.classList.add('sos-active');
       } else {
-        lblGpsStatus.textContent = 'Sin GPS';
-        lblGpsStatus.className = 'status-warning';
-        gpsLockBanner.style.display = 'flex';
+        fleetMarkers[unitId].container.classList.remove('sos-active');
       }
+
+      savePointToDB(unitId, lon, lat, speed, heading);
+      refreshFleetStatsCounters();
     }
 
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          updateGpsLockState(true);
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          mySpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-          myHeading = pos.coords.heading ? Math.round(pos.coords.heading) : myHeading;
-          myLastCoords = { lon, lat };
+    function smoothAnimationLoop() {
+      if (isDriver() && targetPos && currentDisplayPos && map) {
+        currentDisplayPos.lon += (targetPos.lon - currentDisplayPos.lon) * 0.15;
+        currentDisplayPos.lat += (targetPos.lat - currentDisplayPos.lat) * 0.15;
 
-          lblSpeed.textContent = `${mySpeed} km/h`;
-          lblHeading.textContent = `${myHeading}°`;
+        let diff = targetHeading - currentDisplayHeading;
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
+        currentDisplayHeading += diff * 0.15;
 
-          if (currentUnit) {
-            updateVehicleOnMap(currentUnit, lon, lat, myHeading, mySpeed, isSosActive);
+        const myId = `${currentUnit} (Tú)`;
+        if (fleetMarkers[myId]) {
+          fleetMarkers[myId].marker.setLngLat([currentDisplayPos.lon, currentDisplayPos.lat]);
+          fleetMarkers[myId].rotator.style.transform = `rotate(${currentDisplayHeading}deg)`;
+        }
+
+        if (firstPersonMode) {
+          const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
+          map.jumpTo({
+            center: [currentDisplayPos.lon, currentDisplayPos.lat],
+            bearing: currentDisplayHeading,
+            pitch: 75,
+            zoom: 17.2,
+            offset: [0, screenOffset]
+          });
+        }
+      }
+      requestAnimationFrame(smoothAnimationLoop);
+    }
+    requestAnimationFrame(smoothAnimationLoop);
+
+    setInterval(() => {
+      const now = Date.now();
+
+      ALL_UNITS.forEach(unitId => {
+        const u = fleetStatusMap[unitId];
+        if (!u || u.lastSeen === 0) return;
+
+        const diffSec = (now - u.lastSeen) / 1000;
+
+        if (diffSec > 50 && u.state !== 'offline') {
+          u.state = 'offline';
+          if (fleetMarkers[unitId]) {
+            fleetMarkers[unitId].marker.remove();
+            delete fleetMarkers[unitId];
           }
+        }
+      });
 
-          if (isDriver()) {
-            updateNavigationCamera(lon, lat, mySpeed, myHeading);
-            if (radioClient && radioClient.connected) {
-              radioClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
-            }
-          }
-        },
-        () => updateGpsLockState(false),
-        { enableHighAccuracy: true, maximumAge: 1000 }
-      );
+      refreshFleetStatsCounters();
+      if (fleetListDrawer.style.display === 'flex') renderFleetList();
+    }, 4000);
+
+    function refreshFleetStatsCounters() {
+      let online = 0;
+      let atBase = 0;
+      let stopped = 0;
+      let offline = 0;
+
+      ALL_UNITS.forEach(id => {
+        const st = fleetStatusMap[id].state;
+        if (st === 'at-base') atBase++;
+        else if (st === 'online') online++;
+        else if (st === 'stopped') stopped++;
+        else offline++;
+      });
+
+      document.getElementById('stat-online').textContent = `${online} En línea`;
+      document.getElementById('stat-base').textContent = `${atBase} En Base`;
+      document.getElementById('stat-stopped').textContent = `${stopped} Detenidos`;
+      document.getElementById('stat-offline').textContent = `${offline} Apagados`;
     }
 
-    // ==========================================
-    // SISTEMA DE RADIO Y MQTT
-    // ==========================================
-    function initializeRadio() {
-      if (radioInitialized) return;
-      radioInitialized = true;
-      console.log("Inicializando radio WebRTC + MQTT...");
-      connectRadioMQTT();
-    }
+    btnViewMode.addEventListener('click', () => {
+      firstPersonMode = !firstPersonMode;
+      updateViewButtonUI();
+      applyCameraPerspective();
+    });
 
-    function connectRadioMQTT() {
-      if (radioClient && radioClient.connected) return;
-      if (typeof mqtt === "undefined") {
-        console.error("La biblioteca MQTT no está cargada.");
-        updateRadioStatus("MQTT no disponible", "error");
+    function applyCameraPerspective() {
+      if (!map) return;
+      if (isModulator()) {
+        map.easeTo({ center: defaultBaseCoords, zoom: 16.5, pitch: 0, bearing: 0, offset: [0, 0], duration: 600 });
         return;
       }
 
-      radioClient = mqtt.connect(MQTT_URL, {
-        clientId: "yadah_radio_" + Math.random().toString(16).slice(2) + Date.now(),
-        clean: true,
-        connectTimeout: 10000,
-        reconnectPeriod: 5000
-      });
+      if (!myLastCoords) return;
 
-      radioClient.on("connect", () => {
-        console.log("MQTT del radio conectado exitosamente.");
-        radioClient.subscribe(RADIO_SIGNAL_TOPIC, (error) => {
-          if (error) {
-            console.error("Error al suscribirse al tópico de señalización:", error);
-            updateRadioStatus("Error de señalización", "error");
-            return;
-          }
-          updateRadioStatus("Radio conectado", "success");
-          if (pttButton) pttButton.disabled = false;
-          sendRadioSignal({ type: "hello" });
+      if (firstPersonMode) {
+        const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
+        map.easeTo({
+          center: [myLastCoords.lon, myLastCoords.lat],
+          bearing: myHeading,
+          pitch: 75,
+          zoom: 17.2,
+          offset: [0, screenOffset],
+          duration: 600
         });
-        radioClient.subscribe(AUDIO_SHARE_TOPIC);
-        radioClient.subscribe(TOPIC_GPS); // Suscripción activa al GPS de la flota
+      } else {
+        map.easeTo({
+          center: [myLastCoords.lon, myLastCoords.lat],
+          zoom: 16.0,
+          pitch: 0,
+          bearing: 0,
+          offset: [0, 0],
+          duration: 600
+        });
+      }
+    }
+
+    let mqttClient = null;
+    const TOPIC_GPS = 'yadah/radio/flota/gps';
+    const TOPIC_VOICE = 'yadah/radio/flota/voice';
+    const TOPIC_ALERT = 'yadah/radio/flota/alert';
+    const TOPIC_PANIC = 'yadah/radio/flota/panic';
+    const TOPIC_NAV = 'yadah/radio/flota/navigation';
+    const TOPIC_STATUS = 'yadah/radio/flota/status';
+    const TOPIC_BASE = 'yadah/radio/flota/base';
+    const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
+    const TOPIC_POI = 'yadah/radio/flota/poi';
+    const TOPIC_ASSIGN = 'yadah/radio/flota/assignment';
+
+    function triggerSOS() {
+      isSosActive = !isSosActive;
+      btnSos.classList.toggle('active', isSosActive);
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish(TOPIC_PANIC, JSON.stringify({
+          unit: currentUnit,
+          active: isSosActive,
+          coords: myLastCoords
+        }));
+      }
+      if (isSosActive) alert("¡ALERTA DE PÁNICO ACTIVADA! Transmitiendo emergencia a toda la flota y la Central.");
+    }
+
+    function locateActiveSOS() {
+      if (activeSosCoords && activeSosCoords.lon && activeSosCoords.lat && map) {
+        map.flyTo({ center: [activeSosCoords.lon, activeSosCoords.lat], zoom: 17.5, pitch: 45 });
+      }
+    }
+
+    function silenceSOS() {
+      document.getElementById('sos-alert-banner').style.display = 'none';
+      if (sirenInterval) {
+        clearInterval(sirenInterval);
+        sirenInterval = null;
+      }
+      activeSosCoords = null;
+    }
+
+    function connectNetwork() {
+      if (mqttClient && mqttClient.connected) return;
+
+      const opts = {
+        clientId: 'yadah_' + Math.random().toString(16).substring(2, 9),
+        clean: true,
+        reconnectPeriod: 2000
+      };
+
+      if (isDriver()) {
+        opts.will = {
+          topic: TOPIC_STATUS,
+          payload: JSON.stringify({ unit: currentUnit, status: 'offline', cause: 'desconexion_inesperada' }),
+          qos: 1,
+          retain: true
+        };
+      }
+
+      mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', opts);
+
+      mqttClient.on('connect', () => {
+        mqttClient.subscribe(TOPIC_GPS);
+        mqttClient.subscribe(TOPIC_VOICE);
+        mqttClient.subscribe(TOPIC_ALERT);
+        mqttClient.subscribe(TOPIC_PANIC);
+        mqttClient.subscribe(TOPIC_NAV);
+        mqttClient.subscribe(TOPIC_STATUS);
+        mqttClient.subscribe(TOPIC_BASE);
+        mqttClient.subscribe(TOPIC_MODULATOR);
+        mqttClient.subscribe(TOPIC_POI);
+        mqttClient.subscribe(TOPIC_ASSIGN);
+
+        if (isDriver()) {
+          mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
+        }
       });
 
-      radioClient.on("error", (error) => {
-        console.error("Error crítico en MQTT del radio:", error);
-        updateRadioStatus("Error de conexión", "error");
-      });
-
-      radioClient.on("offline", () => {
-        console.warn("MQTT del radio desconectado (offline).");
-        updateRadioStatus("Radio desconectado", "error");
-        if (pttButton) pttButton.disabled = true;
-      });
-
-      radioClient.on("message", (topic, message) => {
-        if (topic === RADIO_SIGNAL_TOPIC) {
-          receiveRadioSignal(message);
-        } else if (topic === AUDIO_SHARE_TOPIC) {
-          receiveSharedAudio(message);
-        } else if (topic === TOPIC_GPS) {
-          try {
-            const data = JSON.parse(message.toString());
+      mqttClient.on('message', (topic, message) => {
+        try {
+          const text = message.toString();
+          if (topic === TOPIC_ASSIGN) {
+            const assignData = JSON.parse(text);
+            if (isDriver() && assignData.targetUnit === currentUnit) {
+              playBeep(880, 0.1);
+              alert(`🎯 ¡Nueva misión asignada por Central!\nDestino: ${assignData.label}`);
+              
+              pendingDestination = { lon: assignData.lon, lat: assignData.lat, label: assignData.label };
+              lblRouteStats.textContent = `📍 [Asignado] ${assignData.label}. ¿Deseas iniciar marcha?`;
+              navRouteInfo.style.display = 'flex';
+            }
+          } else if (topic === TOPIC_POI) {
+            const poiData = JSON.parse(text);
+            if (poiData && poiData.action === 'sync' && poiData.pois) {
+              localStorage.setItem('yadah_custom_pois', JSON.stringify(poiData.pois));
+              renderCustomPoiMarkers();
+            }
+          } else if (topic === TOPIC_BASE) {
+            const baseData = JSON.parse(text);
+            if (baseData.coords) {
+              defaultBaseCoords = baseData.coords;
+              localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords));
+              if (permanentBaseMarker) {
+                permanentBaseMarker.setLngLat(defaultBaseCoords);
+              }
+            }
+          } else if (topic === TOPIC_MODULATOR) {
+            const modData = JSON.parse(text);
+            if (modData && modData.lat && modData.lon) {
+              updateModulatorState(modData.lat, modData.lon);
+            }
+          } else if (topic === TOPIC_GPS) {
+            const data = JSON.parse(text);
             if (data.unit && data.unit !== currentUnit) {
               updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
             }
-          } catch(e){}
+          } else if (topic === TOPIC_STATUS) {
+            const stData = JSON.parse(text);
+            if (stData.unit && stData.unit !== currentUnit) {
+              if (stData.status === 'offline') {
+                if (fleetStatusMap[stData.unit]) fleetStatusMap[stData.unit].state = 'offline';
+                if (fleetMarkers[stData.unit]) {
+                  fleetMarkers[stData.unit].marker.remove();
+                  delete fleetMarkers[stData.unit];
+                }
+                refreshFleetStatsCounters();
+              }
+            }
+          } else if (topic === TOPIC_NAV) {
+            const nav = JSON.parse(text);
+            if (isModulator() && map) {
+              ensureLayersExist();
+              if (nav.canceled) {
+                map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
+              } else if (nav.geometry) {
+                map.getSource('nav-active-route').setData({
+                  type: 'FeatureCollection',
+                  features: [{ type: 'Feature', geometry: nav.geometry, properties: {} }]
+                });
+              }
+            }
+          } else if (topic === TOPIC_PANIC) {
+            const panic = JSON.parse(text);
+            if (panic.unit !== currentUnit) {
+              if (panic.active) {
+                activeSosCoords = panic.coords;
+                const banner = document.getElementById('sos-alert-banner');
+                document.getElementById('sos-banner-text').textContent = `🚨 ¡EMERGENCIA: ${panic.unit}!`;
+                banner.style.display = 'flex';
+                if (!sirenInterval) {
+                  playSiren();
+                  sirenInterval = setInterval(playSiren, 1200);
+                }
+                if (isModulator() && panic.coords && map) {
+                  map.flyTo({ center: [panic.coords.lon, panic.coords.lat], zoom: 16.5, pitch: 0 });
+                }
+              } else {
+                silenceSOS();
+              }
+            }
+          } else if (topic === TOPIC_ALERT) {
+            const alertData = JSON.parse(text);
+            if (alertData.sender !== currentUnit) {
+              channelStatus.className = 'channel-status receiving';
+              channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
+              playBeep(660, 0.06);
+            }
+          } else if (topic === TOPIC_VOICE) {
+            const voice = JSON.parse(text);
+            if (voice.sender !== currentUnit) {
+              receiveVoiceWalkieTalkie(voice);
+            }
+          }
+        } catch (e) {
+          console.error("Error telemático:", e);
         }
       });
     }
 
-    function sendRadioSignal(data) {
-      if (!radioClient || !radioClient.connected) return;
-      radioClient.publish(RADIO_SIGNAL_TOPIC, JSON.stringify({
-        room: ROOM_NAME,
-        sender: currentUnit,
-        deviceId: deviceId,
-        timestamp: Date.now(),
-        ...data
-      }));
+    function calculateBearing(startLat, startLng, destLat, destLng) {
+      const y = Math.sin((destLng - startLng) * Math.PI / 180) * Math.cos(destLat * Math.PI / 180);
+      const x = Math.cos(startLat * Math.PI / 180) * Math.sin(destLat * Math.PI / 180) -
+                Math.sin(startLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) * Math.cos((destLng - startLng) * Math.PI / 180);
+      return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
     }
 
-    async function getRadioMicrophone() {
-      if (radioLocalTrack) return true;
-      if (!navigator.mediaDevices?.getUserMedia) {
-        console.error("El navegador no soporta getUserMedia.");
-        alert("Este navegador no permite utilizar el micrófono.");
-        return false;
+    let initialCentering = false;
+
+    if (!trackingUnit && navigator.geolocation) {
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+          updateGpsLockState(result.state === 'granted');
+          result.onchange = () => updateGpsLockState(result.state === 'granted');
+        }).catch(() => {});
       }
-      try {
-        radioLocalStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
+
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          updateGpsLockState(true);
+
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const now = Date.now();
+          let heading = pos.coords.heading;
+          let speedKmh = 0;
+
+          if (pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.8) {
+            speedKmh = pos.coords.speed * 3.6;
+          } else if (myLastCoords) {
+            const distMeters = Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon) * 111139;
+            const timeSeconds = (now - myLastCoords.timestamp) / 1000;
+            if (timeSeconds > 0 && distMeters > 2.5) {
+              speedKmh = (distMeters / timeSeconds) * 3.6;
+            }
           }
-        });
-        radioLocalTrack = radioLocalStream.getAudioTracks()[0];
-        if (radioLocalTrack) {
-          radioLocalTrack.enabled = false;
-        }
-        return Boolean(radioLocalTrack);
-      } catch (error) {
-        console.error("Error al solicitar acceso al micrófono:", error);
-        alert("Debes permitir el acceso al micrófono para transmitir.");
-        return false;
-      }
-    }
 
-    async function startRadioTalking(event) {
-      if (event) event.preventDefault();
-      radioButtonPressed = true;
+          if (heading === null || isNaN(heading)) {
+            if (myLastCoords) {
+              const dist = Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon);
+              if (dist > 0.00002) {
+                heading = calculateBearing(myLastCoords.lat, myLastCoords.lon, lat, lon);
+                myHeading = Math.round(heading);
+              }
+            }
+          } else {
+            myHeading = Math.round(heading);
+          }
 
-      const currentSession = ++radioTalkSession;
-      if (radioTalking) return;
+          mySpeed = Math.round(speedKmh);
+          myLastCoords = { lat, lon, timestamp: now };
+          lblHeading.textContent = `${myHeading}°`;
+          lblSpeed.textContent = `${mySpeed} km/h`;
 
-      const microphoneReady = await getRadioMicrophone();
-      
-      if (!radioButtonPressed || currentSession !== radioTalkSession) {
-        if (radioLocalTrack) radioLocalTrack.enabled = false;
-        return;
-      }
+          if (isModulator()) {
+            updateModulatorState(lat, lon);
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_MODULATOR, JSON.stringify({ lat, lon, timestamp: now }));
+            }
+          } else {
+            targetPos = { lon, lat };
+            targetHeading = myHeading;
+            if (!currentDisplayPos) {
+              currentDisplayPos = { lon, lat };
+              currentDisplayHeading = myHeading;
+            }
 
-      if (!microphoneReady || !radioLocalTrack) {
-        radioTalking = false;
-        return;
-      }
-
-      try {
-        radioLocalTrack.enabled = true;
-        radioTalking = true;
-        if (pttButton) {
-          pttButton.classList.add("talking", "active");
-        }
-        updateRadioStatus("TRANSMITIENDO", "transmitting");
-        startTranscription();
-        console.log("Transmisión de voz iniciada.");
-
-        recordedChunks = [];
-        mediaRecorder = new MediaRecorder(radioLocalStream);
-        mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunks.push(ev.data); };
-        mediaRecorder.onstop = () => {
-          stopTranscription();
-          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-          const reader = new FileReader();
-          reader.readAsDataURL(blob);
-          reader.onloadend = () => {
-            if (radioClient && radioClient.connected) {
-              radioClient.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
+            updateVehicleOnMap(`${currentUnit} (Tú)`, lon, lat, myHeading, mySpeed, isSosActive);
+            if (mqttClient && mqttClient.connected) {
+              mqttClient.publish(TOPIC_GPS, JSON.stringify({
                 unit: currentUnit,
-                deviceId: deviceId,
-                date: new Date().toLocaleTimeString(),
-                timestamp: Date.now(),
-                transcript: currentTranscript || "Sin transcripción",
-                payload: reader.result
+                lat: lat,
+                lon: lon,
+                heading: myHeading,
+                speed: mySpeed,
+                isSos: isSosActive
               }));
             }
-          };
-        };
-        mediaRecorder.start();
-      } catch (error) {
-        console.error("Error al iniciar la grabación o habilitar pista de audio:", error);
-        radioTalking = false;
-        if (radioLocalTrack) radioLocalTrack.enabled = false;
-        if (pttButton) {
-          pttButton.classList.remove("talking", "active");
+          }
+
+          if (!initialCentering) {
+            applyCameraPerspective();
+            initialCentering = true;
+          }
+        },
+        (err) => {
+          console.warn('Falla de GPS:', err.message);
+          updateGpsLockState(false);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+      );
+    } else if (!trackingUnit) {
+      updateGpsLockState(false);
+    }
+
+    if (!trackingUnit) {
+      document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
+    }
+
+    let mediaRecorder = null;
+    let audioStream = null;
+    let isRecording = false;
+    let audioQueue = [];
+    let isPlayingQueue = false;
+
+    async function initAudioEngine() {
+      try {
+        if (!audioStream) {
+          audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+              echoCancellation: true, 
+              noiseSuppression: true, 
+              autoGainControl: true,
+              sampleRate: 16000 
+            } 
+          });
         }
-        updateRadioStatus("Radio conectado", "success");
+      } catch (err) {
+        console.error("Error al acceder al micrófono:", err);
       }
     }
 
-    function stopRadioTalking(event) {
-      if (event) event.preventDefault();
-      radioButtonPressed = false;
-      radioTalkSession++;
+    async function startAudioRecording(e) {
+      if (e) e.preventDefault();
 
-      if (!radioTalking) return;
+      if (isDriver() && !gpsPermissionGranted) {
+        channelStatus.className = 'channel-status blocked';
+        channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
+        playBeep(220, 0.15);
+        return;
+      }
 
-      radioTalking = false;
-      if (radioLocalTrack) {
-        radioLocalTrack.enabled = false;
+      if (isRecording) return;
+      isRecording = true;
+
+      unlockAudioHardware();
+      await initAudioEngine();
+      if (!audioStream) {
+        isRecording = false;
+        return;
       }
-      if (pttButton) {
-        pttButton.classList.remove("talking", "active");
+
+      if (navigator.vibrate) navigator.vibrate(50);
+
+      playBeep(920, 0.04);
+      btnPtt.classList.add('active');
+      channelStatus.className = 'channel-status transmitting';
+      channelStatus.textContent = '▲ TRANSMITIENDO EN DIRECTO...';
+
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit }));
       }
-      updateRadioStatus("Radio conectado", "success");
+
+      try {
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+        mediaRecorder = new MediaRecorder(audioStream, { mimeType: mime, bitsPerSecond: 12800 });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0 && isRecording) {
+            const reader = new FileReader();
+            reader.readAsDataURL(event.data);
+            reader.onloadend = () => {
+              if (mqttClient && mqttClient.connected && isRecording) {
+                mqttClient.publish(TOPIC_VOICE, JSON.stringify({
+                  sender: currentUnit,
+                  payload: reader.result,
+                  timestamp: Date.now()
+                }));
+              }
+            };
+          }
+        };
+
+        mediaRecorder.start(120);
+      } catch (err) {
+        isRecording = false;
+      }
+    }
+
+    function stopAudioRecording(e) {
+      if (e) e.preventDefault();
+      if (!isRecording) return;
+      isRecording = false;
+
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
-      console.log("Transmisión detenida correctamente.");
+
+      btnPtt.classList.remove('active');
+      channelStatus.className = 'channel-status';
+      channelStatus.textContent = '● CANAL LIBRE';
+      playBeep(600, 0.04);
     }
 
-    // WEBRTC SIGNALING Y GESTIÓN DE PEERS
-    async function receiveRadioSignal(message) {
+    function receiveVoiceWalkieTalkie(voiceData) {
+      if (voiceData.sender === currentUnit) return;
+
+      channelStatus.className = 'channel-status receiving';
+      channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
+
+      audioQueue.push(voiceData);
+      if (!isPlayingQueue) {
+        processAudioQueue();
+      }
+
+      saveAudioToHistory({
+        sender: voiceData.sender,
+        payload: voiceData.payload,
+        timestamp: voiceData.timestamp || Date.now()
+      });
+    }
+
+    function processAudioQueue() {
+      if (audioQueue.length === 0) {
+        isPlayingQueue = false;
+        channelStatus.className = 'channel-status';
+        channelStatus.textContent = '● CANAL LIBRE';
+        return;
+      }
+
+      isPlayingQueue = true;
+      const voiceData = audioQueue.shift();
+
       try {
-        const data = JSON.parse(message.toString());
-        if (data.room !== ROOM_NAME || data.deviceId === deviceId) return;
-        if (data.target && data.target !== deviceId) return;
-
-        remoteUnit = data.sender;
-        const targetDevId = data.deviceId;
-
-        let pc = radioPeers.get(targetDevId);
-
-        if (data.type === "hello") {
-          if (currentUnit && currentUnit.toLowerCase() > data.sender.toLowerCase()) {
-            pc = await createPeer(targetDevId, true);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            sendRadioSignal({ type: "offer", target: targetDevId, offer: offer });
-          }
-        } else if (data.type === "offer") {
-          if (!pc) pc = await createPeer(targetDevId, false);
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          
-          if (pendingCandidates.length > 0) {
-            for (const cand of pendingCandidates) {
-              try { await pc.addIceCandidate(cand); } catch(e){}
-            }
-            pendingCandidates = [];
-          }
-
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          sendRadioSignal({ type: "answer", target: targetDevId, answer: answer });
-        } else if (data.type === "answer") {
-          if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          }
-        } else if (data.type === "candidate") {
-          const candidate = new RTCIceCandidate(data.candidate);
-          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-            await pc.addIceCandidate(candidate);
-          } else {
-            pendingCandidates.push(candidate);
-          }
+        const parts = voiceData.payload.split(';base64,');
+        const contentType = parts[0].split(':')[1] || 'audio/webm';
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) {
+          uInt8Array[i] = raw.charCodeAt(i);
         }
-      } catch (error) {
-        console.error("Error procesando señal WebRTC entrante:", error);
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const audioUrl = URL.createObjectURL(blob);
+
+        radioSpeaker.src = audioUrl;
+        radioSpeaker.volume = 1.0;
+
+        radioSpeaker.play().catch(() => {});
+
+        radioSpeaker.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          processAudioQueue();
+        };
+      } catch (err) {
+        processAudioQueue();
       }
     }
 
-    async function createPeer(targetDevId, isInitiator) {
-      if (radioPeers.has(targetDevId)) return radioPeers.get(targetDevId);
+    if (!trackingUnit) {
+      btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
+      btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
+      btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
+      btnPtt.addEventListener('mousedown', startAudioRecording);
+      btnPtt.addEventListener('mouseup', stopAudioRecording);
+      btnPtt.addEventListener('mouseleave', stopAudioRecording);
 
-      const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
-      radioPeers.set(targetDevId, pc);
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          sendRadioSignal({ type: "candidate", target: targetDevId, candidate: event.candidate });
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
+          startAudioRecording(e);
         }
-      };
-
-      pc.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          remoteAudio.srcObject = event.streams[0];
-          remoteAudio.play().catch((err) => {
-            console.warn("Autoplay bloqueado o error al reproducir audio remoto:", err);
-          });
-          updateRadioStatus("RECIBIENDO AUDIO: " + (remoteUnit || "Motorista"), "receiving");
-        }
-      };
-
-      await getRadioMicrophone();
-      if (radioLocalStream) {
-        radioLocalStream.getTracks().forEach(track => {
-          pc.addTrack(track, radioLocalStream);
-        });
-      }
-
-      return pc;
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') stopAudioRecording(e);
+      });
     }
 
-    // ==========================================
-    // TRANSCRIPCIÓN Y BUZÓN DE 24H
-    // ==========================================
-    function configurarTranscripcion() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) return;
-      recognition = new SpeechRecognition();
-      recognition.lang = "es-SV";
-      recognition.continuous = true;
-      recognition.interimResults = true;
+    let cachedAudios = [];
 
-      recognition.onresult = (event) => {
-        let txt = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          txt += event.results[i][0].transcript;
-        }
-        currentTranscript = filtrarTexto(txt);
-        showTranscript(currentTranscript);
-      };
-    }
-
-    function startTranscription() {
-      if (!recognition) return;
-      currentTranscript = "";
-      try { recognition.start(); } catch(e){}
-    }
-
-    function stopTranscription() {
-      if (!recognition) return;
-      try { recognition.stop(); } catch(e){}
-    }
-
-    function receiveSharedAudio(message) {
+    function getStoredAudios() {
       try {
-        const data = JSON.parse(message.toString());
-        if (data.deviceId === deviceId) return;
+        const stored = JSON.parse(localStorage.getItem('yadah_audio_history') || '[]');
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        const validAudios = stored.filter(item => item && item.timestamp && item.timestamp > oneDayAgo);
+        localStorage.setItem('yadah_audio_history', JSON.stringify(validAudios));
+        cachedAudios = validAudios;
+        return validAudios;
+      } catch (e) {
+        cachedAudios = [];
+        return [];
+      }
+    }
 
-        audioHistory.innerHTML = `
-          <div class="audio-item">
-            <strong>🎙️ ${data.unit}</strong>
-            <small>${data.date}</small>
-            <p>💬 ${filtrarTexto(data.transcript)}</p>
-            <audio controls src="${data.payload}"></audio>
-          </div>
-        ` + audioHistory.innerHTML;
-      } catch (e) {}
+    function saveAudioToHistory(audioItem) {
+      const list = getStoredAudios();
+      list.unshift(audioItem);
+      if (list.length > 25) list.pop();
+      try {
+        localStorage.setItem('yadah_audio_history', JSON.stringify(list));
+        cachedAudios = list;
+      } catch (e) {
+        list.splice(10);
+        localStorage.setItem('yadah_audio_history', JSON.stringify(list));
+        cachedAudios = list;
+      }
     }
 
     function toggleHistory(show) {
-      document.getElementById('history-modal').style.display = show ? 'flex' : 'none';
+      const modal = document.getElementById('history-modal');
+      modal.style.display = show ? 'flex' : 'none';
+      if (show) renderHistory();
     }
 
-    // ==========================================
-    // EVENTOS PTT Y TECLADO
-    // ==========================================
-    if (pttButton) {
-      pttButton.addEventListener("pointerdown", startRadioTalking);
-      pttButton.addEventListener("pointerup", stopRadioTalking);
-      pttButton.addEventListener("pointercancel", stopRadioTalking);
-      pttButton.addEventListener("lostpointercapture", stopRadioTalking);
+    function renderHistory() {
+      const listContainer = document.getElementById('history-list');
+      const audios = getStoredAudios();
+
+      if (audios.length === 0) {
+        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones registradas en las últimas 24 horas.</p>';
+        return;
+      }
+
+      listContainer.innerHTML = audios.map((item, index) => {
+        const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `
+          <div class="history-item">
+            <div>
+              <b style="color:#f59e0b;">${item.sender}</b>
+              <div style="font-size:0.72rem; color:#94a3b8;">${time}</div>
+            </div>
+            <button class="btn-play-audio" onclick="playAudioByIndex(${index})">▶ Oír</button>
+          </div>
+        `;
+      }).join('');
     }
 
-    window.addEventListener("blur", () => {
-      if (radioTalking) {
-        stopRadioTalking(null);
+    function playAudioByIndex(index) {
+      unlockAudioHardware();
+      const item = cachedAudios[index];
+      if (!item || !item.payload) return;
+
+      try {
+        const parts = item.payload.split(';base64,');
+        const contentType = parts[0].split(':')[1] || 'audio/webm';
+        const raw = window.atob(parts[1]);
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) {
+          uInt8Array[i] = raw.charCodeAt(i);
+        }
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        radioSpeaker.src = url;
+        radioSpeaker.play();
+      } catch (err) {
+        console.error("Error reproduciendo audio:", err);
       }
-    });
+    }
 
-    window.addEventListener("keydown", (e) => {
-      if (e.code === "Space" && !e.repeat && document.activeElement.tagName !== "INPUT") {
-        startRadioTalking(e);
-      }
-    });
-
-    window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") {
-        stopRadioTalking(e);
-      }
-    });
-
-    document.addEventListener("click", () => {
-      if (remoteAudio) remoteAudio.play().catch(() => {});
-    }, { passive: true });
-
-    configurarTranscripcion();
+    if (!trackingUnit) {
+      checkAuth();
+    }
   </script>
 </body>
 </html>
