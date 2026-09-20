@@ -2587,14 +2587,21 @@
     }
 
     // ==========================================
-    // MÓDULO DE AUDIO (Transmisión de Audio Completo al Soltar)
+    // MÓDULO DE AUDIO UNIFICADO Y BLINDADO
     // ==========================================
+    const radioSpeaker = document.getElementById('radio-speaker');
+    const btnPtt = document.getElementById('btn-ptt');
+    const channelStatus = document.getElementById('channel-status');
+
     let mediaRecorder = null;
     let audioStream = null;
     let isRecording = false;
     let audioChunks = [];
     let audioQueue = [];
     let isPlayingQueue = false;
+
+    const MAX_RECORDING_TIME = 60 * 1000;
+    let recordingTimeout = null;
 
     async function initAudioEngine() {
       try {
@@ -2616,10 +2623,22 @@
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
 
-      if (isDriver() && !gpsPermissionGranted) {
+      const driverActive =
+        typeof isDriver === 'function'
+          ? isDriver()
+          : typeof isDriver !== 'undefined'
+            ? Boolean(isDriver)
+            : false;
+
+      const gpsActive =
+        typeof gpsPermissionGranted !== 'undefined'
+          ? Boolean(gpsPermissionGranted)
+          : false;
+
+      if (driverActive && !gpsActive) {
         channelStatus.className = 'channel-status blocked';
         channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
-        playBeep(220, 0.15);
+        if (typeof playBeep === 'function') playBeep(220, 0.15);
         return;
       }
 
@@ -2627,8 +2646,12 @@
       isRecording = true;
       audioChunks = [];
 
-      unlockAudioHardware();
+      if (typeof unlockAudioHardware === 'function') unlockAudioHardware();
       await initAudioEngine();
+
+      if (!isRecording) {
+        return;
+      }
 
       if (!audioStream) {
         isRecording = false;
@@ -2637,12 +2660,12 @@
 
       if (navigator.vibrate) navigator.vibrate(50);
 
-      playBeep(920, 0.04);
+      if (typeof playBeep === 'function') playBeep(920, 0.04);
       btnPtt.classList.add('active');
       channelStatus.className = 'channel-status transmitting';
       channelStatus.textContent = '▲ GRABANDO AUDIO...';
 
-      if (mqttClient && mqttClient.connected) {
+      if (typeof mqttClient !== 'undefined' && mqttClient && mqttClient.connected) {
         mqttClient.publish(
           TOPIC_ALERT,
           JSON.stringify({ sender: currentUnit })
@@ -2650,7 +2673,15 @@
       }
 
       try {
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        if (typeof MediaRecorder === 'undefined') {
+          throw new Error('MediaRecorder no está disponible en este dispositivo');
+        }
+
+        const canUseOpus =
+          typeof MediaRecorder.isTypeSupported === 'function' &&
+          MediaRecorder.isTypeSupported('audio/webm;codecs=opus');
+
+        const mime = canUseOpus
           ? 'audio/webm;codecs=opus'
           : 'audio/webm';
 
@@ -2667,10 +2698,17 @@
 
         mediaRecorder.start();
 
+        recordingTimeout = setTimeout(() => {
+          if (isRecording) {
+            stopAudioRecording();
+          }
+        }, MAX_RECORDING_TIME);
+
       } catch (err) {
         console.error('Error iniciando grabación:', err);
         isRecording = false;
-        btnPtt.classList.remove('active');
+        mediaRecorder = null;
+        resetPttUI();
       }
     }
 
@@ -2679,6 +2717,11 @@
       if (!isRecording) return;
 
       isRecording = false;
+
+      if (recordingTimeout) {
+        clearTimeout(recordingTimeout);
+        recordingTimeout = null;
+      }
 
       const recorder = mediaRecorder;
 
@@ -2700,6 +2743,7 @@
           reader.onloadend = () => {
             if (
               reader.result &&
+              typeof mqttClient !== 'undefined' &&
               mqttClient &&
               mqttClient.connected
             ) {
@@ -2724,14 +2768,21 @@
         recorder.stop();
       }
 
+      resetPttUI();
+      if (typeof playBeep === 'function') playBeep(600, 0.04);
+    }
+
+    function resetPttUI() {
       btnPtt.classList.remove('active');
       channelStatus.className = 'channel-status';
       channelStatus.textContent = '● CANAL LIBRE';
-      playBeep(600, 0.04);
     }
 
     function receiveVoiceWalkieTalkie(voiceData) {
-      if (voiceData.sender === currentUnit) return;
+      if (!voiceData || !voiceData.sender || voiceData.sender === currentUnit) return;
+      if (!voiceData.payload || typeof voiceData.payload !== 'string') return;
+      if (!voiceData.payload.startsWith('data:audio/')) return;
+      if (voiceData.payload.length > 1500000) return;
 
       channelStatus.className = 'channel-status receiving';
       channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
@@ -2774,24 +2825,57 @@
         radioSpeaker.src = audioUrl;
         radioSpeaker.volume = 1.0;
 
-        radioSpeaker.play().catch(() => {});
-
         radioSpeaker.onended = () => {
+          radioSpeaker.onended = null;
           URL.revokeObjectURL(audioUrl);
           processAudioQueue();
         };
+
+        radioSpeaker.play().catch((error) => {
+          console.warn('No se pudo reproducir el audio:', error);
+          radioSpeaker.onended = null;
+          URL.revokeObjectURL(audioUrl);
+          isPlayingQueue = false;
+          processAudioQueue();
+        });
+
       } catch (err) {
+        console.error("Error procesando elemento de la cola de audio:", err);
+        isPlayingQueue = false;
         processAudioQueue();
       }
     }
 
-    if (!trackingUnit) {
-      btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
-      btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
-      btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
-      btnPtt.addEventListener('mousedown', startAudioRecording);
-      btnPtt.addEventListener('mouseup', stopAudioRecording);
-      btnPtt.addEventListener('mouseleave', stopAudioRecording);
+    if (btnPtt) {
+      let pttPressed = false;
+
+      btnPtt.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (pttPressed) return;
+        pttPressed = true;
+        btnPtt.setPointerCapture?.(e.pointerId);
+        startAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        if (!pttPressed) return;
+        pttPressed = false;
+        stopAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('pointercancel', (e) => {
+        if (!pttPressed) return;
+        pttPressed = false;
+        stopAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('lostpointercapture', () => {
+        if (pttPressed) {
+          pttPressed = false;
+          stopAudioRecording();
+        }
+      });
 
       window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
@@ -2843,27 +2927,50 @@
       const listContainer = document.getElementById('history-list');
       const audios = getStoredAudios();
 
+      listContainer.innerHTML = '';
+
       if (audios.length === 0) {
-        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones registradas en las últimas 24 horas.</p>';
+        const p = document.createElement('p');
+        p.style.color = '#64748b';
+        p.style.fontSize = '0.85rem';
+        p.textContent = 'No hay transmisiones registradas.';
+        listContainer.appendChild(p);
         return;
       }
 
-      listContainer.innerHTML = audios.map((item, index) => {
+      audios.forEach((item, index) => {
         const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        return `
-          <div class="history-item">
-            <div>
-              <b style="color:#f59e0b;">${item.sender}</b>
-              <div style="font-size:0.72rem; color:#94a3b8;">${time}</div>
-            </div>
-            <button class="btn-play-audio" onclick="playAudioByIndex(${index})">▶ Oír</button>
-          </div>
-        `;
-      }).join('');
+
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+
+        const infoDiv = document.createElement('div');
+
+        const senderB = document.createElement('b');
+        senderB.style.color = '#f59e0b';
+        senderB.textContent = item.sender;
+
+        const timeDiv = document.createElement('div');
+        timeDiv.style.fontSize = '0.72rem';
+        timeDiv.style.color = '#94a3b8';
+        timeDiv.textContent = time;
+
+        infoDiv.appendChild(senderB);
+        infoDiv.appendChild(timeDiv);
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'btn-play-audio';
+        playBtn.textContent = '▶ Oír';
+        playBtn.onclick = () => playAudioByIndex(index);
+
+        historyItem.appendChild(infoDiv);
+        historyItem.appendChild(playBtn);
+        listContainer.appendChild(historyItem);
+      });
     }
 
     function playAudioByIndex(index) {
-      unlockAudioHardware();
+      if (typeof unlockAudioHardware === 'function') unlockAudioHardware();
       const item = cachedAudios[index];
       if (!item || !item.payload) return;
 
@@ -2879,6 +2986,10 @@
         const url = URL.createObjectURL(blob);
         radioSpeaker.src = url;
         radioSpeaker.play();
+
+        radioSpeaker.onended = () => {
+          URL.revokeObjectURL(url);
+        };
       } catch (err) {
         console.error("Error reproduciendo audio:", err);
       }
