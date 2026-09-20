@@ -794,7 +794,7 @@
     'use strict';
 
     // ==========================================
-    // CONFIGURACIÓN DE RADIO Y MQTT
+    // CONFIGURACIÓN DE RADIO Y MQTT UNIFICADA
     // ==========================================
     const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
     const RADIO_SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v9";
@@ -832,12 +832,15 @@
 
     let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
     
-    // VARIABLES DE RADIO (DECLARADAS UNA SOLA VEZ)
+    // VARIABLES DEL RADIO (DECLARADAS UNA SOLA VEZ)
     let radioClient = null;
     let radioLocalStream = null;
     let radioLocalTrack = null;
     let radioTalking = false;
+    let radioButtonPressed = false;
+    let radioTalkSession = 0;
     let radioInitialized = false;
+    let remoteUnit = null;
     const radioPeers = new Map();
     const radioUnits = new Map();
     let pendingCandidates = [];
@@ -970,7 +973,6 @@
       navRouteInfo.style.display = 'flex';
     }
 
-    // BUSCADOR Y GEOSUGGESTIONS
     function handleSearchInput(query) {
       clearTimeout(searchTimeout);
       if (!query || query.trim().length < 2) {
@@ -1114,10 +1116,6 @@
     }
 
     function updateViewButtonUI() {
-      btnViewButtonUIHelper();
-    }
-
-    function btnViewButtonUIHelper() {
       if (btnViewMode) {
         btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
         btnViewMode.classList.toggle('active', firstPersonMode);
@@ -1169,9 +1167,6 @@
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
-    // ==========================================
-    // GESTIÓN DE PERFILES Y AUTENTICACIÓN
-    // ==========================================
     function selectUnit(id) {
       const screen = document.getElementById('login-screen');
       if (screen) {
@@ -1194,9 +1189,7 @@
       updateViewButtonUI();
       applyNightModeTheme();
 
-      // INICIALIZAR RADIO DESPUÉS DEL LOGIN
       initializeRadio();
-      connectFleetMQTT();
 
       setTimeout(() => {
         if (map) {
@@ -1216,12 +1209,12 @@
     }
 
     // ==========================================
-    // SISTEMA DE RADIO: WEBRTC Y MQTT
+    // SISTEMA DE RADIO UNIFICADO Y ROBUSTO
     // ==========================================
     function initializeRadio() {
       if (radioInitialized) return;
       radioInitialized = true;
-      console.log("Iniciando radio YadahApp...");
+      console.log("Inicializando radio WebRTC + MQTT...");
       connectRadioMQTT();
     }
 
@@ -1233,22 +1226,19 @@
         return;
       }
 
-      radioClient = mqtt.connect(
-        MQTT_URL,
-        {
-          clientId: "yadah_radio_" + Math.random().toString(16).slice(2) + Date.now(),
-          clean: true,
-          connectTimeout: 10000,
-          reconnectPeriod: 5000
-        }
-      );
+      radioClient = mqtt.connect(MQTT_URL, {
+        clientId: "yadah_radio_" + Math.random().toString(16).slice(2) + Date.now(),
+        clean: true,
+        connectTimeout: 10000,
+        reconnectPeriod: 5000
+      });
 
       radioClient.on("connect", () => {
-        console.log("MQTT del radio conectado.");
+        console.log("MQTT del radio conectado exitosamente.");
         radioClient.subscribe(RADIO_SIGNAL_TOPIC, (error) => {
           if (error) {
-            console.error("Error al suscribirse:", error);
-            updateRadioStatus("Error de radio", "error");
+            console.error("Error al suscribirse al tópico de señalización:", error);
+            updateRadioStatus("Error de señalización", "error");
             return;
           }
           updateRadioStatus("Radio conectado", "success");
@@ -1259,11 +1249,12 @@
       });
 
       radioClient.on("error", (error) => {
-        console.error("Error MQTT del radio:", error);
+        console.error("Error crítico en MQTT del radio:", error);
         updateRadioStatus("Error de conexión", "error");
       });
 
       radioClient.on("offline", () => {
+        console.warn("MQTT del radio desconectado (offline).");
         updateRadioStatus("Radio desconectado", "error");
         if (pttButton) pttButton.disabled = true;
       });
@@ -1271,8 +1262,7 @@
       radioClient.on("message", (topic, message) => {
         if (topic === RADIO_SIGNAL_TOPIC) {
           receiveRadioSignal(message);
-        }
-        if (topic === AUDIO_SHARE_TOPIC) {
+        } else if (topic === AUDIO_SHARE_TOPIC) {
           receiveSharedAudio(message);
         }
       });
@@ -1280,21 +1270,19 @@
 
     function sendRadioSignal(data) {
       if (!radioClient || !radioClient.connected) return;
-      radioClient.publish(
-        RADIO_SIGNAL_TOPIC,
-        JSON.stringify({
-          room: ROOM_NAME,
-          sender: currentUnit,
-          deviceId: deviceId,
-          timestamp: Date.now(),
-          ...data
-        })
-      );
+      radioClient.publish(RADIO_SIGNAL_TOPIC, JSON.stringify({
+        room: ROOM_NAME,
+        sender: currentUnit,
+        deviceId: deviceId,
+        timestamp: Date.now(),
+        ...data
+      }));
     }
 
     async function getRadioMicrophone() {
       if (radioLocalTrack) return true;
       if (!navigator.mediaDevices?.getUserMedia) {
+        console.error("El navegador no soporta getUserMedia.");
         alert("Este navegador no permite utilizar el micrófono.");
         return false;
       }
@@ -1312,71 +1300,97 @@
         }
         return Boolean(radioLocalTrack);
       } catch (error) {
-        console.error("Error del micrófono:", error);
-        alert("Debes permitir el acceso al micrófono.");
+        console.error("Error al solicitar acceso al micrófono:", error);
+        alert("Debes permitir el acceso al micrófono para transmitir.");
         return false;
       }
     }
 
     async function startRadioTalking(event) {
       if (event) event.preventDefault();
+      radioButtonPressed = true;
+
+      const currentSession = ++radioTalkSession;
       if (radioTalking) return;
 
       const microphoneReady = await getRadioMicrophone();
-      if (!microphoneReady || !radioLocalTrack) {
+      
+      // Validar si el usuario soltó el botón mientras se pedía el permiso
+      if (!radioButtonPressed || currentSession !== radioTalkSession) {
+        if (radioLocalTrack) radioLocalTrack.enabled = false;
         return;
       }
 
-      radioLocalTrack.enabled = true;
-      radioTalking = true;
-      if (pttButton) {
-        pttButton.classList.add("talking");
+      if (!microphoneReady || !radioLocalTrack) {
+        radioTalking = false;
+        return;
       }
-      updateRadioStatus("TRANSMITIENDO", "transmitting");
-      startTranscription();
-      console.log("Transmitiendo audio...");
 
-      recordedChunks = [];
-      mediaRecorder = new MediaRecorder(radioLocalStream);
-      mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunks.push(ev.data); };
-      mediaRecorder.onstop = () => {
-        stopTranscription();
-        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          if (radioClient && radioClient.connected) {
-            radioClient.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
-              unit: currentUnit,
-              deviceId: deviceId,
-              date: new Date().toLocaleTimeString(),
-              timestamp: Date.now(),
-              transcript: currentTranscript || "Sin transcripción",
-              payload: reader.result
-            }));
-          }
+      try {
+        radioLocalTrack.enabled = true;
+        radioTalking = true;
+        if (pttButton) {
+          pttButton.classList.add("talking", "active");
+        }
+        updateRadioStatus("TRANSMITIENDO", "transmitting");
+        startTranscription();
+        console.log("Transmisión de voz iniciada.");
+
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(radioLocalStream);
+        mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunks.push(ev.data); };
+        mediaRecorder.onstop = () => {
+          stopTranscription();
+          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            if (radioClient && radioClient.connected) {
+              radioClient.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
+                unit: currentUnit,
+                deviceId: deviceId,
+                date: new Date().toLocaleTimeString(),
+                timestamp: Date.now(),
+                transcript: currentTranscript || "Sin transcripción",
+                payload: reader.result
+              }));
+            }
+          };
         };
-      };
-      mediaRecorder.start();
+        mediaRecorder.start();
+      } catch (error) {
+        console.error("Error al iniciar la grabación o habilitar pista de audio:", error);
+        radioTalking = false;
+        if (radioLocalTrack) radioLocalTrack.enabled = false;
+        if (pttButton) {
+          pttButton.classList.remove("talking", "active");
+        }
+        updateRadioStatus("Radio conectado", "success");
+      }
     }
 
     function stopRadioTalking(event) {
       if (event) event.preventDefault();
+      radioButtonPressed = false;
+      radioTalkSession++;
+
       if (!radioTalking) return;
 
+      radioTalking = false;
       if (radioLocalTrack) {
         radioLocalTrack.enabled = false;
       }
-      radioTalking = false;
       if (pttButton) {
-        pttButton.classList.remove("talking");
+        pttButton.classList.remove("talking", "active");
       }
       updateRadioStatus("Radio conectado", "success");
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-      console.log("Transmisión detenida.");
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      console.log("Transmisión detenida correctamente.");
     }
 
-    // WEBRTC SIGNALING Y PEERS
+    // WEBRTC SIGNALING Y GESTIÓN DE PEERS
     async function receiveRadioSignal(message) {
       try {
         const data = JSON.parse(message.toString());
@@ -1389,7 +1403,7 @@
         let pc = radioPeers.get(targetDevId);
 
         if (data.type === "hello") {
-          if (currentUnit.toLowerCase() > data.sender.toLowerCase()) {
+          if (currentUnit && currentUnit.toLowerCase() > data.sender.toLowerCase()) {
             pc = await createPeer(targetDevId, true);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
@@ -1422,7 +1436,7 @@
           }
         }
       } catch (error) {
-        console.error("Error procesando señal WebRTC:", error);
+        console.error("Error procesando señal WebRTC entrante:", error);
       }
     }
 
@@ -1441,14 +1455,18 @@
       pc.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
           remoteAudio.srcObject = event.streams[0];
-          remoteAudio.play().catch(() => {});
-          updateRadioStatus("RECIBIENDO AUDIO: " + remoteUnit, "receiving");
+          remoteAudio.play().catch((err) => {
+            console.warn("Autoplay bloqueado o error al reproducir audio remoto:", err);
+          });
+          updateRadioStatus("RECIBIENDO AUDIO: " + (remoteUnit || "Motorista"), "receiving");
         }
       };
 
       await getRadioMicrophone();
       if (radioLocalStream) {
-        radioLocalStream.getTracks().forEach(track => pc.addTrack(track, radioLocalStream));
+        radioLocalStream.getTracks().forEach(track => {
+          pc.addTrack(track, radioLocalStream);
+        });
       }
 
       return pc;
@@ -1457,10 +1475,6 @@
     // ==========================================
     // MAPA VEHÍCULOS Y GPS FLEET
     // ==========================================
-    function connectFleetMQTT() {
-      // Reutiliza o conecta cliente secundario para telemetría si se desea
-    }
-
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || !map) return;
       if (!fleetMarkers[unitId]) {
@@ -1584,13 +1598,20 @@
     }
 
     // ==========================================
-    // EVENTOS PTT Y TECLADO
+    // EVENTOS PTT ROBUSTOS (POINTER EVENTS & WINDOW BLUR)
     // ==========================================
     if (pttButton) {
       pttButton.addEventListener("pointerdown", startRadioTalking);
       pttButton.addEventListener("pointerup", stopRadioTalking);
       pttButton.addEventListener("pointercancel", stopRadioTalking);
+      pttButton.addEventListener("lostpointercapture", stopRadioTalking);
     }
+
+    window.addEventListener("blur", () => {
+      if (radioTalking) {
+        stopRadioTalking(null);
+      }
+    });
 
     window.addEventListener("keydown", (e) => {
       if (e.code === "Space" && !e.repeat && document.activeElement.tagName !== "INPUT") {
