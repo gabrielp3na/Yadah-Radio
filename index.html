@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<title>Yadah Radio WebRTC - Canal Compartido</title>
+<title>Yadah Radio - Transcripción y Censura</title>
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
@@ -154,6 +154,15 @@ button {
   margin-bottom: 10px;
 }
 
+.audio-item p {
+  color: #e2e8f0;
+  font-size: 14px;
+  margin: 6px 0;
+  padding: 6px;
+  background: #1e293b;
+  border-radius: 6px;
+}
+
 .audio-item small {
   display: block;
   color: #94a3b8;
@@ -191,15 +200,15 @@ button {
 </button>
 
 <div class="info">
-Canal de voz en tiempo real y buzón protegido compartido.
+Radio P2P + Transcripción y Censura en tiempo real.
 </div>
 
 <div class="connection-info" id="connection-info">Preparando conexión...</div>
 
 <section class="history">
-<h2>📁 Buzón Compartido (Protegido)</h2>
+<h2>📁 Buzón de 24 Horas</h2>
 <div id="audio-history">
-<p class="empty-history">No hay audios en el canal.</p>
+<p class="empty-history">No hay registros recientes.</p>
 </div>
 </section>
 
@@ -211,14 +220,27 @@ Canal de voz en tiempo real y buzón protegido compartido.
 "use strict";
 
 const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-const SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v3";
-const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v1";
+const SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v5";
+const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v3";
 const ROOM_NAME = "yadah-radio-prueba";
 
 const STUN_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" }
 ];
+
+// Lista personalizada de palabras restringidas
+const PALABRAS_PROHIBIDAS = ["maitra", "maitro", "babosada", "mierda", "puta"];
+
+function filtrarTexto(texto) {
+  let textoLimpio = texto;
+  PALABRAS_PROHIBIDAS.forEach(palabra => {
+    const regex = new RegExp(palabra, "gi");
+    const censura = "*".repeat(palabra.length);
+    textoLimpio = textoLimpio.replace(regex, censura);
+  });
+  return textoLimpio;
+}
 
 const unitInput = document.getElementById("unit-input");
 const saveButton = document.getElementById("save-button");
@@ -242,8 +264,27 @@ let isTalking = false;
 let mediaRecorder = null;
 let recordedChunks = [];
 
+let recognition = null;
+let currentTranscript = "";
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-ES';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = function(event) {
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      interim += event.results[i][0].transcript;
+    }
+    currentTranscript += " " + filtrarTexto(interim);
+  };
+}
+
 let database;
-const databaseRequest = indexedDB.open("YadahRadioSharedDB", 1);
+const databaseRequest = indexedDB.open("YadahRadioCensoredDBv2", 1);
 
 databaseRequest.onupgradeneeded = function(event) {
   database = event.target.result;
@@ -391,15 +432,23 @@ async function handleCandidate(data) {
   }
 }
 
-/* GRABACIÓN Y COMPARTIR AUDIO */
-
 function startRecording() {
   if (!localStream) return;
   recordedChunks = [];
+  currentTranscript = "";
+
+  if (recognition) {
+    try { recognition.start(); } catch(e){}
+  }
+
   try {
     mediaRecorder = new MediaRecorder(localStream);
     mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
     mediaRecorder.onstop = () => {
+      if (recognition) {
+        try { recognition.stop(); } catch(e){}
+      }
+
       const audioBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
@@ -409,6 +458,7 @@ function startRecording() {
             unit: currentUnit,
             date: new Date().toLocaleString("es-SV"),
             timestamp: Date.now(),
+            transcript: currentTranscript.trim() || "Sin transcripción",
             payload: reader.result
           }));
         }
@@ -432,6 +482,7 @@ function receiveSharedAudio(message) {
           unit: data.unit,
           date: data.date,
           timestamp: data.timestamp,
+          transcript: data.transcript,
           blob: blob
         });
       });
@@ -449,14 +500,26 @@ function saveAudioToDB(audioObj) {
 function loadAudioHistory() {
   if (!database) return;
   audioHistory.innerHTML = "";
-  const transaction = database.transaction(["audios"], "readonly");
+  const transaction = database.transaction(["audios"], "readwrite");
   const store = transaction.objectStore("audios");
   const request = store.getAll();
 
   request.onsuccess = function() {
-    const audios = request.result.sort((a, b) => b.timestamp - a.timestamp);
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    
+    const validAudios = [];
+    request.result.forEach(audioData => {
+      if (now - audioData.timestamp > twentyFourHours) {
+        store.delete(audioData.id);
+      } else {
+        validAudios.push(audioData);
+      }
+    });
+
+    const audios = validAudios.sort((a, b) => b.timestamp - a.timestamp);
     if (!audios.length) {
-      audioHistory.innerHTML = '<p class="empty-history">No hay audios en el canal.</p>';
+      audioHistory.innerHTML = '<p class="empty-history">No hay audios en las últimas 24 horas.</p>';
       return;
     }
 
@@ -470,6 +533,9 @@ function loadAudioHistory() {
       const date = document.createElement("small");
       date.textContent = audioData.date;
 
+      const textPara = document.createElement("p");
+      textPara.textContent = "💬 " + audioData.transcript;
+
       const audio = document.createElement("audio");
       audio.controls = true;
       audio.preload = "metadata";
@@ -477,13 +543,12 @@ function loadAudioHistory() {
 
       item.appendChild(title);
       item.appendChild(date);
+      item.appendChild(textPara);
       item.appendChild(audio);
       audioHistory.appendChild(item);
     });
   };
 }
-
-/* PTT */
 
 async function startPTT(e) {
   if (e) e.preventDefault();
