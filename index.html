@@ -203,9 +203,14 @@
         try {
           const data = JSON.parse(message.toString());
           if (topic === TOPIC_ALERT && data.sender !== currentUnit) {
-            channelStatus.className = 'status-box receiving';
-            channelStatus.textContent = `▼ HABLANDO: ${data.sender}`;
-            playBeep(660, 0.06);
+            if (data.action === 'stop') {
+              channelStatus.className = 'status-box';
+              channelStatus.textContent = '● CANAL LIBRE';
+            } else {
+              channelStatus.className = 'status-box receiving';
+              channelStatus.textContent = `▼ HABLANDO: ${data.sender}`;
+              playBeep(660, 0.06);
+            }
           } else if (topic === TOPIC_VOICE && data.sender !== currentUnit) {
             queueVoice(data);
           }
@@ -282,6 +287,10 @@
       channelStatus.className = 'status-box';
       channelStatus.textContent = '● CANAL LIBRE';
       playBeep(500, 0.05);
+
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit, action: 'stop' }));
+      }
     }
 
     function queueVoice(data) {
