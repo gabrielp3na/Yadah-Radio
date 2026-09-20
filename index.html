@@ -491,7 +491,13 @@
       border: 1px solid #1f2937;
     }
 
-    .channel-status.transmitting {
+    .channel-status.success {
+      background-color: #047857;
+      color: white;
+      border-color: #10b981;
+    }
+
+    .channel-status.transmitting, .channel-status.talking {
       background-color: #b91c1c;
       color: white;
       border-color: #ef4444;
@@ -504,7 +510,7 @@
       border-color: #10b981;
     }
 
-    .channel-status.blocked {
+    .channel-status.error {
       background-color: #450a0a;
       color: #fca5a5;
       border-color: #dc2626;
@@ -530,9 +536,9 @@
       touch-action: none;
     }
 
-    .btn-ptt.active { background-color: #f59e0b; color: #030712; }
+    .btn-ptt.talking, .btn-ptt.active { background-color: #f59e0b; color: #030712; }
 
-    .btn-ptt.gps-disabled {
+    .btn-ptt:disabled {
       background-color: #1e293b !important;
       border-color: #475569 !important;
       color: #64748b !important;
@@ -767,7 +773,7 @@
       📝 Transcripción: esperando...
     </div>
 
-    <button class="btn-ptt" id="btn-ptt" disabled>
+    <button class="btn-ptt" id="ptt" disabled>
       <span>🎙️</span> PULSAR PARA HABLAR (Espacio)
     </button>
   </div>
@@ -787,8 +793,11 @@
   <script>
     'use strict';
 
+    // ==========================================
+    // CONFIGURACIÓN DE RADIO Y MQTT
+    // ==========================================
     const MQTT_URL = "wss://broker.emqx.io:8084/mqtt";
-    const SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v8";
+    const RADIO_SIGNAL_TOPIC = "yadah/radio/webrtc/signaling/v9";
     const AUDIO_SHARE_TOPIC = "yadah/radio/shared/audio/v5";
     const TOPIC_GPS = 'yadah/fleet/gps/v2';
     const ROOM_NAME = "yadah-radio-flota-3d";
@@ -822,13 +831,16 @@
     const isModulator = () => currentUnit === 'Modulador';
 
     let deviceId = (currentUnit || 'guest') + "_" + Math.random().toString(16).substring(2, 10);
-    let client = null;
-    let peerConnection = null;
-    let localStream = null;
-    let remoteUnit = "";
+    
+    // VARIABLES DE RADIO (DECLARADAS UNA SOLA VEZ)
+    let radioClient = null;
+    let radioLocalStream = null;
+    let radioLocalTrack = null;
+    let radioTalking = false;
+    let radioInitialized = false;
+    const radioPeers = new Map();
+    const radioUnits = new Map();
     let pendingCandidates = [];
-    let isConnecting = false;
-    let isTalking = false;
 
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -855,7 +867,7 @@
     const fleetSummaryBar = document.getElementById('fleet-summary-bar');
     const fleetListDrawer = document.getElementById('fleet-list-drawer');
     const gpsLockBanner = document.getElementById('gps-lock-banner');
-    const btnPtt = document.getElementById('btn-ptt');
+    const pttButton = document.getElementById('ptt');
     const transcriptLive = document.getElementById('transcript-live');
     const audioHistory = document.getElementById('audio-history');
 
@@ -885,7 +897,16 @@
     });
 
     function showTranscript(texto) {
-      transcriptLive.textContent = "📝 Transcripción: " + (texto || "esperando...");
+      if (transcriptLive) {
+        transcriptLive.textContent = "📝 Transcripción: " + (texto || "esperando...");
+      }
+    }
+
+    function updateRadioStatus(msg, type="") {
+      if (channelStatus) {
+        channelStatus.textContent = "● " + msg;
+        channelStatus.className = "channel-status " + type;
+      }
     }
 
     // MAPA MAPLIBRE
@@ -1093,46 +1114,64 @@
     }
 
     function updateViewButtonUI() {
-      btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
-      btnViewMode.classList.toggle('active', firstPersonMode);
+      btnViewButtonUIHelper();
     }
 
-    btnViewMode.addEventListener('click', () => {
-      firstPersonMode = !firstPersonMode;
-      updateViewButtonUI();
-      applyCameraPerspective();
-    });
+    function btnViewButtonUIHelper() {
+      if (btnViewMode) {
+        btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
+        btnViewMode.classList.toggle('active', firstPersonMode);
+      }
+    }
+
+    if (btnViewMode) {
+      btnViewMode.addEventListener('click', () => {
+        firstPersonMode = !firstPersonMode;
+        updateViewButtonUI();
+        applyCameraPerspective();
+      });
+    }
 
     function applyNightModeTheme() {
       if (isNightMode) {
         mapContainer.classList.add('map-night-mode');
-        btnThemeMode.textContent = '☀️';
-        btnThemeMode.classList.add('active');
+        if (btnThemeMode) {
+          btnThemeMode.textContent = '☀️';
+          btnThemeMode.classList.add('active');
+        }
       } else {
         mapContainer.classList.remove('map-night-mode');
-        btnThemeMode.textContent = '🌙';
-        btnThemeMode.classList.remove('active');
+        if (btnThemeMode) {
+          btnThemeMode.textContent = '🌙';
+          btnThemeMode.classList.remove('active');
+        }
       }
       localStorage.setItem('yadah_night_mode', isNightMode);
     }
 
-    btnThemeMode.addEventListener('click', () => {
-      isNightMode = !isNightMode;
-      applyNightModeTheme();
-    });
+    if (btnThemeMode) {
+      btnThemeMode.addEventListener('click', () => {
+        isNightMode = !isNightMode;
+        applyNightModeTheme();
+      });
+    }
 
-    btnTrafficToggle.addEventListener('click', () => {
-      showTraffic = !showTraffic;
-      btnTrafficToggle.classList.toggle('active', showTraffic);
-      if (map.getLayer('google-traffic-layer')) {
-        map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
-      }
-    });
+    if (btnTrafficToggle) {
+      btnTrafficToggle.addEventListener('click', () => {
+        showTraffic = !showTraffic;
+        btnTrafficToggle.classList.toggle('active', showTraffic);
+        if (map.getLayer('google-traffic-layer')) {
+          map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
+        }
+      });
+    }
 
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
+    // ==========================================
     // GESTIÓN DE PERFILES Y AUTENTICACIÓN
+    // ==========================================
     function selectUnit(id) {
       const screen = document.getElementById('login-screen');
       if (screen) {
@@ -1155,10 +1194,9 @@
       updateViewButtonUI();
       applyNightModeTheme();
 
-      try {
-        connectMQTT();
-        connectSignaling();
-      } catch (e) {}
+      // INICIALIZAR RADIO DESPUÉS DEL LOGIN
+      initializeRadio();
+      connectFleetMQTT();
 
       setTimeout(() => {
         if (map) {
@@ -1177,7 +1215,252 @@
       selectUnit(currentUnit);
     }
 
-    // MAPA VEHÍCULOS
+    // ==========================================
+    // SISTEMA DE RADIO: WEBRTC Y MQTT
+    // ==========================================
+    function initializeRadio() {
+      if (radioInitialized) return;
+      radioInitialized = true;
+      console.log("Iniciando radio YadahApp...");
+      connectRadioMQTT();
+    }
+
+    function connectRadioMQTT() {
+      if (radioClient && radioClient.connected) return;
+      if (typeof mqtt === "undefined") {
+        console.error("La biblioteca MQTT no está cargada.");
+        updateRadioStatus("MQTT no disponible", "error");
+        return;
+      }
+
+      radioClient = mqtt.connect(
+        MQTT_URL,
+        {
+          clientId: "yadah_radio_" + Math.random().toString(16).slice(2) + Date.now(),
+          clean: true,
+          connectTimeout: 10000,
+          reconnectPeriod: 5000
+        }
+      );
+
+      radioClient.on("connect", () => {
+        console.log("MQTT del radio conectado.");
+        radioClient.subscribe(RADIO_SIGNAL_TOPIC, (error) => {
+          if (error) {
+            console.error("Error al suscribirse:", error);
+            updateRadioStatus("Error de radio", "error");
+            return;
+          }
+          updateRadioStatus("Radio conectado", "success");
+          if (pttButton) pttButton.disabled = false;
+          sendRadioSignal({ type: "hello" });
+        });
+        radioClient.subscribe(AUDIO_SHARE_TOPIC);
+      });
+
+      radioClient.on("error", (error) => {
+        console.error("Error MQTT del radio:", error);
+        updateRadioStatus("Error de conexión", "error");
+      });
+
+      radioClient.on("offline", () => {
+        updateRadioStatus("Radio desconectado", "error");
+        if (pttButton) pttButton.disabled = true;
+      });
+
+      radioClient.on("message", (topic, message) => {
+        if (topic === RADIO_SIGNAL_TOPIC) {
+          receiveRadioSignal(message);
+        }
+        if (topic === AUDIO_SHARE_TOPIC) {
+          receiveSharedAudio(message);
+        }
+      });
+    }
+
+    function sendRadioSignal(data) {
+      if (!radioClient || !radioClient.connected) return;
+      radioClient.publish(
+        RADIO_SIGNAL_TOPIC,
+        JSON.stringify({
+          room: ROOM_NAME,
+          sender: currentUnit,
+          deviceId: deviceId,
+          timestamp: Date.now(),
+          ...data
+        })
+      );
+    }
+
+    async function getRadioMicrophone() {
+      if (radioLocalTrack) return true;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        alert("Este navegador no permite utilizar el micrófono.");
+        return false;
+      }
+      try {
+        radioLocalStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        radioLocalTrack = radioLocalStream.getAudioTracks()[0];
+        if (radioLocalTrack) {
+          radioLocalTrack.enabled = false;
+        }
+        return Boolean(radioLocalTrack);
+      } catch (error) {
+        console.error("Error del micrófono:", error);
+        alert("Debes permitir el acceso al micrófono.");
+        return false;
+      }
+    }
+
+    async function startRadioTalking(event) {
+      if (event) event.preventDefault();
+      if (radioTalking) return;
+
+      const microphoneReady = await getRadioMicrophone();
+      if (!microphoneReady || !radioLocalTrack) {
+        return;
+      }
+
+      radioLocalTrack.enabled = true;
+      radioTalking = true;
+      if (pttButton) {
+        pttButton.classList.add("talking");
+      }
+      updateRadioStatus("TRANSMITIENDO", "transmitting");
+      startTranscription();
+      console.log("Transmitiendo audio...");
+
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(radioLocalStream);
+      mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunks.push(ev.data); };
+      mediaRecorder.onstop = () => {
+        stopTranscription();
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          if (radioClient && radioClient.connected) {
+            radioClient.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
+              unit: currentUnit,
+              deviceId: deviceId,
+              date: new Date().toLocaleTimeString(),
+              timestamp: Date.now(),
+              transcript: currentTranscript || "Sin transcripción",
+              payload: reader.result
+            }));
+          }
+        };
+      };
+      mediaRecorder.start();
+    }
+
+    function stopRadioTalking(event) {
+      if (event) event.preventDefault();
+      if (!radioTalking) return;
+
+      if (radioLocalTrack) {
+        radioLocalTrack.enabled = false;
+      }
+      radioTalking = false;
+      if (pttButton) {
+        pttButton.classList.remove("talking");
+      }
+      updateRadioStatus("Radio conectado", "success");
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      console.log("Transmisión detenida.");
+    }
+
+    // WEBRTC SIGNALING Y PEERS
+    async function receiveRadioSignal(message) {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.room !== ROOM_NAME || data.deviceId === deviceId) return;
+        if (data.target && data.target !== deviceId) return;
+
+        remoteUnit = data.sender;
+        const targetDevId = data.deviceId;
+
+        let pc = radioPeers.get(targetDevId);
+
+        if (data.type === "hello") {
+          if (currentUnit.toLowerCase() > data.sender.toLowerCase()) {
+            pc = await createPeer(targetDevId, true);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendRadioSignal({ type: "offer", target: targetDevId, offer: offer });
+          }
+        } else if (data.type === "offer") {
+          if (!pc) pc = await createPeer(targetDevId, false);
+          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+          
+          if (pendingCandidates.length > 0) {
+            for (const cand of pendingCandidates) {
+              try { await pc.addIceCandidate(cand); } catch(e){}
+            }
+            pendingCandidates = [];
+          }
+
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sendRadioSignal({ type: "answer", target: targetDevId, answer: answer });
+        } else if (data.type === "answer") {
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          }
+        } else if (data.type === "candidate") {
+          const candidate = new RTCIceCandidate(data.candidate);
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(candidate);
+          } else {
+            pendingCandidates.push(candidate);
+          }
+        }
+      } catch (error) {
+        console.error("Error procesando señal WebRTC:", error);
+      }
+    }
+
+    async function createPeer(targetDevId, isInitiator) {
+      if (radioPeers.has(targetDevId)) return radioPeers.get(targetDevId);
+
+      const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+      radioPeers.set(targetDevId, pc);
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          sendRadioSignal({ type: "candidate", target: targetDevId, candidate: event.candidate });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          remoteAudio.srcObject = event.streams[0];
+          remoteAudio.play().catch(() => {});
+          updateRadioStatus("RECIBIENDO AUDIO: " + remoteUnit, "receiving");
+        }
+      };
+
+      await getRadioMicrophone();
+      if (radioLocalStream) {
+        radioLocalStream.getTracks().forEach(track => pc.addTrack(track, radioLocalStream));
+      }
+
+      return pc;
+    }
+
+    // ==========================================
+    // MAPA VEHÍCULOS Y GPS FLEET
+    // ==========================================
+    function connectFleetMQTT() {
+      // Reutiliza o conecta cliente secundario para telemetría si se desea
+    }
+
     function updateVehicleOnMap(unitId, lon, lat, heading, speed = 0, isSos = false) {
       if (!lon || !lat || !map) return;
       if (!fleetMarkers[unitId]) {
@@ -1204,25 +1487,21 @@
       }
     }
 
-    // GPS Y TELEMETRÍA
     function updateGpsLockState(allowed) {
       gpsPermissionGranted = allowed;
       if (isModulator()) {
         lblGpsStatus.textContent = 'Central';
         lblGpsStatus.className = 'status-active';
-        btnPtt.disabled = false;
         gpsLockBanner.style.display = 'none';
         return;
       }
       if (allowed) {
         lblGpsStatus.textContent = 'Activo';
         lblGpsStatus.className = 'status-active';
-        btnPtt.disabled = false;
         gpsLockBanner.style.display = 'none';
       } else {
         lblGpsStatus.textContent = 'Sin GPS';
         lblGpsStatus.className = 'status-warning';
-        btnPtt.disabled = true;
         gpsLockBanner.style.display = 'flex';
       }
     }
@@ -1242,8 +1521,8 @@
 
           if (isDriver()) {
             updateNavigationCamera(lon, lat, mySpeed, myHeading);
-            if (client && client.connected) {
-              client.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
+            if (radioClient && radioClient.connected) {
+              radioClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
             }
           }
         },
@@ -1252,61 +1531,9 @@
       );
     }
 
-    // MQTT & WEBRTC RADIO AUDIO & TRANSCRIPCIÓN
-    function connectMQTT() {
-      client = mqtt.connect(MQTT_URL, { clientId: 'yadah_fleet_' + Math.random().toString(16).substring(2, 8), clean: true });
-      client.on('connect', () => {
-        client.subscribe(TOPIC_GPS);
-        client.subscribe(AUDIO_SHARE_TOPIC);
-      });
-      client.on('message', (top, msg) => {
-        try {
-          const data = JSON.parse(msg.toString());
-          if (top === TOPIC_GPS && data.unit !== currentUnit) {
-            updateVehicleOnMap(data.unit, data.lon, data.lat, data.heading, data.speed, data.isSos);
-          } else if (top === AUDIO_SHARE_TOPIC && data.deviceId !== deviceId) {
-            receiveSharedAudio(data);
-          }
-        } catch (e) {}
-      });
-    }
-
-    function connectSignaling() {
-      const sigClient = mqtt.connect(MQTT_URL, { clientId: 'sig_' + Math.random().toString(16).substring(2, 8), clean: true });
-      sigClient.on('connect', () => { sigClient.subscribe(SIGNAL_TOPIC); });
-      sigClient.on('message', async (top, msg) => {
-        try {
-          const data = JSON.parse(msg.toString());
-          if (data.room !== ROOM_NAME || data.deviceId === deviceId) return;
-          if (data.type === 'hello') {
-            await setupWebRTC(data.deviceId, true);
-          }
-        } catch(e){}
-      });
-    }
-
-    async function setupWebRTC(targetId, isInitiator) {
-      if (peerConnection) return;
-      peerConnection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
-      
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-        localStream.getAudioTracks()[0].enabled = false;
-        peerConnection.addTrack(localStream.getAudioTracks()[0], localStream);
-      } catch(e) {}
-
-      peerConnection.ontrack = (e) => {
-        remoteAudio.srcObject = e.streams[0];
-        remoteAudio.play().catch(()=>{});
-        setStatus("▼ RECIBIENDO AUDIO", "receiving");
-      };
-
-      if (isInitiator) {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-      }
-    }
-
+    // ==========================================
+    // TRANSCRIPCIÓN Y BUZÓN DE 24H
+    // ==========================================
     function configurarTranscripcion() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) return;
@@ -1336,82 +1563,50 @@
       try { recognition.stop(); } catch(e){}
     }
 
-    // GRABACIÓN PTT
-    async function startPTT(e) {
-      if (e) e.preventDefault();
-      if (isTalking || !localStream) return;
-      
-      isTalking = true;
-      localStream.getAudioTracks()[0].enabled = true;
-      btnPtt.classList.add("active");
-      setStatus("▲ TRANSMITIENDO", "transmitting");
-      startTranscription();
+    function receiveSharedAudio(message) {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.deviceId === deviceId) return;
 
-      recordedChunks = [];
-      mediaRecorder = new MediaRecorder(localStream);
-      mediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) recordedChunks.push(ev.data); };
-      mediaRecorder.onstop = () => {
-        stopTranscription();
-        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          if (client && client.connected) {
-            client.publish(AUDIO_SHARE_TOPIC, JSON.stringify({
-              unit: currentUnit,
-              deviceId: deviceId,
-              date: new Date().toLocaleTimeString(),
-              timestamp: Date.now(),
-              transcript: currentTranscript || "Sin transcripción",
-              payload: reader.result
-            }));
-          }
-        };
-      };
-      mediaRecorder.start();
-    }
-
-    function stopPTT(e) {
-      if (e) e.preventDefault();
-      if (!isTalking) return;
-      isTalking = false;
-      if (localStream) localStream.getAudioTracks()[0].enabled = false;
-      btnPtt.classList.remove("active");
-      setStatus("● CONECTADO", "connected");
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    }
-
-    function receiveSharedAudio(data) {
-      audioHistory.innerHTML = `
-        <div class="audio-item">
-          <strong>🎙️ ${data.unit}</strong>
-          <small>${data.date}</small>
-          <p>💬 ${filtrarTexto(data.transcript)}</p>
-          <audio controls src="${data.payload}"></audio>
-        </div>
-      ` + audioHistory.innerHTML;
+        audioHistory.innerHTML = `
+          <div class="audio-item">
+            <strong>🎙️ ${data.unit}</strong>
+            <small>${data.date}</small>
+            <p>💬 ${filtrarTexto(data.transcript)}</p>
+            <audio controls src="${data.payload}"></audio>
+          </div>
+        ` + audioHistory.innerHTML;
+      } catch (e) {}
     }
 
     function toggleHistory(show) {
       document.getElementById('history-modal').style.display = show ? 'flex' : 'none';
     }
 
-    function setStatus(msg, type="") {
-      channelStatus.textContent = msg;
-      channelStatus.className = "channel-status " + type;
+    // ==========================================
+    // EVENTOS PTT Y TECLADO
+    // ==========================================
+    if (pttButton) {
+      pttButton.addEventListener("pointerdown", startRadioTalking);
+      pttButton.addEventListener("pointerup", stopRadioTalking);
+      pttButton.addEventListener("pointercancel", stopRadioTalking);
     }
 
-    // EVENTOS PTT
-    btnPtt.addEventListener("pointerdown", startPTT);
-    btnPtt.addEventListener("pointerup", stopPTT);
-    btnPtt.addEventListener("pointercancel", stopPTT);
-
     window.addEventListener("keydown", (e) => {
-      if (e.code === "Space" && !e.repeat && document.activeElement.tagName !== "INPUT") startPTT(e);
+      if (e.code === "Space" && !e.repeat && document.activeElement.tagName !== "INPUT") {
+        startRadioTalking(e);
+      }
     });
+
     window.addEventListener("keyup", (e) => {
-      if (e.code === "Space") stopPTT(e);
+      if (e.code === "Space") {
+        stopRadioTalking(e);
+      }
     });
+
+    document.addEventListener("click", () => {
+      if (remoteAudio) remoteAudio.play().catch(() => {});
+    }, { passive: true });
 
     configurarTranscripcion();
   </script>
