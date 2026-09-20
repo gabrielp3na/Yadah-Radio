@@ -1132,13 +1132,12 @@
     function zoomIn() { map.zoomIn(); }
     function zoomOut() { map.zoomOut(); }
 
-    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (BLINDADO)
+    // GESTIÓN DE PERFILES Y AUTENTICACIÓN (SUPER BLINDADO)
     function selectUnit(id) {
+      // Remover del DOM de inmediato el login para liberar la pantalla
       const screen = document.getElementById('login-screen');
       if (screen) {
-        screen.style.display = 'none';
-        screen.style.visibility = 'hidden';
-        screen.style.zIndex = '-999';
+        screen.remove();
       }
 
       currentUnit = id;
