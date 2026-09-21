@@ -1776,9 +1776,24 @@
           } else if (topic === TOPIC_ALERT) {
             const alertData = JSON.parse(text);
             if (alertData.sender !== currentUnit && channelStatus) {
-              channelStatus.className = 'channel-status receiving';
-              channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
-              playBeep(660, 0.06);
+              if (alertData.live === true) {
+                channelStatus.className = 'channel-status receiving';
+                channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
+                playBeep(660, 0.06);
+                clearTimeout(window.yadahRemoteTalkTimer);
+                window.yadahRemoteTalkTimer = setTimeout(() => {
+                  if (channelStatus && !radioTalking) {
+                    channelStatus.className = 'channel-status';
+                    channelStatus.textContent = '● CANAL LIBRE';
+                  }
+                }, 5000);
+              } else if (alertData.live === false) {
+                clearTimeout(window.yadahRemoteTalkTimer);
+                if (!radioTalking) {
+                  channelStatus.className = 'channel-status';
+                  channelStatus.textContent = '● CANAL LIBRE';
+                }
+              }
             }
           }
         } catch (e) {}
@@ -1903,7 +1918,10 @@
     async function attachRadioTrackToPeers() {
       if (!radioLocalTrack) return;
       for (const pc of radioPeers.values()) {
-        const sender = pc.getSenders().find(item => item && item.track && item.track.kind === 'audio');
+        const transceiver = pc.getTransceivers().find(item =>
+          item && item.sender && item.receiver && item.receiver.track && item.receiver.track.kind === 'audio'
+        );
+        const sender = transceiver ? transceiver.sender : pc.getSenders().find(item => item && item.track && item.track.kind === 'audio');
         if (sender) {
           try { await sender.replaceTrack(radioLocalTrack); } catch (error) {}
         }
@@ -1965,6 +1983,9 @@
         channelStatus.textContent = '● CANAL LIBRE';
       }
       playBeep(600, 0.04);
+      if (mqttClient && mqttClient.connected && currentUnit) {
+        mqttClient.publish(TOPIC_ALERT, JSON.stringify({ sender: currentUnit, live: false }));
+      }
     }
 
     function queueRadioCandidate(targetDevId, candidate) {
@@ -2074,7 +2095,10 @@
       };
 
       if (radioLocalTrack) {
-        const sender = pc.getSenders().find(item => item && item.track && item.track.kind === 'audio');
+        const transceiver = pc.getTransceivers().find(item =>
+          item && item.sender && item.receiver && item.receiver.track && item.receiver.track.kind === 'audio'
+        );
+        const sender = transceiver ? transceiver.sender : pc.getSenders().find(item => item && item.track && item.track.kind === 'audio');
         if (sender) {
           try { await sender.replaceTrack(radioLocalTrack); } catch (error) {}
         }
