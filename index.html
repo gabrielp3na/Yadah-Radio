@@ -451,7 +451,8 @@
       if (btnSosEl) btnSosEl.style.display = 'none';
     }
 
-    let firstPersonMode = true;
+    // Se establece en false para que el mapa inicie libre y se pueda navegar con libertad en el teléfono o PC
+    let firstPersonMode = false; 
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTraffic = true;
     let activeHistoryUnit = null;
@@ -516,6 +517,7 @@
       }
     }
 
+    // Coordenadas base configuradas inicialmente
     let defaultBaseCoords = [-89.356200, 13.724208];
     const savedBaseCoords = localStorage.getItem('yadah_base_coords');
     if (savedBaseCoords) { try { defaultBaseCoords = JSON.parse(savedBaseCoords); } catch(e){} }
@@ -703,6 +705,7 @@
           fleetMarkers[myId].rotator.style.transform = `rotate(${currentDisplayHeading}deg)`;
         }
 
+        // Si firstPersonMode está activo, sigue el vehículo; de lo contrario, permite la navegación libre
         if (firstPersonMode) {
           const screenOffset = window.innerHeight ? window.innerHeight * 0.35 : 220;
           map.jumpTo({
