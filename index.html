@@ -82,6 +82,7 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
+      touch-action: manipulation;
     }
 
     .btn-unit-select.modulador {
@@ -1236,7 +1237,8 @@
     const gpsLockBanner = document.getElementById('gps-lock-banner');
     const btnPtt = document.getElementById('btn-ptt');
 
-    let firstPersonMode = true;
+    // Cambiado a false para que el mapa inicie en modo libre/cenital permitiendo la navegación táctil sin forzar primera persona
+    let firstPersonMode = false;
     let isNightMode = localStorage.getItem('yadah_night_mode') === 'true';
     let showTraffic = true;
     let activeHistoryUnit = null;
@@ -1409,66 +1411,60 @@
       gpsPermissionGranted = allowed;
 
       if (isModulator()) {
-        lblGpsStatus.textContent = 'Base Central';
-        lblGpsStatus.className = 'status-active';
-        btnPtt.classList.remove('gps-disabled');
-        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
-        gpsLockBanner.style.display = 'none';
+        if (lblGpsStatus) { lblGpsStatus.textContent = 'Base Central'; lblGpsStatus.className = 'status-active'; }
+        if (btnPtt) { btnPtt.classList.remove('gps-disabled'); btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)'; }
+        if (gpsLockBanner) gpsLockBanner.style.display = 'none';
         return;
       }
 
       if (allowed) {
-        lblGpsStatus.textContent = 'Activo';
-        lblGpsStatus.className = 'status-active';
-        btnPtt.classList.remove('gps-disabled');
-        btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)';
-        gpsLockBanner.style.display = 'none';
+        if (lblGpsStatus) { lblGpsStatus.textContent = 'Activo'; lblGpsStatus.className = 'status-active'; }
+        if (btnPtt) { btnPtt.classList.remove('gps-disabled'); btnPtt.innerHTML = '<span>🎙️</span> PULSAR PARA HABLAR (Espacio)'; }
+        if (gpsLockBanner) gpsLockBanner.style.display = 'none';
       } else {
-        lblGpsStatus.textContent = 'Denegado/Apagado';
-        lblGpsStatus.className = 'status-warning';
-        btnPtt.classList.add('gps-disabled');
-        btnPtt.innerHTML = '<span>🚫</span> GPS REQUERIDO PARA TRANSMITIR';
-        gpsLockBanner.style.display = 'flex';
+        if (lblGpsStatus) { lblGpsStatus.textContent = 'Denegado/Apagado'; lblGpsStatus.className = 'status-warning'; }
+        if (btnPtt) { btnPtt.classList.add('gps-disabled'); btnPtt.innerHTML = '<span>🚫</span> GPS REQUERIDO PARA TRANSMITIR'; }
+        if (gpsLockBanner) gpsLockBanner.style.display = 'flex';
       }
     }
 
     function checkAuth() {
       if (currentUnit) {
-        loginScreen.style.display = 'none';
-        lblUnit.textContent = currentUnit;
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (lblUnit) lblUnit.textContent = currentUnit;
         firstPersonMode = isDriver();
-        btnSos.style.display = isDriver() ? 'flex' : 'none';
-        navSearchBar.style.display = isDriver() ? 'flex' : 'none';
-        btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
-        fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
-        btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
-        if (!isModulator()) vehicleHistoryCard.style.display = 'none';
+        if (btnSos) btnSos.style.display = isDriver() ? 'flex' : 'none';
+        if (navSearchBar) navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+        if (btnToggleFleet) btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+        if (fleetSummaryBar) fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+        if (btnUnlockBase) btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
+        if (!isModulator() && vehicleHistoryCard) vehicleHistoryCard.style.display = 'none';
         updateViewButtonUI();
         applyNightModeTheme();
-        btnTrafficToggle.classList.toggle('active', showTraffic);
+        if (btnTrafficToggle) btnTrafficToggle.classList.toggle('active', showTraffic);
         requestWakeLock();
         connectNetwork();
         applyCameraPerspective();
       } else {
-        loginScreen.style.display = 'flex';
+        if (loginScreen) loginScreen.style.display = 'flex';
       }
     }
 
     function selectUnit(id) {
       currentUnit = id;
       localStorage.setItem('yadah_terminal_id', id);
-      lblUnit.textContent = id;
-      loginScreen.style.display = 'none';
+      if (lblUnit) lblUnit.textContent = id;
+      if (loginScreen) loginScreen.style.display = 'none';
       firstPersonMode = isDriver();
-      btnSos.style.display = isDriver() ? 'flex' : 'none';
-      navSearchBar.style.display = isDriver() ? 'flex' : 'none';
-      btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
-      fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
-      btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
-      if (!isModulator()) vehicleHistoryCard.style.display = 'none';
+      if (btnSos) btnSos.style.display = isDriver() ? 'flex' : 'none';
+      if (navSearchBar) navSearchBar.style.display = isDriver() ? 'flex' : 'none';
+      if (btnToggleFleet) btnToggleFleet.style.display = isModulator() ? 'block' : 'none';
+      if (fleetSummaryBar) fleetSummaryBar.style.display = isModulator() ? 'flex' : 'none';
+      if (btnUnlockBase) btnUnlockBase.style.display = isModulator() ? 'flex' : 'none';
+      if (!isModulator() && vehicleHistoryCard) vehicleHistoryCard.style.display = 'none';
       updateViewButtonUI();
       applyNightModeTheme();
-      btnTrafficToggle.classList.toggle('active', showTraffic);
+      if (btnTrafficToggle) btnTrafficToggle.classList.toggle('active', showTraffic);
       requestWakeLock();
       unlockAudioHardware();
       connectNetwork();
@@ -1498,16 +1494,18 @@
       toggleFleetDrawer(false);
       closeContextMenu();
       baseUnlocked = false;
-      btnUnlockBase.textContent = '🔒';
-      btnUnlockBase.classList.remove('unlocked');
+      if (btnUnlockBase) {
+        btnUnlockBase.textContent = '🔒';
+        btnUnlockBase.classList.remove('unlocked');
+      }
 
-      loginScreen.style.display = 'flex';
-      lblUnit.textContent = '--';
-      fleetSummaryBar.style.display = 'none';
-      btnToggleFleet.style.display = 'none';
-      btnUnlockBase.style.display = 'none';
-      navSearchBar.style.display = 'none';
-      btnSos.style.display = 'none';
+      if (loginScreen) loginScreen.style.display = 'flex';
+      if (lblUnit) lblUnit.textContent = '--';
+      if (fleetSummaryBar) fleetSummaryBar.style.display = 'none';
+      if (btnToggleFleet) btnToggleFleet.style.display = 'none';
+      if (btnUnlockBase) btnUnlockBase.style.display = 'none';
+      if (navSearchBar) navSearchBar.style.display = 'none';
+      if (btnSos) btnSos.style.display = 'none';
     }
 
     function toggleBaseUnlock() {
@@ -1517,53 +1515,67 @@
         const pass = prompt("🔐 Ingresa la contraseña de seguridad para mover la Base Central:");
         if (pass === "1234") {
           baseUnlocked = true;
-          btnUnlockBase.textContent = '🔓';
-          btnUnlockBase.classList.add('unlocked');
+          if (btnUnlockBase) {
+            btnUnlockBase.textContent = '🔓';
+            btnUnlockBase.classList.add('unlocked');
+          }
           alert("✅ Modo de edición desbloqueado. Ahora haz UN CLIC en el mapa donde quieras colocar la Base Central.");
         } else if (pass !== null) {
           alert("❌ Contraseña incorrecta.");
         }
       } else {
         baseUnlocked = false;
-        btnUnlockBase.textContent = '🔒';
-        btnUnlockBase.classList.remove('unlocked');
+        if (btnUnlockBase) {
+          btnUnlockBase.textContent = '🔒';
+          btnUnlockBase.classList.remove('unlocked');
+        }
         alert("🔒 Base Central bloqueada de nuevo con seguridad.");
       }
     }
 
     function updateViewButtonUI() {
-      btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
-      btnViewMode.classList.toggle('active', firstPersonMode);
+      if (btnViewMode) {
+        btnViewMode.textContent = firstPersonMode ? '🚘' : '🗺️';
+        btnViewMode.classList.toggle('active', firstPersonMode);
+      }
     }
 
     function applyNightModeTheme() {
       if (isNightMode) {
-        mapContainer.classList.add('map-night-mode');
-        btnThemeMode.textContent = '☀️';
-        btnThemeMode.classList.add('active');
+        if (mapContainer) mapContainer.classList.add('map-night-mode');
+        if (btnThemeMode) {
+          btnThemeMode.textContent = '☀️';
+          btnThemeMode.classList.add('active');
+        }
       } else {
-        mapContainer.classList.remove('map-night-mode');
-        btnThemeMode.textContent = '🌙';
-        btnThemeMode.classList.remove('active');
+        if (mapContainer) mapContainer.classList.remove('map-night-mode');
+        if (btnThemeMode) {
+          btnThemeMode.textContent = '🌙';
+          btnThemeMode.classList.remove('active');
+        }
       }
       localStorage.setItem('yadah_night_mode', isNightMode);
     }
 
-    btnThemeMode.addEventListener('click', () => {
-      isNightMode = !isNightMode;
-      applyNightModeTheme();
-    });
+    if (btnThemeMode) {
+      btnThemeMode.addEventListener('click', () => {
+        isNightMode = !isNightMode;
+        applyNightModeTheme();
+      });
+    }
 
-    btnTrafficToggle.addEventListener('click', () => {
-      showTraffic = !showTraffic;
-      btnTrafficToggle.classList.toggle('active', showTraffic);
-      if (map.getLayer('google-traffic-layer')) {
-        map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
-      }
-    });
+    if (btnTrafficToggle) {
+      btnTrafficToggle.addEventListener('click', () => {
+        showTraffic = !showTraffic;
+        btnTrafficToggle.classList.toggle('active', showTraffic);
+        if (map && map.getLayer('google-traffic-layer')) {
+          map.setLayoutProperty('google-traffic-layer', 'visibility', showTraffic ? 'visible' : 'none');
+        }
+      });
+    }
 
-    function zoomIn() { map.zoomIn({ duration: 300 }); }
-    function zoomOut() { map.zoomOut({ duration: 300 }); }
+    function zoomIn() { if (map) map.zoomIn({ duration: 300 }); }
+    function zoomOut() { if (map) map.zoomOut({ duration: 300 }); }
     function toggleFullScreen() {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
@@ -1584,12 +1596,13 @@
     }
 
     function toggleFleetDrawer(show) {
-      fleetListDrawer.style.display = show ? 'flex' : 'none';
+      if (fleetListDrawer) fleetListDrawer.style.display = show ? 'flex' : 'none';
       if (show) renderFleetList();
     }
 
     function renderFleetList() {
       const container = document.getElementById('fleet-items-list');
+      if (!container) return;
       const now = Date.now();
 
       container.innerHTML = ALL_UNITS.map(unitId => {
@@ -1645,7 +1658,7 @@
       activeHistoryUnit = unitId;
       document.getElementById('vh-unit-name').textContent = unitId;
       document.getElementById('vh-status-info').textContent = 'Listo para trazar ruta';
-      vehicleHistoryCard.style.display = 'flex';
+      if (vehicleHistoryCard) vehicleHistoryCard.style.display = 'flex';
     }
 
     let audioCtx = null;
@@ -1654,8 +1667,10 @@
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-        radioSpeaker.play().catch(() => {});
+        if (radioSpeaker) {
+          radioSpeaker.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+          radioSpeaker.play().catch(() => {});
+        }
       } catch (e) {}
     }
 
@@ -1844,8 +1859,10 @@
             mqttClient.publish(TOPIC_BASE, JSON.stringify({ coords: defaultBaseCoords }), { retain: true });
           }
           baseUnlocked = false;
-          btnUnlockBase.textContent = '🔒';
-          btnUnlockBase.classList.remove('unlocked');
+          if (btnUnlockBase) {
+            btnUnlockBase.textContent = '🔒';
+            btnUnlockBase.classList.remove('unlocked');
+          }
           alert(`📍 ¡Base Central reubicada y sincronizada!`);
         }
       });
@@ -1862,19 +1879,23 @@
       const assignBtn = document.getElementById('btn-ctx-assign');
 
       if (mode === 'nav') {
-        titleEl.textContent = '📍 Destino Seleccionado';
-        actionBtn.textContent = '🚀 ¡Ir a este lugar!';
-        actionBtn.style.background = '#10b981';
+        if (titleEl) titleEl.textContent = '📍 Destino Seleccionado';
+        if (actionBtn) {
+          actionBtn.textContent = '🚀 ¡Ir a este lugar!';
+          actionBtn.style.background = '#10b981';
+        }
       } else {
-        titleEl.textContent = '⭐ Nuevo Punto Local';
-        actionBtn.textContent = '📍 Guardar este punto';
-        actionBtn.style.background = '#f59e0b';
+        if (titleEl) titleEl.textContent = '⭐ Nuevo Punto Local';
+        if (actionBtn) {
+          actionBtn.textContent = '📍 Guardar este punto';
+          actionBtn.style.background = '#f59e0b';
+        }
       }
 
-      if (isModulator()) {
+      if (isModulator() && assignBtn) {
         assignBtn.style.display = 'block';
         assignBtn.textContent = '🎯 Asignar a Móvil & Compartir...';
-      } else {
+      } else if (assignBtn) {
         assignBtn.style.display = 'none';
       }
 
@@ -1884,7 +1905,8 @@
       el.innerHTML = mode === 'nav' ? '🏁' : '📍';
       tempContextMarker = new maplibregl.Marker({ element: el }).setLngLat([lngLat.lng, lngLat.lat]).addTo(map);
 
-      document.getElementById('map-context-menu').style.display = 'flex';
+      const ctxMenuEl = document.getElementById('map-context-menu');
+      if (ctxMenuEl) ctxMenuEl.style.display = 'flex';
       playBeep(700, 0.05);
     }
 
@@ -1940,8 +1962,6 @@
         return;
       }
 
-      currentDestinationCoords = [destLon, destLat];
-
       if (destinationMarker) destinationMarker.remove();
       const el = document.createElement('div');
       el.style.fontSize = '2.2rem';
@@ -1949,8 +1969,8 @@
       destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
 
       try {
-        lblRouteStats.textContent = 'Calculando trayecto...';
-        navRouteInfo.style.display = 'flex';
+        if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...';
+        if (navRouteInfo) navRouteInfo.style.display = 'flex';
 
         const url = `https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`;
         const res = await fetch(url);
@@ -1961,7 +1981,7 @@
           const distKm = (route.distance / 1000).toFixed(1);
           const mins = Math.round(route.duration / 60);
 
-          lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${distKm} km (~${mins} min). En marcha 🚀`;
+          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${distKm} km (~${mins} min). En marcha 🚀`;
 
           ensureLayersExist();
           map.getSource('nav-active-route').setData({
@@ -1986,13 +2006,13 @@
 
     function cancelNavigation() {
       pendingDestination = null;
-      currentDestinationCoords = null;
       if (destinationMarker) {
         destinationMarker.remove();
         destinationMarker = null;
       }
-      navRouteInfo.style.display = 'none';
-      document.getElementById('input-destination').value = '';
+      if (navRouteInfo) navRouteInfo.style.display = 'none';
+      const inputDest = document.getElementById('input-destination');
+      if (inputDest) inputDest.value = '';
       if (map && map.getSource('nav-active-route')) {
         map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
       }
@@ -2003,7 +2023,7 @@
 
     function closeVehicleHistory() {
       activeHistoryUnit = null;
-      vehicleHistoryCard.style.display = 'none';
+      if (vehicleHistoryCard) vehicleHistoryCard.style.display = 'none';
       if (map && map.getSource('route-trails')) {
         map.getSource('route-trails').setData({ type: 'FeatureCollection', features: [] });
       }
@@ -2041,14 +2061,16 @@
           }
 
           const statusDiv = document.getElementById('vh-status-info');
-          if (historyCoords.length < 2) {
-            statusDiv.textContent = 'Sin historial registrado en 24h.';
-            statusDiv.style.color = '#ef4444';
-          } else {
-            statusDiv.textContent = `¡Mostrando ${historyCoords.length} puntos!`;
-            statusDiv.style.color = '#10b981';
-            const lastPt = historyCoords[historyCoords.length - 1];
-            map.flyTo({ center: lastPt, zoom: 16, pitch: 0, bearing: 0 });
+          if (statusDiv) {
+            if (historyCoords.length < 2) {
+              statusDiv.textContent = 'Sin historial registrado en 24h.';
+              statusDiv.style.color = '#ef4444';
+            } else {
+              statusDiv.textContent = `¡Mostrando ${historyCoords.length} puntos!`;
+              statusDiv.style.color = '#10b981';
+              const lastPt = historyCoords[historyCoords.length - 1];
+              map.flyTo({ center: lastPt, zoom: 16, pitch: 0, bearing: 0 });
+            }
           }
         }
       };
@@ -2249,7 +2271,7 @@
       });
 
       refreshFleetStatsCounters();
-      if (fleetListDrawer.style.display === 'flex') renderFleetList();
+      if (fleetListDrawer && fleetListDrawer.style.display === 'flex') renderFleetList();
     }, 4000);
 
     function refreshFleetStatsCounters() {
@@ -2266,17 +2288,24 @@
         else offline++;
       });
 
-      document.getElementById('stat-online').textContent = `${online} En línea`;
-      document.getElementById('stat-base').textContent = `${atBase} En Base`;
-      document.getElementById('stat-stopped').textContent = `${stopped} Detenidos`;
-      document.getElementById('stat-offline').textContent = `${offline} Apagados`;
+      const statOnline = document.getElementById('stat-online');
+      const statBase = document.getElementById('stat-base');
+      const statStopped = document.getElementById('stat-stopped');
+      const statOffline = document.getElementById('stat-offline');
+
+      if (statOnline) statOnline.textContent = `${online} En línea`;
+      if (statBase) statBase.textContent = `${atBase} En Base`;
+      if (statStopped) statStopped.textContent = `${stopped} Detenidos`;
+      if (statOffline) statOffline.textContent = `${offline} Apagados`;
     }
 
-    btnViewMode.addEventListener('click', () => {
-      firstPersonMode = !firstPersonMode;
-      updateViewButtonUI();
-      applyCameraPerspective();
-    });
+    if (btnViewMode) {
+      btnViewMode.addEventListener('click', () => {
+        firstPersonMode = !firstPersonMode;
+        updateViewButtonUI();
+        applyCameraPerspective();
+      });
+    }
 
     function applyCameraPerspective() {
       if (!map) return;
@@ -2323,7 +2352,7 @@
 
     function triggerSOS() {
       isSosActive = !isSosActive;
-      btnSos.classList.toggle('active', isSosActive);
+      if (btnSos) btnSos.classList.toggle('active', isSosActive);
       if (mqttClient && mqttClient.connected && currentUnit) {
         mqttClient.publish(TOPIC_PANIC, JSON.stringify({
           unit: currentUnit,
@@ -2341,7 +2370,8 @@
     }
 
     function silenceSOS() {
-      document.getElementById('sos-alert-banner').style.display = 'none';
+      const banner = document.getElementById('sos-alert-banner');
+      if (banner) banner.style.display = 'none';
       if (sirenInterval) {
         clearInterval(sirenInterval);
         sirenInterval = null;
@@ -2396,8 +2426,8 @@
               alert(`🎯 ¡Nueva misión asignada por Central!\nDestino: ${assignData.label}`);
               
               pendingDestination = { lon: assignData.lon, lat: assignData.lat, label: assignData.label };
-              lblRouteStats.textContent = `📍 [Asignado] ${assignData.label}. ¿Deseas iniciar marcha?`;
-              navRouteInfo.style.display = 'flex';
+              if (lblRouteStats) lblRouteStats.textContent = `📍 [Asignado] ${assignData.label}. ¿Deseas iniciar marcha?`;
+              if (navRouteInfo) navRouteInfo.style.display = 'flex';
             }
           } else if (topic === TOPIC_POI) {
             const poiData = JSON.parse(text);
@@ -2455,8 +2485,9 @@
               if (panic.active) {
                 activeSosCoords = panic.coords;
                 const banner = document.getElementById('sos-alert-banner');
-                document.getElementById('sos-banner-text').textContent = `🚨 ¡EMERGENCIA: ${panic.unit}!`;
-                banner.style.display = 'flex';
+                const bannerText = document.getElementById('sos-banner-text');
+                if (bannerText) bannerText.textContent = `🚨 ¡EMERGENCIA: ${panic.unit}!`;
+                if (banner) banner.style.display = 'flex';
                 if (!sirenInterval) {
                   playSiren();
                   sirenInterval = setInterval(playSiren, 1200);
@@ -2470,7 +2501,7 @@
             }
           } else if (topic === TOPIC_ALERT) {
             const alertData = JSON.parse(text);
-            if (alertData.sender !== currentUnit) {
+            if (alertData.sender !== currentUnit && channelStatus) {
               channelStatus.className = 'channel-status receiving';
               channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
               playBeep(660, 0.06);
@@ -2538,8 +2569,8 @@
 
           mySpeed = Math.round(speedKmh);
           myLastCoords = { lat, lon, timestamp: now };
-          lblHeading.textContent = `${myHeading}°`;
-          lblSpeed.textContent = `${mySpeed} km/h`;
+          if (lblHeading) lblHeading.textContent = `${myHeading}°`;
+          if (lblSpeed) lblSpeed.textContent = `${mySpeed} km/h`;
 
           if (isModulator()) {
             updateModulatorState(lat, lon);
@@ -2582,12 +2613,13 @@
       updateGpsLockState(false);
     }
 
-    if (!trackingUnit) {
-      document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
+    const btnRecenterEl = document.getElementById('btn-recenter');
+    if (!trackingUnit && btnRecenterEl) {
+      btnRecenterEl.addEventListener('click', applyCameraPerspective);
     }
 
     // ==========================================
-    // MÓDULO DE AUDIO (Transmisión de Audio Completo al Soltar)
+    // MÓDULO DE AUDIO UNIFICADO Y BLINDADO
     // ==========================================
     let mediaRecorder = null;
     let audioStream = null;
@@ -2595,6 +2627,9 @@
     let audioChunks = [];
     let audioQueue = [];
     let isPlayingQueue = false;
+
+    const MAX_RECORDING_TIME = 60 * 1000;
+    let recordingTimeout = null;
 
     async function initAudioEngine() {
       try {
@@ -2616,10 +2651,24 @@
     async function startAudioRecording(e) {
       if (e) e.preventDefault();
 
-      if (isDriver() && !gpsPermissionGranted) {
-        channelStatus.className = 'channel-status blocked';
-        channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
-        playBeep(220, 0.15);
+      const driverActive =
+        typeof isDriver === 'function'
+          ? isDriver()
+          : typeof isDriver !== 'undefined'
+            ? Boolean(isDriver)
+            : false;
+
+      const gpsActive =
+        typeof gpsPermissionGranted !== 'undefined'
+          ? Boolean(gpsPermissionGranted)
+          : false;
+
+      if (driverActive && !gpsActive) {
+        if (channelStatus) {
+          channelStatus.className = 'channel-status blocked';
+          channelStatus.textContent = '🚫 GPS BLOQUEADO: ACTIVA LA UBICACIÓN';
+        }
+        if (typeof playBeep === 'function') playBeep(220, 0.15);
         return;
       }
 
@@ -2627,8 +2676,10 @@
       isRecording = true;
       audioChunks = [];
 
-      unlockAudioHardware();
+      if (typeof unlockAudioHardware === 'function') unlockAudioHardware();
       await initAudioEngine();
+
+      if (!isRecording) return;
 
       if (!audioStream) {
         isRecording = false;
@@ -2637,12 +2688,14 @@
 
       if (navigator.vibrate) navigator.vibrate(50);
 
-      playBeep(920, 0.04);
-      btnPtt.classList.add('active');
-      channelStatus.className = 'channel-status transmitting';
-      channelStatus.textContent = '▲ GRABANDO AUDIO...';
+      if (typeof playBeep === 'function') playBeep(920, 0.04);
+      if (btnPtt) btnPtt.classList.add('active');
+      if (channelStatus) {
+        channelStatus.className = 'channel-status transmitting';
+        channelStatus.textContent = '▲ GRABANDO AUDIO...';
+      }
 
-      if (mqttClient && mqttClient.connected) {
+      if (typeof mqttClient !== 'undefined' && mqttClient && mqttClient.connected) {
         mqttClient.publish(
           TOPIC_ALERT,
           JSON.stringify({ sender: currentUnit })
@@ -2650,7 +2703,15 @@
       }
 
       try {
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        if (typeof MediaRecorder === 'undefined') {
+          throw new Error('MediaRecorder no está disponible en este dispositivo');
+        }
+
+        const canUseOpus =
+          typeof MediaRecorder.isTypeSupported === 'function' &&
+          MediaRecorder.isTypeSupported('audio/webm;codecs=opus');
+
+        const mime = canUseOpus
           ? 'audio/webm;codecs=opus'
           : 'audio/webm';
 
@@ -2667,10 +2728,17 @@
 
         mediaRecorder.start();
 
+        recordingTimeout = setTimeout(() => {
+          if (isRecording) {
+            stopAudioRecording();
+          }
+        }, MAX_RECORDING_TIME);
+
       } catch (err) {
         console.error('Error iniciando grabación:', err);
         isRecording = false;
-        btnPtt.classList.remove('active');
+        mediaRecorder = null;
+        resetPttUI();
       }
     }
 
@@ -2679,6 +2747,11 @@
       if (!isRecording) return;
 
       isRecording = false;
+
+      if (recordingTimeout) {
+        clearTimeout(recordingTimeout);
+        recordingTimeout = null;
+      }
 
       const recorder = mediaRecorder;
 
@@ -2700,6 +2773,7 @@
           reader.onloadend = () => {
             if (
               reader.result &&
+              typeof mqttClient !== 'undefined' &&
               mqttClient &&
               mqttClient.connected
             ) {
@@ -2724,17 +2798,28 @@
         recorder.stop();
       }
 
-      btnPtt.classList.remove('active');
-      channelStatus.className = 'channel-status';
-      channelStatus.textContent = '● CANAL LIBRE';
-      playBeep(600, 0.04);
+      resetPttUI();
+      if (typeof playBeep === 'function') playBeep(600, 0.04);
+    }
+
+    function resetPttUI() {
+      if (btnPtt) btnPtt.classList.remove('active');
+      if (channelStatus) {
+        channelStatus.className = 'channel-status';
+        channelStatus.textContent = '● CANAL LIBRE';
+      }
     }
 
     function receiveVoiceWalkieTalkie(voiceData) {
-      if (voiceData.sender === currentUnit) return;
+      if (!voiceData || !voiceData.sender || voiceData.sender === currentUnit) return;
+      if (!voiceData.payload || typeof voiceData.payload !== 'string') return;
+      if (!voiceData.payload.startsWith('data:audio/')) return;
+      if (voiceData.payload.length > 1500000) return;
 
-      channelStatus.className = 'channel-status receiving';
-      channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
+      if (channelStatus) {
+        channelStatus.className = 'channel-status receiving';
+        channelStatus.textContent = `▼ HABLA: ${voiceData.sender}`;
+      }
 
       audioQueue.push(voiceData);
 
@@ -2752,8 +2837,10 @@
     function processAudioQueue() {
       if (audioQueue.length === 0) {
         isPlayingQueue = false;
-        channelStatus.className = 'channel-status';
-        channelStatus.textContent = '● CANAL LIBRE';
+        if (channelStatus) {
+          channelStatus.className = 'channel-status';
+          channelStatus.textContent = '● CANAL LIBRE';
+        }
         return;
       }
 
@@ -2771,27 +2858,61 @@
         const blob = new Blob([uInt8Array], { type: contentType });
         const audioUrl = URL.createObjectURL(blob);
 
-        radioSpeaker.src = audioUrl;
-        radioSpeaker.volume = 1.0;
+        if (radioSpeaker) {
+          radioSpeaker.src = audioUrl;
+          radioSpeaker.volume = 1.0;
 
-        radioSpeaker.play().catch(() => {});
+          radioSpeaker.onended = () => {
+            radioSpeaker.onended = null;
+            URL.revokeObjectURL(audioUrl);
+            processAudioQueue();
+          };
 
-        radioSpeaker.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          processAudioQueue();
-        };
+          radioSpeaker.play().catch((error) => {
+            console.warn('No se pudo reproducir el audio:', error);
+            radioSpeaker.onended = null;
+            URL.revokeObjectURL(audioUrl);
+            isPlayingQueue = false;
+            processAudioQueue();
+          });
+        }
       } catch (err) {
+        console.error("Error procesando elemento de la cola de audio:", err);
+        isPlayingQueue = false;
         processAudioQueue();
       }
     }
 
-    if (!trackingUnit) {
-      btnPtt.addEventListener('touchstart', startAudioRecording, { passive: false });
-      btnPtt.addEventListener('touchend', stopAudioRecording, { passive: false });
-      btnPtt.addEventListener('touchcancel', stopAudioRecording, { passive: false });
-      btnPtt.addEventListener('mousedown', startAudioRecording);
-      btnPtt.addEventListener('mouseup', stopAudioRecording);
-      btnPtt.addEventListener('mouseleave', stopAudioRecording);
+    if (btnPtt) {
+      let pttPressed = false;
+
+      btnPtt.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (pttPressed) return;
+        pttPressed = true;
+        btnPtt.setPointerCapture?.(e.pointerId);
+        startAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        if (!pttPressed) return;
+        pttPressed = false;
+        stopAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('pointercancel', (e) => {
+        if (!pttPressed) return;
+        pttPressed = false;
+        stopAudioRecording(e);
+      });
+
+      btnPtt.addEventListener('lostpointercapture', () => {
+        if (pttPressed) {
+          pttPressed = false;
+          stopAudioRecording();
+        }
+      });
 
       window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
@@ -2835,7 +2956,7 @@
 
     function toggleHistory(show) {
       const modal = document.getElementById('history-modal');
-      modal.style.display = show ? 'flex' : 'none';
+      if (modal) modal.style.display = show ? 'flex' : 'none';
       if (show) renderHistory();
     }
 
@@ -2843,29 +2964,53 @@
       const listContainer = document.getElementById('history-list');
       const audios = getStoredAudios();
 
+      if (!listContainer) return;
+      listContainer.innerHTML = '';
+
       if (audios.length === 0) {
-        listContainer.innerHTML = '<p style="color:#64748b; font-size:0.85rem; padding:10px 0;">No hay transmisiones registradas en las últimas 24 horas.</p>';
+        const p = document.createElement('p');
+        p.style.color = '#64748b';
+        p.style.fontSize = '0.85rem';
+        p.textContent = 'No hay transmisiones registradas.';
+        listContainer.appendChild(p);
         return;
       }
 
-      listContainer.innerHTML = audios.map((item, index) => {
+      audios.forEach((item, index) => {
         const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        return `
-          <div class="history-item">
-            <div>
-              <b style="color:#f59e0b;">${item.sender}</b>
-              <div style="font-size:0.72rem; color:#94a3b8;">${time}</div>
-            </div>
-            <button class="btn-play-audio" onclick="playAudioByIndex(${index})">▶ Oír</button>
-          </div>
-        `;
-      }).join('');
+
+        const historyItem = document.createElement('div');
+        historyItem.className = 'history-item';
+
+        const infoDiv = document.createElement('div');
+
+        const senderB = document.createElement('b');
+        senderB.style.color = '#f59e0b';
+        senderB.textContent = item.sender;
+
+        const timeDiv = document.createElement('div');
+        timeDiv.style.fontSize = '0.72rem';
+        timeDiv.style.color = '#94a3b8';
+        timeDiv.textContent = time;
+
+        infoDiv.appendChild(senderB);
+        infoDiv.appendChild(timeDiv);
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'btn-play-audio';
+        playBtn.textContent = '▶ Oír';
+        playBtn.onclick = () => playAudioByIndex(index);
+
+        historyItem.appendChild(infoDiv);
+        historyItem.appendChild(playBtn);
+        listContainer.appendChild(historyItem);
+      });
     }
 
     function playAudioByIndex(index) {
-      unlockAudioHardware();
+      if (typeof unlockAudioHardware === 'function') unlockAudioHardware();
       const item = cachedAudios[index];
-      if (!item || !item.payload) return;
+      if (!item || !item.payload || !radioSpeaker) return;
 
       try {
         const parts = item.payload.split(';base64,');
@@ -2879,6 +3024,10 @@
         const url = URL.createObjectURL(blob);
         radioSpeaker.src = url;
         radioSpeaker.play();
+
+        radioSpeaker.onended = () => {
+          URL.revokeObjectURL(url);
+        };
       } catch (err) {
         console.error("Error reproduciendo audio:", err);
       }
