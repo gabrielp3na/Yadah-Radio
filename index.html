@@ -1,4 +1,3 @@
-Código HTML completo con correcciones del botón PTT, liberación segura, conexión de micrófono WebRTC y recepción de audio remoto.
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1921,20 +1920,33 @@ Código HTML completo con correcciones del botón PTT, liberación segura, conex
     }
 
     async function attachRadioTrackToPeers() {
-      if (!radioLocalTrack || radioLocalTrack.readyState !== 'live') return false;
+      if (!radioLocalTrack || radioLocalTrack.readyState !== 'live' || !radioLocalStream) return false;
       let attached = false;
 
       for (const pc of radioPeers.values()) {
         try {
-          let sender = pc.getSenders().find(item => item && item.kind === 'audio');
-          if (!sender) {
+          let sender = pc.getSenders().find(item =>
+            item && (item.kind === 'audio' || (item.track && item.track.kind === 'audio'))
+          );
+
+          if (!sender && typeof pc.getTransceivers === 'function') {
             const transceiver = pc.getTransceivers().find(item =>
-              item && item.sender && item.sender.kind === 'audio'
+              item && item.sender &&
+              (item.sender.kind === 'audio' || (item.sender.track && item.sender.track.kind === 'audio'))
             );
             sender = transceiver ? transceiver.sender : null;
           }
-          if (!sender) sender = pc.addTrack(radioLocalTrack, radioLocalStream);
-          else if (sender.track !== radioLocalTrack) await sender.replaceTrack(radioLocalTrack);
+
+          if (!sender) {
+            sender = pc.addTrack(radioLocalTrack, radioLocalStream);
+          } else if (sender.track !== radioLocalTrack) {
+            await sender.replaceTrack(radioLocalTrack);
+          }
+
+          const transceiver = typeof pc.getTransceivers === 'function'
+            ? pc.getTransceivers().find(item => item && item.sender === sender)
+            : null;
+          if (transceiver && transceiver.direction === 'recvonly') transceiver.direction = 'sendrecv';
           attached = true;
         } catch (error) {
           console.warn('No se pudo conectar el micrófono al peer:', error);
@@ -1969,7 +1981,13 @@ Código HTML completo con correcciones del botón PTT, liberación segura, conex
         return;
       }
 
-      await attachRadioTrackToPeers();
+      const attached = await attachRadioTrackToPeers();
+      if (!attached && radioPeers.size > 0) {
+        radioButtonPressed = false;
+        radioLocalTrack.enabled = false;
+        if (channelStatus) channelStatus.textContent = '📡 CONEXIÓN DE RADIO NO LISTA';
+        return;
+      }
       radioLocalTrack.enabled = true;
       radioTalking = true;
       if (btnPtt) btnPtt.classList.add('active');
@@ -2093,13 +2111,22 @@ Código HTML completo con correcciones del botón PTT, liberación segura, conex
           audio.playsInline = true;
           audio.controls = false;
           audio.volume = 1;
+          audio.muted = false;
           audio.dataset.radioPeer = targetDevId;
           audio.style.display = 'none';
           document.body.appendChild(audio);
           radioAudioElements.set(targetDevId, audio);
         }
         audio.srcObject = stream;
-        audio.play().catch(() => {});
+        audio.muted = false;
+        audio.volume = 1;
+        const playRemoteAudio = () => audio.play().catch(() => {
+          if (channelStatus && !radioTalking) {
+            channelStatus.textContent = '🔊 TOCA LA PANTALLA PARA ACTIVAR EL AUDIO';
+          }
+        });
+        if (audio.readyState >= 2) playRemoteAudio();
+        else audio.onloadedmetadata = playRemoteAudio;
         if (channelStatus && !radioTalking) {
           channelStatus.className = 'channel-status receiving';
           channelStatus.textContent = '▼ RADIO EN VIVO';
@@ -2114,9 +2141,7 @@ Código HTML completo con correcciones del botón PTT, liberación segura, conex
 
       if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
         try {
-          const sender = pc.getSenders().find(item => item && item.kind === 'audio') ||
-            pc.getTransceivers().find(item => item && item.sender && item.sender.kind === 'audio')?.sender;
-          if (sender && sender.track !== radioLocalTrack) await sender.replaceTrack(radioLocalTrack);
+          await attachRadioTrackToPeers();
         } catch (error) {
           console.warn('No se pudo preparar el audio local:', error);
         }
