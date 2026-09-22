@@ -1866,6 +1866,18 @@
     const radioPeers = new Map();
     const radioCandidateQueues = new Map();
     const radioAudioElements = new Map();
+    let radioAudioUnlocked = false;
+
+    function unlockRadioAudio() {
+      radioAudioUnlocked = true;
+      for (const audio of radioAudioElements.values()) {
+        try {
+          audio.muted = false;
+          const result = audio.play();
+          if (result && typeof result.catch === 'function') result.catch(() => {});
+        } catch (error) {}
+      }
+    }
 
     function initializeRadio() {
       if (radioInitialized || !mqttClient || !mqttClient.connected || !currentUnit) return;
@@ -2073,7 +2085,9 @@
           audio = document.createElement('audio');
           audio.autoplay = true;
           audio.playsInline = true;
+          audio.setAttribute('playsinline', '');
           audio.controls = false;
+          audio.muted = false;
           audio.volume = 1;
           audio.dataset.radioPeer = targetDevId;
           audio.style.display = 'none';
@@ -2081,7 +2095,19 @@
           radioAudioElements.set(targetDevId, audio);
         }
         audio.srcObject = stream;
-        audio.play().catch(() => {});
+        audio.muted = false;
+        const playback = audio.play();
+        if (playback && typeof playback.catch === 'function') {
+          playback.catch(() => {
+            if (channelStatus && !radioTalking) {
+              channelStatus.className = 'channel-status receiving';
+              channelStatus.textContent = '🔊 TOCA LA PANTALLA PARA ACTIVAR EL AUDIO';
+            }
+          });
+        }
+        if (radioAudioUnlocked) {
+          try { audio.play().catch(() => {}); } catch (error) {}
+        }
         if (channelStatus && !radioTalking) {
           channelStatus.className = 'channel-status receiving';
           channelStatus.textContent = '▼ RADIO EN VIVO';
@@ -2149,6 +2175,7 @@
       };
 
       btnPtt.addEventListener('pointerdown', (event) => {
+        unlockRadioAudio();
         event.preventDefault();
         if (pressed) return;
         pressed = true;
@@ -2159,7 +2186,12 @@
       btnPtt.addEventListener('pointercancel', release);
       btnPtt.addEventListener('lostpointercapture', release);
 
+      window.addEventListener('pointerdown', unlockRadioAudio, { once: false, passive: true });
+      window.addEventListener('touchstart', unlockRadioAudio, { once: false, passive: true });
+      window.addEventListener('click', unlockRadioAudio, { once: false, passive: true });
+
       window.addEventListener('keydown', (event) => {
+        unlockRadioAudio();
         const tag = document.activeElement && document.activeElement.tagName;
         if (event.code === 'Space' && !event.repeat && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
           pressed = true;
