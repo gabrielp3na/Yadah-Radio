@@ -732,7 +732,7 @@
 </head>
 <body>
 
-  <audio id="radio-speaker" playsinline preload="auto"></audio>
+  <audio id="radio-speaker" autoplay playsinline controls style="display:none;"></audio>
 
   <div id="client-tracking-screen">
     <div class="client-header" id="client-header-title">🚘 Tu vehículo en camino - Yadah Fleet</div>
@@ -1845,9 +1845,7 @@
     if (!trackingUnit && document.getElementById('btn-recenter')) document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
     // ==========================================
-    // MÓDULO DE RADIO WEBRTC EN TIEMPO REAL
-    // Reemplaza el MediaRecorder/base64 sobre MQTT.
-    // MQTT se usa únicamente para señalización WebRTC.
+    // MÓDULO DE RADIO WEBRTC EN TIEMPO REAL (VERSIÓN UNIFICADA CORREGIDA)
     // ==========================================
     const RADIO_SIGNAL_TOPIC = 'yadah/radio/webrtc/signaling/v10';
     const ROOM_NAME = 'yadah-radio-flota-3d';
@@ -1866,6 +1864,24 @@
     const radioPeers = new Map();
     const radioCandidateQueues = new Map();
     const radioAudioElements = new Map();
+    let radioAudioUnlocked = false;
+
+    function unlockRadioAudio() {
+      radioAudioUnlocked = true;
+      const mainSpeaker = document.getElementById('radio-speaker');
+      if (mainSpeaker) {
+        try {
+          mainSpeaker.muted = false;
+          mainSpeaker.play().catch(() => {});
+        } catch (e) {}
+      }
+      for (const audio of radioAudioElements.values()) {
+        try {
+          audio.muted = false;
+          audio.play().catch(() => {});
+        } catch (e) {}
+      }
+    }
 
     function initializeRadio() {
       if (radioInitialized || !mqttClient || !mqttClient.connected || !currentUnit) return;
@@ -1895,7 +1911,10 @@
     }
 
     async function getRadioMicrophone() {
-      if (radioLocalTrack && radioLocalTrack.readyState === 'live') return true;
+      if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
+        radioLocalTrack.enabled = true;
+        return true;
+      }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
       try {
         radioLocalStream = await navigator.mediaDevices.getUserMedia({
@@ -1908,9 +1927,8 @@
         });
         radioLocalTrack = radioLocalStream.getAudioTracks()[0] || null;
         if (!radioLocalTrack) return false;
-        radioLocalTrack.enabled = false;
+        radioLocalTrack.enabled = true;
 
-        // Conecta la pista de audio a los peers existentes sin duplicarla.
         await attachRadioTrackToPeers();
         return true;
       } catch (error) {
@@ -1923,17 +1941,11 @@
       if (!radioLocalTrack || radioLocalTrack.readyState !== 'live' || !radioLocalStream) return false;
       let attached = false;
 
-      for (const pc of radioPeers.values()) {
+      for (const [peerId, pc] of radioPeers.entries()) {
         try {
-          let sender = pc.getSenders().find(item =>
-            item && (item.kind === 'audio' || (item.track && item.track.kind === 'audio'))
-          );
-
+          let sender = pc.getSenders().find(item => item && item.track && item.track.kind === 'audio');
           if (!sender && typeof pc.getTransceivers === 'function') {
-            const transceiver = pc.getTransceivers().find(item =>
-              item && item.sender &&
-              (item.sender.kind === 'audio' || (item.sender.track && item.sender.track.kind === 'audio'))
-            );
+            const transceiver = pc.getTransceivers().find(item => item && item.sender && item.sender.kind === 'audio');
             sender = transceiver ? transceiver.sender : null;
           }
 
@@ -1943,10 +1955,12 @@
             await sender.replaceTrack(radioLocalTrack);
           }
 
-          const transceiver = typeof pc.getTransceivers === 'function'
-            ? pc.getTransceivers().find(item => item && item.sender === sender)
-            : null;
-          if (transceiver && transceiver.direction === 'recvonly') transceiver.direction = 'sendrecv';
+          if (pc.signalingState === 'stable' && pc.connectionState !== 'closed') {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendRadioSignal({ type: 'renegotiate-offer', target: peerId, offer: pc.localDescription });
+          }
+
           attached = true;
         } catch (error) {
           console.warn('No se pudo conectar el micrófono al peer:', error);
@@ -1981,13 +1995,7 @@
         return;
       }
 
-      const attached = await attachRadioTrackToPeers();
-      if (!attached && radioPeers.size > 0) {
-        radioButtonPressed = false;
-        radioLocalTrack.enabled = false;
-        if (channelStatus) channelStatus.textContent = '📡 CONEXIÓN DE RADIO NO LISTA';
-        return;
-      }
+      await attachRadioTrackToPeers();
       radioLocalTrack.enabled = true;
       radioTalking = true;
       if (btnPtt) btnPtt.classList.add('active');
@@ -2046,7 +2054,6 @@
         let pc = radioPeers.get(targetDevId);
 
         if (data.type === 'hello') {
-          // Solo un extremo crea la oferta para evitar colisiones.
           if (deviceId < targetDevId) {
             pc = await createRadioPeer(targetDevId, true);
             if (pc.signalingState === 'stable') {
@@ -2055,7 +2062,7 @@
               sendRadioSignal({ type: 'offer', target: targetDevId, offer: pc.localDescription });
             }
           }
-        } else if (data.type === 'offer') {
+        } else if (data.type === 'offer' || data.type === 'renegotiate-offer') {
           if (!pc) pc = await createRadioPeer(targetDevId, false);
           if (pc.signalingState !== 'stable') return;
           await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -2089,7 +2096,6 @@
       const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
       radioPeers.set(targetDevId, pc);
 
-      // El transceiver permite negociar audio antes de activar el PTT.
       try { pc.addTransceiver('audio', { direction: 'sendrecv' }); } catch (error) {}
 
       pc.onicecandidate = (event) => {
@@ -2099,34 +2105,18 @@
       };
 
       pc.ontrack = (event) => {
-        // Algunos navegadores no envían event.streams; crear un stream de respaldo.
-        const stream = (event.streams && event.streams[0]) ||
-          (event.track ? new MediaStream([event.track]) : null);
+        const stream = (event.streams && event.streams[0]) || (event.track ? new MediaStream([event.track]) : null);
         if (!stream) return;
 
-        let audio = radioAudioElements.get(targetDevId);
-        if (!audio) {
-          audio = document.createElement('audio');
-          audio.autoplay = true;
-          audio.playsInline = true;
-          audio.controls = false;
-          audio.volume = 1;
-          audio.muted = false;
-          audio.dataset.radioPeer = targetDevId;
-          audio.style.display = 'none';
-          document.body.appendChild(audio);
-          radioAudioElements.set(targetDevId, audio);
+        // Conectamos directamente al altavoz principal #radio-speaker del DOM
+        const mainSpeaker = document.getElementById('radio-speaker');
+        if (mainSpeaker) {
+          mainSpeaker.srcObject = stream;
+          mainSpeaker.muted = false;
+          mainSpeaker.volume = 1.0;
+          mainSpeaker.play().catch(() => {});
         }
-        audio.srcObject = stream;
-        audio.muted = false;
-        audio.volume = 1;
-        const playRemoteAudio = () => audio.play().catch(() => {
-          if (channelStatus && !radioTalking) {
-            channelStatus.textContent = '🔊 TOCA LA PANTALLA PARA ACTIVAR EL AUDIO';
-          }
-        });
-        if (audio.readyState >= 2) playRemoteAudio();
-        else audio.onloadedmetadata = playRemoteAudio;
+
         if (channelStatus && !radioTalking) {
           channelStatus.className = 'channel-status receiving';
           channelStatus.textContent = '▼ RADIO EN VIVO';
@@ -2141,10 +2131,10 @@
 
       if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
         try {
-          await attachRadioTrackToPeers();
-        } catch (error) {
-          console.warn('No se pudo preparar el audio local:', error);
-        }
+          let sender = pc.getSenders().find(item => item && item.kind === 'audio');
+          if (!sender) sender = pc.addTrack(radioLocalTrack, radioLocalStream);
+          else if (sender.track !== radioLocalTrack) await sender.replaceTrack(radioLocalTrack);
+        } catch (error) {}
       }
 
       return pc;
@@ -2192,6 +2182,7 @@
       };
 
       btnPtt.addEventListener('pointerdown', (event) => {
+        unlockRadioAudio();
         event.preventDefault();
         if (pressed) return;
         pressed = true;
@@ -2201,8 +2192,15 @@
       btnPtt.addEventListener('pointerup', release);
       btnPtt.addEventListener('pointercancel', release);
       btnPtt.addEventListener('lostpointercapture', release);
+      document.addEventListener('pointerup', release, true);
+      document.addEventListener('pointercancel', release, true);
+
+      window.addEventListener('pointerdown', unlockRadioAudio, { once: false, passive: true });
+      window.addEventListener('touchstart', unlockAudioHardware, { once: false, passive: true });
+      window.addEventListener('click', unlockAudioHardware, { once: false, passive: true });
 
       window.addEventListener('keydown', (event) => {
+        unlockRadioAudio();
         const tag = document.activeElement && document.activeElement.tagName;
         if (event.code === 'Space' && !event.repeat && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
           pressed = true;
@@ -2218,8 +2216,6 @@
       });
     }
 
-    // Compatibilidad con botones existentes del buzón: WebRTC es en vivo,
-    // por lo que no se guardan audios base64 ni se intenta reproducirlos después.
     let cachedAudios = [];
     function getStoredAudios() {
       try {
@@ -2230,48 +2226,12 @@
       }
       return cachedAudios;
     }
-    function saveAudioToHistory(item) {
-      const list = getStoredAudios();
-      list.unshift({ sender: item.sender, timestamp: item.timestamp || Date.now(), live: true });
-      cachedAudios = list.slice(0, 25);
-      try { localStorage.setItem('yadah_audio_history', JSON.stringify(cachedAudios)); } catch (error) {}
-    }
     function toggleHistory(show) {
       const modal = document.getElementById('history-modal');
       if (modal) modal.style.display = show ? 'flex' : 'none';
-      if (show) renderHistory();
     }
-    function renderHistory() {
-      const listContainer = document.getElementById('history-list');
-      const audios = getStoredAudios();
-      if (!listContainer) return;
-      listContainer.textContent = '';
-      if (!audios.length) {
-        listContainer.textContent = 'No hay transmisiones registradas.';
-        return;
-      }
-      audios.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'history-item';
-        const info = document.createElement('div');
-        const sender = document.createElement('b');
-        sender.style.color = '#f59e0b';
-        sender.textContent = item.sender || 'Colega';
-        const time = document.createElement('div');
-        time.style.cssText = 'font-size:0.72rem;color:#94a3b8;';
-        time.textContent = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        info.append(sender, time);
-        const button = document.createElement('button');
-        button.className = 'btn-play-audio';
-        button.textContent = '▶ En vivo';
-        button.disabled = true;
-        row.append(info, button);
-        listContainer.appendChild(row);
-      });
-    }
-    function playAudioByIndex(index) {
-      alert('Las transmisiones WebRTC se escuchan en tiempo real; no se almacenan como audio reproducible.');
-    }
+    function renderHistory() {}
+    function playAudioByIndex(index) {}
 
     bindRadioPTT();
 
