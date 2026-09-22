@@ -1,3 +1,4 @@
+Código HTML completo de la versión de prueba para copiar y probar.
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -558,6 +559,68 @@
       opacity: 0.65;
     }
 
+
+    /* ===== REGISTRO DE CARRERAS YADAH ===== */
+    #career-panel {
+      position: absolute;
+      left: 12px;
+      top: 72px;
+      width: min(330px, calc(100vw - 82px));
+      max-height: 48vh;
+      overflow-y: auto;
+      z-index: 2200;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .career-head {
+      display:flex; align-items:center; justify-content:space-between;
+      background: rgba(3,7,18,.94); border:1px solid #334155; border-radius:12px;
+      padding:9px 11px; color:#e2e8f0; box-shadow:0 8px 25px rgba(0,0,0,.28);
+      backdrop-filter: blur(8px);
+    }
+    .career-head b { color:#38bdf8; }
+    .career-add {
+      border:0; border-radius:9px; padding:7px 10px; background:#0ea5e9; color:#fff;
+      font-weight:800; cursor:pointer;
+    }
+    .career-card {
+      background: rgba(15,23,42,.96); border:1px solid #334155; border-left:4px solid #38bdf8;
+      border-radius:12px; padding:10px; box-shadow:0 8px 20px rgba(0,0,0,.25);
+    }
+    .career-card.taken { border-left-color:#f59e0b; }
+    .career-card.done { border-left-color:#10b981; opacity:.92; }
+    .career-place { font-size:1rem; font-weight:900; color:#f8fafc; }
+    .career-meta { font-size:.72rem; color:#94a3b8; margin-top:4px; }
+    .career-actions { display:flex; gap:7px; margin-top:9px; }
+    .career-actions button {
+      flex:1; border:0; border-radius:8px; padding:8px; font-weight:800; cursor:pointer;
+    }
+    .career-accept { background:#10b981; color:#052e16; }
+    .career-finish { background:#38bdf8; color:#082f49; }
+    .career-cancel { background:#334155; color:#e2e8f0; }
+    .career-history-btn { background:#1e293b; color:#cbd5e1; }
+    #career-history-modal {
+      position:fixed; inset:0; z-index:3600; display:none; align-items:flex-end;
+      background:rgba(0,0,0,.72);
+    }
+    .career-history-card {
+      width:100%; max-height:78vh; overflow:auto; background:#0f172a;
+      border-top:2px solid #38bdf8; border-radius:16px 16px 0 0; padding:15px;
+    }
+    .career-history-row { border-bottom:1px solid #1e293b; padding:9px 0; }
+    .career-history-row strong { color:#f8fafc; }
+    .career-history-row small { color:#94a3b8; display:block; margin-top:3px; }
+    #career-toast {
+      position:fixed; left:50%; bottom:92px; transform:translateX(-50%); z-index:5000;
+      background:#0f172a; border:1px solid #38bdf8; color:#f8fafc; padding:10px 14px;
+      border-radius:10px; box-shadow:0 8px 25px rgba(0,0,0,.35); display:none; font-weight:800;
+    }
+    @media (min-width: 700px) {
+      #career-panel { left:18px; top:82px; width:360px; max-height:42vh; }
+    }
+
     #history-modal {
       position: fixed;
       inset: 0;
@@ -853,6 +916,28 @@
       <button class="btn-float-action" title="Alejar Zoom" onclick="zoomOut()">➖</button>
       <button class="btn-float-action" title="Pantalla Completa" onclick="toggleFullScreen()">⛶</button>
       <button class="btn-float-action" id="btn-unlock-base" title="Desbloquear para Mover Base" onclick="toggleBaseUnlock()" style="display:none;">🔒</button>
+    </div>
+  </div>
+
+
+  <div id="career-panel">
+    <div class="career-head">
+      <span>🚕 <b id="career-pending-count">Carreras pendientes: 0</b></span>
+      <div style="display:flex;gap:5px;">
+        <button class="career-add" onclick="openCareerRegister()">+ Carrera</button>
+        <button class="career-add" style="background:#334155;" onclick="openCareerHistory()">Historial</button>
+      </div>
+    </div>
+    <div id="career-list"></div>
+  </div>
+  <div id="career-toast"></div>
+  <div id="career-history-modal" onclick="closeCareerHistory()">
+    <div class="career-history-card" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <b style="font-size:1rem;color:#f8fafc;">📋 Historial de carreras</b>
+        <button class="career-cancel" onclick="closeCareerHistory()">✕</button>
+      </div>
+      <div id="career-history-list"></div>
     </div>
   </div>
 
@@ -1705,6 +1790,99 @@
     const TOPIC_BASE = 'yadah/radio/flota/base'; const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
     const TOPIC_POI = 'yadah/radio/flota/poi'; const TOPIC_ASSIGN = 'yadah/radio/flota/assignment';
 
+    // ==========================================
+    // REGISTRO VIVO DE CARRERAS
+    // Una sola cola para modulador y motoristas.
+    // Las carreras se sincronizan como mensajes MQTT retenidos por ID.
+    // ==========================================
+    const TOPIC_CAREER_PREFIX = 'yadah/radio/flota/carreras/';
+    const TOPIC_CAREER_WILDCARD = TOPIC_CAREER_PREFIX + '+';
+    const careerStore = new Map();
+    let careerRegisterOpen = false;
+
+    function careerDayKey(ts = Date.now()) {
+      const d = new Date(ts);
+      return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function careerIsToday(c) { return careerDayKey(c.createdAt) === careerDayKey(); }
+    function careerId() {
+      return `${careerDayKey()}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+    }
+    function careerEscape(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function careerShowToast(msg) {
+      const el=document.getElementById('career-toast'); if(!el) return;
+      el.textContent=msg; el.style.display='block'; clearTimeout(window.careerToastTimer);
+      window.careerToastTimer=setTimeout(()=>el.style.display='none',2200);
+    }
+    function publishCareer(career) {
+      if (!mqttClient || !mqttClient.connected) { careerShowToast('⚠️ Sin conexión: guardada solo en este teléfono'); }
+      if (mqttClient && mqttClient.connected) mqttClient.publish(TOPIC_CAREER_PREFIX + career.id, JSON.stringify(career), {retain:true, qos:1});
+      careerStore.set(career.id, career); renderCareerPanel();
+    }
+    function openCareerRegister() {
+      const place = prompt('¿Dónde quieren el carro?\n\nEscribe el lugar o punto de referencia:');
+      if (!place || !place.trim()) return;
+      const now=Date.now();
+      const career={id:careerId(), place:place.trim(), createdAt:now, createdBy:currentUnit||'Desconocido', status:'pending', takenBy:null, takenAt:null, finishedAt:null};
+      publishCareer(career);
+      careerShowToast(`🚕 Carrera registrada: ${career.place}`);
+    }
+    function acceptCareer(id) {
+      const c=careerStore.get(id); if(!c || c.status!=='pending') { careerShowToast('⚠️ Esa carrera ya fue tomada'); return; }
+      if (!confirm(`¿Tomar esta carrera?\n\n${c.place}`)) return;
+      c={...c,status:'taken',takenBy:currentUnit,takenAt:Date.now()};
+      publishCareer(c);
+      careerShowToast(`🟡 Carrera tomada por ${currentUnit}`);
+    }
+    function finishCareer(id) {
+      const c=careerStore.get(id); if(!c || c.status!=='taken' || c.takenBy!==currentUnit) return;
+      c={...c,status:'finished',finishedAt:Date.now()}; publishCareer(c);
+      careerShowToast('✅ Carrera finalizada');
+    }
+    function cancelCareer(id) {
+      const c=careerStore.get(id); if(!c) return;
+      if (c.createdBy!==currentUnit && !isModulator()) return;
+      c={...c,status:'cancelled',cancelledAt:Date.now(),cancelledBy:currentUnit}; publishCareer(c);
+      careerShowToast('Carrera cancelada');
+    }
+    function renderCareerPanel() {
+      const panel=document.getElementById('career-panel'); const list=document.getElementById('career-list'); const count=document.getElementById('career-pending-count');
+      if(!panel||!list||!count) return;
+      panel.style.display=currentUnit?'flex':'none';
+      const today=[...careerStore.values()].filter(careerIsToday);
+      const active=today.filter(c=>c.status==='pending'||(c.status==='taken'&&(c.takenBy===currentUnit||isModulator()))).sort((a,b)=>a.createdAt-b.createdAt);
+      const pendingCount=today.filter(c=>c.status==='pending').length;
+      count.textContent=`Carreras pendientes: ${pendingCount}`;
+      list.innerHTML=active.length?active.map(c=>{
+        const taken=c.status==='taken';
+        const canTake=c.status==='pending';
+        return `<div class="career-card ${taken?'taken':''}">
+          <div class="career-place">🚕 ${careerEscape(c.place)}</div>
+          <div class="career-meta">Solicitada ${new Date(c.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}${c.createdBy?` · registrada por ${careerEscape(c.createdBy)}`:''}</div>
+          ${taken?`<div class="career-meta" style="color:#fbbf24;font-weight:800;">🟡 Tomada por ${careerEscape(c.takenBy)}</div>`:''}
+          <div class="career-actions">
+            ${canTake?`<button class="career-accept" onclick="acceptCareer('${c.id}')">ACEPTAR</button>`:''}
+            ${taken&&c.takenBy===currentUnit?`<button class="career-finish" onclick="finishCareer('${c.id}')">FINALIZAR</button>`:''}
+            ${(c.createdBy===currentUnit||isModulator())&& !taken?`<button class="career-cancel" onclick="cancelCareer('${c.id}')">CANCELAR</button>`:''}
+          </div>
+        </div>`;
+      }).join(''):`<div style="color:#64748b;text-align:center;padding:10px;font-size:.82rem;">No hay carreras pendientes.</div>`;
+    }
+    function openCareerHistory() {
+      const modal=document.getElementById('career-history-modal'); const list=document.getElementById('career-history-list'); if(!modal||!list)return;
+      const rows=[...careerStore.values()].filter(c=>careerIsToday(c)&&(c.status==='finished'||c.status==='cancelled')).sort((a,b)=>(b.finishedAt||b.cancelledAt||b.createdAt)-(a.finishedAt||a.cancelledAt||a.createdAt));
+      list.innerHTML=rows.length?rows.map(c=>`<div class="career-history-row"><strong>🚕 ${careerEscape(c.place)}</strong><small>Solicitada: ${new Date(c.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} · ${c.status==='finished'?'Finalizada':'Cancelada'}${c.takenBy?` · Motorista: ${careerEscape(c.takenBy)}`:''}${c.finishedAt?` · Fin: ${new Date(c.finishedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:''}</small></div>`).join(''):`<div style="color:#64748b;padding:10px;">No hay carreras registradas todavía.</div>`;
+      modal.style.display='flex';
+    }
+    function closeCareerHistory(){const m=document.getElementById('career-history-modal');if(m)m.style.display='none';}
+    function handleCareerMessage(message){
+      try { const c=JSON.parse(message.toString()); if(!c||!c.id)return; careerStore.set(c.id,c); renderCareerPanel(); } catch(e){}
+    }
+    function subscribeCareerTopic(){ if(mqttClient&&mqttClient.connected) mqttClient.subscribe(TOPIC_CAREER_WILDCARD); }
+
+
     function triggerSOS() {
       isSosActive = !isSosActive; if (btnSos) btnSos.classList.toggle('active', isSosActive);
       if (mqttClient && mqttClient.connected && currentUnit) mqttClient.publish(TOPIC_PANIC, JSON.stringify({ unit: currentUnit, active: isSosActive, coords: myLastCoords }));
@@ -1724,13 +1902,16 @@
       mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', opts);
       mqttClient.on('connect', () => {
         mqttClient.subscribe([TOPIC_GPS, TOPIC_ALERT, TOPIC_PANIC, TOPIC_NAV, TOPIC_STATUS, TOPIC_BASE, TOPIC_MODULATOR, TOPIC_POI, TOPIC_ASSIGN, RADIO_SIGNAL_TOPIC]);
+        subscribeCareerTopic();
         if (typeof initializeRadio === 'function') initializeRadio();
         if (isDriver()) mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
       });
       mqttClient.on('message', (topic, message) => {
         try {
           const text = message.toString();
-          if (topic === RADIO_SIGNAL_TOPIC) {
+          if (topic.startsWith(TOPIC_CAREER_PREFIX)) {
+            handleCareerMessage(message);
+          } else if (topic === RADIO_SIGNAL_TOPIC) {
             receiveRadioSignal(message);
           } else if (topic === TOPIC_ASSIGN) {
             const assignData = JSON.parse(text);
@@ -2236,6 +2417,7 @@
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
+    renderCareerPanel();
   </script>
 </body>
 </html>
