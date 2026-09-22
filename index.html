@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Yadah Radio 3D Flota</title>
+  <title>Yadah Radio 3D Flota - Despacho Inteligente</title>
 
   <!-- MapLibre GL JS -->
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
@@ -147,6 +147,68 @@
       align-items: center;
       justify-content: space-between;
       z-index: 2200;
+    }
+
+    /* Panel flotante de Carreras Pendientes */
+    #pending-dispatch-panel {
+      position: absolute;
+      top: 65px;
+      left: 12px;
+      width: 300px;
+      max-height: 250px;
+      background: rgba(17, 24, 39, 0.95);
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 10px;
+      z-index: 2300;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.8);
+      overflow-y: auto;
+    }
+
+    .dispatch-header {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #f59e0b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #374151;
+      padding-bottom: 4px;
+    }
+
+    .dispatch-card {
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.75rem;
+    }
+
+    .dispatch-card-title {
+      font-weight: bold;
+      color: #38bdf8;
+    }
+
+    .dispatch-card-timer {
+      color: #f87171;
+      font-weight: bold;
+    }
+
+    .btn-accept-dispatch {
+      background: #10b981;
+      color: #fff;
+      border: none;
+      padding: 4px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
     }
 
     #map-context-menu {
@@ -734,6 +796,17 @@
 
   <audio id="radio-speaker" autoplay playsinline controls style="display:none;"></audio>
 
+  <!-- Panel flotante de Despacho Inteligente y Carreras Pendientes -->
+  <div id="pending-dispatch-panel">
+    <div class="dispatch-header">
+      <span>📌 Carreras Pendientes</span>
+      <span id="dispatch-count" style="background:#f59e0b; color:#0b0f19; padding:1px 6px; border-radius:4px; font-size:0.7rem;">0</span>
+    </div>
+    <div id="dispatch-list-container" style="display:flex; flex-direction:column; gap:6px;">
+      <div style="font-size:0.7rem; color:#94a3b8; text-align:center;">No hay servicios pendientes</div>
+    </div>
+  </div>
+
   <div id="client-tracking-screen">
     <div class="client-header" id="client-header-title">🚘 Tu vehículo en camino - Yadah Fleet</div>
     <div class="client-map" id="client-map"></div>
@@ -1204,6 +1277,118 @@
     const ALL_UNITS = Array.from({ length: 14 }, (_, i) => `Móvil ${String(i + 1).padStart(2, '0')}`);
     const fleetStatusMap = {};
     ALL_UNITS.forEach(id => { fleetStatusMap[id] = { lastSeen: 0, speed: 0, lat: null, lon: null, stoppedSince: null, state: 'offline', arrivalTime: null }; });
+
+    // ==========================================
+    // MÓDULO DE DESPACHO INTELIGENTE Y VOZ
+    // ==========================================
+    let pendingDispatches = [];
+    let reminderInterval = null;
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'es-ES';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function addPendingDispatch(locationText) {
+      const newDispatch = {
+        id: 'disp_' + Date.now(),
+        location: locationText,
+        time: Date.now()
+      };
+      pendingDispatches.unshift(newDispatch);
+      renderDispatchPanel();
+
+      // Anuncio en voz alta automático
+      speakText(`Nueva carrera en ${locationText}`);
+
+      // Iniciar recordatorio auditivo cada 30 segundos si no está activo
+      if (!reminderInterval) {
+        reminderInterval = setInterval(() => {
+          if (pendingDispatches.length > 0) {
+            playBeep(440, 0.2); // Beep sutil recordatorio
+          } else {
+            clearInterval(reminderInterval);
+            reminderInterval = null;
+          }
+        }, 30000);
+      }
+    }
+
+    function renderDispatchPanel() {
+      const container = document.getElementById('dispatch-list-container');
+      const countBadge = document.getElementById('dispatch-count');
+      if (!container || !countBadge) return;
+
+      countBadge.textContent = pendingDispatches.length;
+
+      if (pendingDispatches.length === 0) {
+        container.innerHTML = `<div style="font-size:0.7rem; color:#94a3b8; text-align:center;">No hay servicios pendientes</div>`;
+        return;
+      }
+
+      const now = Date.now();
+      container.innerHTML = pendingDispatches.map(d => {
+        const elapsedSec = Math.floor((now - d.time) / 1000);
+        const mins = Math.floor(elapsedSec / 60);
+        const secs = elapsedSec % 60;
+        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+        return `
+          <div class="dispatch-card">
+            <div class="dispatch-card-title">📍 ${d.location}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="dispatch-card-timer">⏱️ ${timeStr} min</span>
+              <button class="btn-accept-dispatch" onclick="acceptDispatch('${d.id}')">Aceptar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function acceptDispatch(dispatchId) {
+      const idx = pendingDispatches.findIndex(d => d.id === dispatchId);
+      if (idx !== -1) {
+        const taken = pendingDispatches.splice(idx, 1)[0];
+        renderDispatchPanel();
+        alert(`✅ Has tomado la carrera en: ${taken.location}`);
+        pendingDestination = { lon: defaultBaseCoords[0], lat: defaultBaseCoords[1], label: taken.location };
+        lblRouteStats.textContent = `📍 Destino: ${taken.location}. ¿Iniciar marcha?`;
+        navRouteInfo.style.display = 'flex';
+      }
+    }
+
+    // Actualizar cronómetros cada segundo
+    setInterval(renderDispatchPanel, 1000);
+
+    // Detección automática por voz de comandos en el canal
+    function processVoiceTranscript(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes("pendientes") || lower.includes("que tiene pendiente")) {
+        if (pendingDispatches.length === 0) {
+          speakText("No hay carreras pendientes en este momento.");
+        } else {
+          const summary = pendingDispatches.map(d => d.location).join(", y otra en ");
+          speakText(`Hay ${pendingDispatches.length} carreras pendientes. Una en ${summary}`);
+        }
+        return;
+      }
+
+      // Detectar gatillo "quieren un carro en"
+      const triggerPhrase = "quieren un carro en";
+      const idx = lower.indexOf(triggerPhrase);
+      if (idx !== -1) {
+        const extractedLocation = text.substring(idx + triggerPhrase.length).trim();
+        if (extractedLocation.length > 2) {
+          addPendingDispatch(extractedLocation);
+        }
+      }
+    }
+
+    // ==========================================
 
     async function requestWakeLock() { try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (err) {} }
 
@@ -1845,7 +2030,7 @@
     if (!trackingUnit && document.getElementById('btn-recenter')) document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
     // ==========================================
-    // MÓDULO DE RADIO WEBRTC EN TIEMPO REAL (VERSIÓN UNIFICADA CORREGIDA)
+    // MÓDULO DE RADIO WEBRTC EN TIEMPO REAL
     // ==========================================
     const RADIO_SIGNAL_TOPIC = 'yadah/radio/webrtc/signaling/v10';
     const ROOM_NAME = 'yadah-radio-flota-3d';
@@ -1866,6 +2051,30 @@
     const radioAudioElements = new Map();
     let radioAudioUnlocked = false;
 
+    // Integración de Reconocimiento de Voz (Speech-to-Text) para detectar comandos y carreras
+    let recognition = null;
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[event.results.length - 1][0].transcript;
+          processVoiceTranscript(transcript);
+        };
+
+        recognition.onerror = () => {};
+        recognition.onend = () => {
+          try { recognition.start(); } catch (e) {} // Mantener escuchando en segundo plano
+        };
+
+        try { recognition.start(); } catch (e) {}
+      }
+    }
+
     function unlockRadioAudio() {
       radioAudioUnlocked = true;
       const mainSpeaker = document.getElementById('radio-speaker');
@@ -1875,17 +2084,12 @@
           mainSpeaker.play().catch(() => {});
         } catch (e) {}
       }
-      for (const audio of radioAudioElements.values()) {
-        try {
-          audio.muted = false;
-          audio.play().catch(() => {});
-        } catch (e) {}
-      }
     }
 
     function initializeRadio() {
       if (radioInitialized || !mqttClient || !mqttClient.connected || !currentUnit) return;
       radioInitialized = true;
+      initSpeechRecognition();
       if (typeof mqtt === 'undefined') {
         if (channelStatus) {
           channelStatus.className = 'channel-status blocked';
@@ -2108,7 +2312,6 @@
         const stream = (event.streams && event.streams[0]) || (event.track ? new MediaStream([event.track]) : null);
         if (!stream) return;
 
-        // Conectamos directamente al altavoz principal #radio-speaker del DOM
         const mainSpeaker = document.getElementById('radio-speaker');
         if (mainSpeaker) {
           mainSpeaker.srcObject = stream;
@@ -2145,12 +2348,6 @@
       if (pc) {
         try { pc.close(); } catch (error) {}
         radioPeers.delete(targetDevId);
-      }
-      const audio = radioAudioElements.get(targetDevId);
-      if (audio) {
-        audio.srcObject = null;
-        audio.remove();
-        radioAudioElements.delete(targetDevId);
       }
       radioCandidateQueues.delete(targetDevId);
       if (channelStatus && !radioTalking) {
