@@ -2099,8 +2099,10 @@
     }
 
     async function getRadioMicrophone() {
+      // Obtener/preparar el micrófono NUNCA inicia una transmisión.
+      // Solo startRadioTalking() puede habilitar el audio.
       if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
-        radioLocalTrack.enabled = true;
+        radioLocalTrack.enabled = false;
         return true;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
@@ -2127,6 +2129,8 @@
 
     async function attachRadioTrackToPeers() {
       if (!radioLocalTrack || radioLocalTrack.readyState !== 'live' || !radioLocalStream) return false;
+      // El track permanece silenciado mientras no exista una transmisión activa.
+      radioLocalTrack.enabled = false;
       let attached = false;
 
       for (const [peerId, pc] of radioPeers.entries()) {
@@ -2184,6 +2188,15 @@
       }
 
       await attachRadioTrackToPeers();
+
+      // El usuario pudo haber soltado el PTT mientras se esperaba la conexión.
+      // Nunca volver a habilitar el micrófono después de una liberación.
+      if (!radioButtonPressed || session !== radioTalkSession) {
+        if (radioLocalTrack) radioLocalTrack.enabled = false;
+        radioTalking = false;
+        return;
+      }
+
       radioLocalTrack.enabled = true;
       radioTalking = true;
       if (btnPtt) btnPtt.classList.add('active');
@@ -2401,6 +2414,9 @@
       btnPtt.addEventListener('lostpointercapture', release);
       document.addEventListener('pointerup', release, true);
       document.addEventListener('pointercancel', release, true);
+      document.addEventListener('mouseup', release, true);
+      document.addEventListener('touchend', release, true);
+      document.addEventListener('touchcancel', release, true);
 
       window.addEventListener('pointerdown', unlockRadioAudio, { once: false, passive: true });
       window.addEventListener('touchstart', unlockAudioHardware, { once: false, passive: true });
@@ -2421,7 +2437,7 @@
           event.preventDefault();
           release(event);
         }
-      });
+      }, true);
       window.addEventListener('blur', () => release(null));
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) release(null);
