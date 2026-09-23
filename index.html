@@ -815,7 +815,7 @@
 .yc-modal-card{width:min(520px,100%);background:#111827;border-top:2px solid #38bdf8;border-radius:16px 16px 0 0;padding:16px;max-height:82vh;overflow:auto}
 .yc-modal-title{display:flex;justify-content:space-between;align-items:center;color:#38bdf8;font-weight:900;font-size:.98rem;margin-bottom:10px}.yc-close{cursor:pointer;color:#94a3b8;font-size:1.2rem}
 .yc-input-row{display:flex;gap:8px;align-items:stretch}.yc-input{width:100%;padding:11px 12px;background:#030712;color:#fff;border:1px solid #334155;border-radius:8px;outline:none;font-size:.9rem;min-width:0}.yc-mic{width:48px;min-width:48px;border:1px solid #334155;border-radius:8px;background:#1e293b;color:#e2e8f0;font-size:1.25rem;cursor:pointer}.yc-mic.active{background:#dc2626;border-color:#f87171;animation:ycMicPulse 1s infinite}.yc-mic.unsupported{opacity:.45}.yc-label{font-size:.72rem;color:#94a3b8;margin:8px 0 5px;display:block}.yc-voice-status{font-size:.68rem;color:#38bdf8;min-height:16px;margin-top:5px}.yc-actions{display:flex;gap:8px;margin-top:12px}.yc-actions button{flex:1;padding:10px;border:0;border-radius:8px;font-weight:900;cursor:pointer}.yc-submit{background:#0284c7;color:#fff}.yc-secondary{background:#374151;color:#e2e8f0}@keyframes ycMicPulse{50%{transform:scale(1.04)}}
-#yadah-career-history-list{display:flex;flex-direction:column;gap:7px;max-height:55vh;overflow:auto}.yc-history-item{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px 10px}.yc-history-main{font-size:.82rem;font-weight:800;color:#fff}.yc-history-meta{font-size:.68rem;color:#94a3b8;margin-top:3px}.yc-history-actions{display:flex;gap:7px;margin-top:7px}.yc-history-actions button{border:0;border-radius:7px;padding:7px 9px;font-weight:800;font-size:.68rem;cursor:pointer;background:#0284c7;color:#fff}.yc-history-actions button:disabled{opacity:.55;cursor:default}
+#yadah-career-history-list{display:flex;flex-direction:column;gap:7px;max-height:55vh;overflow:auto}.yc-history-item{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px 10px}.yc-history-main{font-size:.82rem;font-weight:800;color:#fff}.yc-history-meta{font-size:.68rem;color:#94a3b8;margin-top:3px}
 .yc-empty{color:#64748b;font-size:.8rem;text-align:center;padding:14px}
 @media(min-width:800px){#yadah-career-stack{left:16px;right:auto;width:360px;top:72px;max-height:55vh}#yadah-career-fab{right:18px;bottom:102px}}
 
@@ -867,13 +867,9 @@
     <div class="nav-route-info" id="nav-route-info">
       <span id="lbl-route-stats">Destino seleccionado</span>
       <div class="nav-route-actions">
-        <button class="btn-nav-action btn-nav-start" id="btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
+        <button class="btn-nav-action btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
         <button class="btn-nav-action btn-nav-cancel" onclick="cancelNavigation()">Cancelar ✕</button>
       </div>
-    </div>
-    <div id="nav-guidance-card" style="display:none; margin-top:8px; background:#07111f; border:1px solid #38bdf8; border-radius:14px; padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.28);">
-      <div id="nav-guidance-main" style="font-size:1.05rem; font-weight:900; color:#f8fafc;">Sigue la ruta</div>
-      <div id="nav-guidance-sub" style="font-size:.78rem; color:#94a3b8; margin-top:3px;">Preparando indicaciones...</div>
     </div>
   </div>
 
@@ -960,7 +956,7 @@
 <div id="yadah-career-stack" aria-live="polite"></div>
 <div id="yadah-career-fab">
   <button class="yc-btn primary" id="yc-new-btn" type="button">🚕 Carrera</button>
-  <button class="yc-btn history" id="yc-history-btn" type="button">📋 Historial</button>
+  <button class="yc-btn history" id="yc-history-btn" type="button">📋 Carreras</button>
 </div>
 <div id="yadah-career-modal">
   <div class="yc-modal-card" onclick="event.stopPropagation()">
@@ -978,9 +974,9 @@
 </div>
 <!-- ===== YADAH BASE: MODULO INDEPENDIENTE DE CARRERAS POR LLAMADA ===== -->
 <div id="yadah-base-stack" aria-live="polite"></div>
-<div id="yadah-base-fab"><button class="yb-btn yb-menu-btn" id="yb-open-btn" type="button" aria-label="Abrir o cerrar Cola de espera" title="Abrir o cerrar Cola de espera">👥</button></div>
+<div id="yadah-base-fab"><button class="yb-btn yb-menu-btn" id="yb-open-btn" type="button" aria-label="Abrir o cerrar Cola de Base" title="Abrir o cerrar Cola de Base">🏠</button></div>
 <div id="yadah-base-modal"><div class="yb-modal-card" onclick="event.stopPropagation()">
-<div class="yb-modal-title"><span id="yb-modal-title">👥 Cliente en cola</span><span class="yb-close" id="yb-close">✕</span></div>
+<div class="yb-modal-title"><span id="yb-modal-title">🏠 Cliente de base</span><span class="yb-close" id="yb-close">✕</span></div>
 <div id="yb-add-view">
 <div class="yb-floating-note">El mapa permanece visible mientras registras la carrera.</div>
 <label class="yb-label" for="yb-destination">Destino</label>
@@ -988,12 +984,12 @@
 <label class="yb-label" for="yb-price" style="margin-top:10px">Agregar precio</label>
 <select class="yb-select" id="yb-price"><option value="1.00">$1.00</option><option value="1.50">$1.50</option><option value="2.00">$2.00</option><option value="2.50">$2.50</option><option value="3.00">$3.00</option><option value="3.50">$3.50</option><option value="4.00">$4.00</option><option value="__custom__">Otra cantidad…</option></select>
 <input class="yb-input" id="yb-custom-price" type="number" min="0.01" max="999.99" step="0.01" placeholder="Escribe la cantidad, por ejemplo 4.50" style="display:none">
-<div class="yb-actions yb-main-actions"><button class="yb-secondary" id="yb-cancel">Cancelar</button><button class="yb-submit" id="yb-add-queue">👥 DEJAR EN COLA</button></div>
+<div class="yb-actions yb-main-actions"><button class="yb-secondary" id="yb-cancel">Cancelar</button><button class="yb-submit" id="yb-add-queue">🏠 DEJAR EN COLA</button></div>
 <button class="yb-direct" id="yb-direct-assign" type="button">🚕 ASIGNAR DIRECTAMENTE</button>
 </div>
 <div id="yb-assign-view" style="display:none"><div class="yb-label">Selecciona el motorista para esta salida</div><div class="yb-draft-summary" id="yb-draft-summary">—</div><div class="yb-unit-grid" id="yb-unit-grid"></div><div class="yb-actions"><button class="yb-secondary" id="yb-assign-cancel">Volver</button></div></div>
 </div></div>
-<div id="yadah-base-assignment" aria-live="assertive"><div class="yb-assign-title">🚕 SERVICIO DE COLA</div><div class="yb-assign-place" id="yb-assignment-place">—</div><div class="yb-assign-meta" id="yb-assignment-meta">Cliente esperando en la cola</div><div class="yb-assign-actions"><button class="yb-reject" id="yb-assignment-reject">RECHAZAR</button><button class="yb-accept" id="yb-assignment-accept">ACEPTAR</button></div></div>
+<div id="yadah-base-assignment" aria-live="assertive"><div class="yb-assign-title">🏠 SERVICIO DE BASE</div><div class="yb-assign-place" id="yb-assignment-place">—</div><div class="yb-assign-meta" id="yb-assignment-meta">Cliente esperando en la base</div><div class="yb-assign-actions"><button class="yb-reject" id="yb-assignment-reject">RECHAZAR</button><button class="yb-accept" id="yb-assignment-accept">ACEPTAR</button></div></div>
 <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#38bdf8;" id="lbl-unit">--</b></span>
@@ -1096,11 +1092,11 @@
       };
     }
 
-    function savePointToDB(unit, lon, lat, speed, heading, timestamp = Date.now()) {
+    function savePointToDB(unit, lon, lat, speed, heading) {
       if (!db) return;
       const tx = db.transaction([STORE_NAME], 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      store.add({ unit, lon, lat, speed, heading, timestamp });
+      store.add({ unit, lon, lat, speed, heading, timestamp: Date.now() });
     }
 
     function cleanOldTelemetry() {
@@ -1333,6 +1329,9 @@
     let sirenInterval = null;
     let activeSosCoords = null;
     let pendingDestination = null;
+    // Ruta de base: acumula todos los servicios aceptados antes de iniciar la marcha.
+    let baseRouteStops = [];
+    let baseAssignmentBatch = [];
     let gpsPermissionGranted = false;
     let searchTimeout = null;
     let baseUnlocked = false;
@@ -1424,15 +1423,17 @@
     }
 
     async function startNavigationMatch() {
-      if (!pendingDestination) { alert("Primero selecciona un destino."); return; }
-      const startBtn = document.getElementById('btn-nav-start');
-      if (startBtn) {
-        startBtn.disabled = true;
-        startBtn.style.display = 'none';
+      // Si hay servicios de base aceptados, DAR MARCHA inicia la RUTA completa.
+      if (baseRouteStops.length > 0) {
+        firstPersonMode = true;
+        updateViewButtonUI();
+        await requestMultiStopRoute(baseRouteStops);
+        return;
       }
+      if (!pendingDestination) { alert("Primero selecciona un destino."); return; }
       firstPersonMode = true;
       updateViewButtonUI();
-      await requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
+      requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
     }
 
     function updateGpsLockState(allowed) {
@@ -1682,165 +1683,110 @@
     }
 
     let destinationMarker = null;
-    // Navegación avanzada: instrucciones por voz, seguimiento de maniobras y recálculo automático.
-    const navigationState = {
-      active: false, rerouting: false, routeGeometry: null, steps: [], currentStep: 0,
-      destination: null, destinationLabel: '', lastVoiceKey: '', lastRerouteAt: 0, arrived: false
-    };
+    let destinationMarkers = [];
 
-    function navigationDistanceMeters(aLat, aLon, bLat, bLon) {
-      const R = 6371000;
-      const p1 = aLat * Math.PI / 180, p2 = bLat * Math.PI / 180;
-      const dp = (bLat - aLat) * Math.PI / 180, dl = (bLon - aLon) * Math.PI / 180;
-      const x = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
-      return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+    function clearDestinationMarkers() {
+      if (destinationMarker) { destinationMarker.remove(); destinationMarker = null; }
+      destinationMarkers.forEach(m => { try { m.remove(); } catch (_) {} });
+      destinationMarkers = [];
     }
 
-    function distancePointToSegmentMeters(lat, lon, a, b) {
-      const latScale = 111320, lonScale = 111320 * Math.cos(lat * Math.PI / 180);
-      const px = lon * lonScale, py = lat * latScale;
-      const ax = a[0] * lonScale, ay = a[1] * latScale;
-      const bx = b[0] * lonScale, by = b[1] * latScale;
-      const dx = bx-ax, dy = by-ay;
-      const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / ((dx*dx+dy*dy) || 1)));
-      return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+    async function geocodeBaseStop(stop) {
+      if (stop.lon != null && stop.lat != null && !stop.fromBaseLabel) return stop;
+      const label = String(stop.label || '').trim();
+      if (!label) return null;
+      const placeQuery = `${label}, Lourdes, Colón, El Salvador`;
+      let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeQuery)}&limit=1`;
+      if (myLastCoords) {
+        const delta = 0.5;
+        url += `&viewbox=${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}&bounded=1`;
+      }
+      const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const results = await response.json();
+      if (!results || !results.length) return null;
+      return { ...stop, lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat) };
     }
 
-    function distanceToRouteMeters(lat, lon, geometry) {
-      if (!geometry?.coordinates?.length) return Infinity;
-      let best = Infinity;
-      const c = geometry.coordinates;
-      for (let i=1;i<c.length;i++) best = Math.min(best, distancePointToSegmentMeters(lat, lon, c[i-1], c[i]));
-      return best;
-    }
+    async function requestMultiStopRoute(stops) {
+      if (!myLastCoords) { alert('Esperando señal de GPS...'); return; }
+      if (!Array.isArray(stops) || !stops.length) { alert('No hay destinos en la ruta.'); return; }
+      try {
+        if (lblRouteStats) lblRouteStats.textContent = `🧭 Preparando RUTA con ${stops.length} destino${stops.length > 1 ? 's' : ''}...`;
+        if (navRouteInfo) navRouteInfo.style.display = 'flex';
 
-    function speakNavigation(text, key='') {
-      if (!('speechSynthesis' in window) || !text) return;
-      if (key && navigationState.lastVoiceKey === key) return;
-      if (key) navigationState.lastVoiceKey = key;
-      try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang='es-SV'; u.rate=1.02; u.pitch=1; window.speechSynthesis.speak(u); } catch(e) {}
-    }
-
-    function formatNavDistance(m) {
-      if (m < 1000) return `${Math.max(20, Math.round(m/10)*10)} m`;
-      return `${(m/1000).toFixed(1)} km`;
-    }
-
-    function maneuverText(step) {
-      const m = step?.maneuver || {}; const mod = m.modifier || ''; const type = m.type || '';
-      const map = {
-        'turn right':'Gira a la derecha', 'turn left':'Gira a la izquierda',
-        'slight right':'Mantente a la derecha', 'slight left':'Mantente a la izquierda',
-        'sharp right':'Gira pronunciadamente a la derecha', 'sharp left':'Gira pronunciadamente a la izquierda',
-        'straight':'Continúa de frente', 'uturn':'Haz un retorno', 'roundabout':'En la rotonda',
-        'depart':'Inicia la ruta', 'arrive':'Has llegado a tu destino'
-      };
-      if (type === 'roundabout' || type === 'rotary') return `En la rotonda, toma la salida ${m.exit || ''}`.trim();
-      if (type === 'arrive') return 'Has llegado a tu destino';
-      if (type === 'depart') return 'Inicia la ruta y continúa de frente';
-      return map[`${type} ${mod}`] || map[type] || (mod ? `Continúa hacia ${mod}` : 'Continúa por la ruta');
-    }
-
-    function updateNavigationGuidance(lat, lon) {
-      if (!navigationState.active || !navigationState.steps.length) return;
-      if (navigationState.destination) {
-        const dDest = navigationDistanceMeters(lat, lon, navigationState.destination.lat, navigationState.destination.lon);
-        if (dDest <= 35 && !navigationState.arrived) {
-          navigationState.arrived = true;
-          const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
-          if(main) main.textContent='🏁 Has llegado a tu destino';
-          if(sub) sub.textContent=navigationState.destinationLabel || 'Destino';
-          speakNavigation('Has llegado a tu destino','arrived');
-          return;
+        const resolved = [];
+        for (const stop of stops) {
+          const item = await geocodeBaseStop(stop);
+          if (!item) {
+            alert(`No pude localizar el destino: ${stop.label || 'Sin nombre'}. Corrige el nombre antes de iniciar la ruta.`);
+            if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo localizar uno de los destinos.';
+            return;
+          }
+          resolved.push(item);
         }
+        baseRouteStops = resolved;
+
+        clearDestinationMarkers();
+        resolved.forEach((stop, index) => {
+          const el = document.createElement('div');
+          el.style.fontSize = '1.8rem';
+          el.textContent = index === resolved.length - 1 ? '🏁' : '📍';
+          const marker = new maplibregl.Marker({ element: el }).setLngLat([stop.lon, stop.lat]).addTo(map);
+          destinationMarkers.push(marker);
+        });
+
+        const coords = [[myLastCoords.lon, myLastCoords.lat], ...resolved.map(s => [s.lon, s.lat])];
+        const coordString = coords.map(c => `${c[0]},${c[1]}`).join(';');
+        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson&steps=true`);
+        const data = await res.json();
+        if (!data.routes || !data.routes.length) throw new Error('No route');
+
+        const route = data.routes[0];
+        const labels = resolved.map((s, i) => `${i + 1}. ${s.label}`);
+        if (lblRouteStats) {
+          lblRouteStats.innerHTML = `🧭 <b>RUTA · ${resolved.length} DESTINO${resolved.length > 1 ? 'S' : ''}</b><br>` +
+            labels.map(x => `<div style="margin-top:3px">${x}</div>`).join('') +
+            `<div style="margin-top:5px">${(route.distance / 1000).toFixed(1)} km · ~${Math.round(route.duration / 60)} min</div><div style="margin-top:3px;color:#10b981">🚀 En marcha</div>`;
+        }
+        ensureLayersExist();
+        map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: { stops: labels } }] });
+        if (mqttClient && mqttClient.connected && currentUnit) {
+          mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: labels.join(' → '), stops: resolved.map(s => ({ label: s.label, lon: s.lon, lat: s.lat })) }));
+        }
+      } catch (e) {
+        console.error('Error calculando ruta múltiple:', e);
+        if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo calcular la ruta.';
+        alert('No se pudo calcular la ruta completa. Verifica la conexión y los destinos.');
       }
-      // Avanza por las maniobras ya superadas.
-      while (navigationState.currentStep < navigationState.steps.length - 1) {
-        const step = navigationState.steps[navigationState.currentStep];
-        const loc = step?.maneuver?.location;
-        if (!loc) { navigationState.currentStep++; continue; }
-        if (navigationDistanceMeters(lat, lon, loc[1], loc[0]) < 22) navigationState.currentStep++;
-        else break;
-      }
-      const step = navigationState.steps[navigationState.currentStep];
-      if (!step) return;
-      const loc=step.maneuver?.location;
-      const dist=loc ? navigationDistanceMeters(lat, lon, loc[1], loc[0]) : 99999;
-      const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
-      let text=maneuverText(step);
-      if(main) main.textContent = `${dist < 35 ? '➡️' : '🧭'} ${text}`;
-      const road=step.name ? ` · ${step.name}` : '';
-      if(sub) sub.textContent = dist < 35 ? 'Ahora' : `En ${formatNavDistance(dist)}${road}`;
-      if(dist <= 55) speakNavigation(`${text}${step.name ? ` por ${step.name}` : ''}`, `maneuver-${navigationState.currentStep}`);
     }
 
-    function maybeRerouteFromGps(lat, lon) {
-      if (!navigationState.active || !navigationState.routeGeometry || navigationState.rerouting || navigationState.arrived) return;
-      const off = distanceToRouteMeters(lat, lon, navigationState.routeGeometry);
-      if (off > 45 && Date.now() - navigationState.lastRerouteAt > 8000) {
-        navigationState.lastRerouteAt = Date.now();
-        navigationState.rerouting = true;
-        const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
-        if(main) main.textContent='🔄 Recalculando ruta';
-        if(sub) sub.textContent='Te estamos buscando una nueva ruta';
-        speakNavigation('Te has desviado de la ruta. Recalculando.', 'reroute-'+Math.floor(navigationState.lastRerouteAt/8000));
-        requestRouteToDestination(navigationState.destination.lon, navigationState.destination.lat, navigationState.destinationLabel, true).finally(()=>{ navigationState.rerouting=false; });
-      }
-    }
-
-    async function requestRouteToDestination(destLon, destLat, label = 'Destino', isReroute = false) {
-      const startBtn = document.getElementById('btn-nav-start');
-      if (!myLastCoords) {
-        if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
-        alert("Esperando señal de GPS...");
-        return false;
-      }
-      if (destinationMarker) destinationMarker.remove();
+    async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
+      if (!myLastCoords) { alert("Esperando señal de GPS..."); return; }
+      clearDestinationMarkers();
       const el = document.createElement('div'); el.style.fontSize = '2.2rem'; el.innerHTML = '🏁';
       destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
       try {
         if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...'; if (navRouteInfo) navRouteInfo.style.display = 'flex';
-        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&steps=true&annotations=false&geometries=geojson`);
+        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`);
         const data = await res.json();
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0];
-          navigationState.active = true;
-          navigationState.routeGeometry = route.geometry;
-          navigationState.steps = (route.legs || []).flatMap(leg => leg.steps || []).filter(step => step?.maneuver?.location);
-          navigationState.currentStep = 0;
-          navigationState.destination = { lon: destLon, lat: destLat };
-          navigationState.destinationLabel = label;
-          navigationState.arrived = false;
-          if (startBtn) { startBtn.disabled = true; startBtn.style.display = 'none'; }
-          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). ${isReroute ? 'Ruta corregida 🔄' : 'En marcha 🚀'}`;
-          const guidance=document.getElementById('nav-guidance-card'); if(guidance) guidance.style.display='block';
+          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). En marcha 🚀`;
           ensureLayersExist();
           map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: {} }] });
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: label }));
           }
-          updateNavigationGuidance(myLastCoords.lat, myLastCoords.lon);
-          if (!isReroute) speakNavigation(`Iniciando ruta hacia ${label}`, 'navigation-start');
-        } else {
-          if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
-          if (lblRouteStats) lblRouteStats.textContent = 'No se pudo calcular el trayecto.';
-          return false;
         }
-      } catch (e) {
-        if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
-        if (lblRouteStats) lblRouteStats.textContent = 'No se pudo calcular el trayecto.';
-        return false;
-      }
-      return true;
+      } catch (e) { console.error(e); }
     }
 
     function cancelNavigation() {
-      const startBtn = document.getElementById('btn-nav-start');
-      if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
-      navigationState.active = false; navigationState.rerouting = false; navigationState.routeGeometry = null; navigationState.steps = []; navigationState.currentStep = 0; navigationState.destination = null; navigationState.destinationLabel = ''; navigationState.lastVoiceKey = ''; navigationState.arrived = false;
-      if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch(e) {} }
-      const guidance=document.getElementById('nav-guidance-card'); if(guidance) guidance.style.display='none';
-      pendingDestination = null; if (destinationMarker) { destinationMarker.remove(); destinationMarker = null; }
+      pendingDestination = null;
+      baseRouteStops = [];
+      baseAssignmentBatch = [];
+      window.__yadahPendingBaseAssignment = null;
+      clearDestinationMarkers();
       if (navRouteInfo) navRouteInfo.style.display = 'none';
       if (document.getElementById('input-destination')) document.getElementById('input-destination').value = '';
       if (map && map.getSource('nav-active-route')) map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
@@ -1984,7 +1930,6 @@
 
     let mqttClient = null;
     const TOPIC_GPS = 'yadah/radio/flota/gps';
-    const TOPIC_GPS_HISTORY = 'yadah/radio/flota/gps/history';
     const TOPIC_ALERT = 'yadah/radio/flota/alert'; const TOPIC_PANIC = 'yadah/radio/flota/panic';
     const TOPIC_NAV = 'yadah/radio/flota/navigation'; const TOPIC_STATUS = 'yadah/radio/flota/status';
     const TOPIC_BASE = 'yadah/radio/flota/base'; const TOPIC_MODULATOR = 'yadah/radio/flota/modulator_gps';
@@ -2008,7 +1953,7 @@
       if (isDriver()) opts.will = { topic: TOPIC_STATUS, payload: JSON.stringify({ unit: currentUnit, status: 'offline' }), qos: 1, retain: true };
       mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', opts);
       mqttClient.on('connect', () => {
-        mqttClient.subscribe([TOPIC_GPS, TOPIC_GPS_HISTORY, TOPIC_ALERT, TOPIC_PANIC, TOPIC_NAV, TOPIC_STATUS, TOPIC_BASE, TOPIC_MODULATOR, TOPIC_POI, TOPIC_ASSIGN, RADIO_SIGNAL_TOPIC]);
+        mqttClient.subscribe([TOPIC_GPS, TOPIC_ALERT, TOPIC_PANIC, TOPIC_NAV, TOPIC_STATUS, TOPIC_BASE, TOPIC_MODULATOR, TOPIC_POI, TOPIC_ASSIGN, RADIO_SIGNAL_TOPIC]);
         if (typeof initializeRadio === 'function') initializeRadio();
         if (isDriver()) mqttClient.publish(TOPIC_STATUS, JSON.stringify({ unit: currentUnit, status: 'online' }), { retain: true });
       });
@@ -2021,13 +1966,19 @@
             const assignData = JSON.parse(text);
             if (isDriver() && assignData.targetUnit === currentUnit) {
               playBeep(880, 0.1);
-              if (assignData.source === 'base') {
-                window.__yadahPendingBaseAssignment = assignData;
+              if (assignData.source === 'base' || assignData.source === 'base_direct') {
+                const key = assignData.baseQueueId || `${assignData.label}|${assignData.price || ''}`;
+                if (!baseAssignmentBatch.some(x => (x.baseQueueId || `${x.label}|${x.price || ''}`) === key)) {
+                  baseAssignmentBatch.push(assignData);
+                }
+                window.__yadahPendingBaseAssignment = baseAssignmentBatch[0];
                 const box = document.getElementById('yadah-base-assignment');
                 const place = document.getElementById('yb-assignment-place');
                 const meta = document.getElementById('yb-assignment-meta');
-                if (place) place.textContent = assignData.label || 'Destino de base';
-                if (meta) meta.textContent = `🏠 BASE · ${assignData.price ? '$' + Number(assignData.price).toFixed(2) : 'Tarifa registrada'}`;
+                if (place) {
+                  place.innerHTML = baseAssignmentBatch.map((x,i) => `${i + 1}. ${String(x.label || 'Destino de base').replace(/[&<>]/g, '')}`).join('<br>');
+                }
+                if (meta) meta.textContent = `🏠 RUTA DE BASE · ${baseAssignmentBatch.length} destino${baseAssignmentBatch.length > 1 ? 's' : ''}`;
                 if (box) box.style.display = 'block';
               } else {
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
@@ -2042,11 +1993,6 @@
             const d = JSON.parse(text); if (d.coords) { defaultBaseCoords = d.coords; localStorage.setItem('yadah_base_coords', JSON.stringify(defaultBaseCoords)); if (permanentBaseMarker) permanentBaseMarker.setLngLat(defaultBaseCoords); }
           } else if (topic === TOPIC_MODULATOR) {
             const d = JSON.parse(text); if (d && d.lat && d.lon) updateModulatorState(d.lat, d.lon);
-          } else if (topic === TOPIC_GPS_HISTORY) {
-            const d = JSON.parse(text);
-            if (d && d.unit && Number.isFinite(Number(d.lat)) && Number.isFinite(Number(d.lon)) && Number.isFinite(Number(d.timestamp))) {
-              savePointToDB(String(d.unit), Number(d.lon), Number(d.lat), Number(d.speed || 0), d.heading, Number(d.timestamp));
-            }
           } else if (topic === TOPIC_GPS) {
             const d = JSON.parse(text); if (d.unit && d.unit !== currentUnit) updateVehicleOnMap(d.unit, d.lon, d.lat, d.heading, d.speed, d.isSos);
           } else if (topic === TOPIC_STATUS) {
@@ -2124,13 +2070,6 @@
             if (myLastCoords && Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon) > 0.00002) myHeading = Math.round(calculateBearing(myLastCoords.lat, myLastCoords.lon, lat, lon));
           } else { myHeading = Math.round(heading); }
           mySpeed = Math.round(speedKmh); myLastCoords = { lat, lon, timestamp: now };
-          if (navigationState.active) {
-            updateNavigationGuidance(lat, lon);
-            maybeRerouteFromGps(lat, lon);
-            if (firstPersonMode && map) {
-              map.easeTo({ center:[lon,lat], bearing:myHeading || 0, pitch:65, zoom:17.2, offset:[0, window.innerHeight*0.28 || 180], duration:500 });
-            }
-          }
           if (lblHeading) lblHeading.textContent = `${myHeading}°`;
           if (lblSpeed) lblSpeed.textContent = `${mySpeed} km/h`;
 
@@ -2140,14 +2079,8 @@
           } else {
             targetPos = { lon, lat }; targetHeading = myHeading;
             if (!currentDisplayPos) { currentDisplayPos = { lon, lat }; currentDisplayHeading = myHeading; }
-            // Guardamos también el recorrido con el ID real de la unidad para poder reconstruir
-            // la trayectoria de una carrera posteriormente, incluso si el marcador visual usa "(Tú)".
-            savePointToDB(currentUnit, lon, lat, mySpeed, myHeading, now);
             updateVehicleOnMap(`${currentUnit} (Tú)`, lon, lat, myHeading, mySpeed, isSosActive);
-            if (mqttClient && mqttClient.connected) {
-              mqttClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
-              mqttClient.publish(TOPIC_GPS_HISTORY, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, timestamp: now }));
-            }
+            if (mqttClient && mqttClient.connected) mqttClient.publish(TOPIC_GPS, JSON.stringify({ unit: currentUnit, lat, lon, heading: myHeading, speed: mySpeed, isSos: isSosActive }));
           }
           if (!initialCentering) { applyCameraPerspective(); initialCentering = true; }
         },
@@ -2251,10 +2184,8 @@
     }
 
     async function getRadioMicrophone() {
-      // Obtener/preparar el micrófono NUNCA inicia una transmisión.
-      // Solo startRadioTalking() puede habilitar el audio.
       if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
-        radioLocalTrack.enabled = false;
+        radioLocalTrack.enabled = true;
         return true;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
@@ -2269,7 +2200,7 @@
         });
         radioLocalTrack = radioLocalStream.getAudioTracks()[0] || null;
         if (!radioLocalTrack) return false;
-        radioLocalTrack.enabled = false;
+        radioLocalTrack.enabled = true;
 
         await attachRadioTrackToPeers();
         return true;
@@ -2281,8 +2212,6 @@
 
     async function attachRadioTrackToPeers() {
       if (!radioLocalTrack || radioLocalTrack.readyState !== 'live' || !radioLocalStream) return false;
-      // El track permanece silenciado mientras no exista una transmisión activa.
-      radioLocalTrack.enabled = false;
       let attached = false;
 
       for (const [peerId, pc] of radioPeers.entries()) {
@@ -2340,15 +2269,6 @@
       }
 
       await attachRadioTrackToPeers();
-
-      // El usuario pudo haber soltado el PTT mientras se esperaba la conexión.
-      // Nunca volver a habilitar el micrófono después de una liberación.
-      if (!radioButtonPressed || session !== radioTalkSession) {
-        if (radioLocalTrack) radioLocalTrack.enabled = false;
-        radioTalking = false;
-        return;
-      }
-
       radioLocalTrack.enabled = true;
       radioTalking = true;
       if (btnPtt) btnPtt.classList.add('active');
@@ -2407,8 +2327,6 @@
         let pc = radioPeers.get(targetDevId);
 
         if (data.type === 'hello') {
-          // Preparar audio antes de la negociación para que el SDP incluya audio.
-          try { await getRadioMicrophone(); } catch (error) {}
           if (deviceId < targetDevId) {
             pc = await createRadioPeer(targetDevId, true);
             if (pc.signalingState === 'stable') {
@@ -2418,7 +2336,6 @@
             }
           }
         } else if (data.type === 'offer' || data.type === 'renegotiate-offer') {
-          try { await getRadioMicrophone(); } catch (error) {}
           if (!pc) pc = await createRadioPeer(targetDevId, false);
           if (pc.signalingState !== 'stable') return;
           await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -2448,15 +2365,6 @@
 
     async function createRadioPeer(targetDevId, isInitiator) {
       if (radioPeers.has(targetDevId)) return radioPeers.get(targetDevId);
-
-      // Importante: el peer debe negociarse con el micrófono ya conectado.
-      // La versión anterior creaba primero el peer sin pista de audio y
-      // dependía de una renegociación posterior, que podía dejar la radio muda.
-      if (!radioLocalTrack || radioLocalTrack.readyState !== 'live') {
-        try { await getRadioMicrophone(); } catch (error) {
-          console.warn('No se pudo preparar el micrófono antes de crear el peer:', error);
-        }
-      }
 
       const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
       radioPeers.set(targetDevId, pc);
@@ -2489,24 +2397,17 @@
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected' && channelStatus && !radioTalking) {
-          channelStatus.className = 'channel-status';
-          channelStatus.textContent = '● CANAL DE RADIO CONECTADO';
-        }
         if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
           closeRadioPeer(targetDevId);
         }
       };
 
-      if (radioLocalTrack && radioLocalTrack.readyState === 'live' && radioLocalStream) {
+      if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
         try {
           let sender = pc.getSenders().find(item => item && item.kind === 'audio');
           if (!sender) sender = pc.addTrack(radioLocalTrack, radioLocalStream);
           else if (sender.track !== radioLocalTrack) await sender.replaceTrack(radioLocalTrack);
-          radioLocalTrack.enabled = false;
-        } catch (error) {
-          console.warn('No se pudo añadir la pista de radio al peer:', error);
-        }
+        } catch (error) {}
       }
 
       return pc;
@@ -2566,9 +2467,6 @@
       btnPtt.addEventListener('lostpointercapture', release);
       document.addEventListener('pointerup', release, true);
       document.addEventListener('pointercancel', release, true);
-      document.addEventListener('mouseup', release, true);
-      document.addEventListener('touchend', release, true);
-      document.addEventListener('touchcancel', release, true);
 
       window.addEventListener('pointerdown', unlockRadioAudio, { once: false, passive: true });
       window.addEventListener('touchstart', unlockAudioHardware, { once: false, passive: true });
@@ -2577,19 +2475,14 @@
       window.addEventListener('keydown', (event) => {
         unlockRadioAudio();
         const tag = document.activeElement && document.activeElement.tagName;
-        if ((event.code === 'Space' || event.code === 'Enter') && !event.repeat && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
-          event.preventDefault();
-          if (pressed) return;
+        if (event.code === 'Space' && !event.repeat && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
           pressed = true;
           startRadioTalking(event);
         }
       });
       window.addEventListener('keyup', (event) => {
-        if (event.code === 'Space' || event.code === 'Enter') {
-          event.preventDefault();
-          release(event);
-        }
-      }, true);
+        if (event.code === 'Space') release(event);
+      });
       window.addEventListener('blur', () => release(null));
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) release(null);
@@ -2773,65 +2666,10 @@
   function openNew(){
     stopCareerVoice(); $('yc-modal-title').textContent='🚕 Nueva carrera'; $('yc-form-view').style.display='block'; $('yc-history-view').style.display='none'; $('yc-place-input').value=''; setVoiceStatus(''); $('yadah-career-modal').style.display='flex';
   }
-  function careerTrajectoryRange(c){
-    const start = Number(c.startedAt || c.acceptedAt || c.createdAt || 0);
-    const end = Number(c.finishedAt || now());
-    return { start, end };
-  }
-  function getCareerTrajectory(c, callback){
-    if (!window.indexedDB || !db || !c || !c.driver) { callback([]); return; }
-    const {start,end}=careerTrajectoryRange(c);
-    const tx=db.transaction([STORE_NAME],'readonly');
-    const store=tx.objectStore(STORE_NAME);
-    const req=store.openCursor();
-    const points=[];
-    req.onsuccess=(e)=>{
-      const cur=e.target.result;
-      if(cur){
-        const v=cur.value;
-        if(String(v.unit)===String(c.driver) && Number(v.timestamp)>=start && Number(v.timestamp)<=end && Number.isFinite(Number(v.lon)) && Number.isFinite(Number(v.lat))) points.push(v);
-        cur.continue();
-      } else {
-        points.sort((a,b)=>Number(a.timestamp)-Number(b.timestamp));
-        callback(points);
-      }
-    };
-    req.onerror=()=>callback([]);
-  }
-  function showCareerTrajectory(id){
-    const passIngresada = prompt('🔐 Ingrese la contraseña de administración para ver la trayectoria GPS:');
-    if (passIngresada === null) return;
-    if (typeof currentUnit === 'undefined' || currentUnit !== 'Modulador' || passIngresada !== '2021') {
-      alert('❌ Contraseña incorrecta');
-      return;
-    }
-    const c=findCareer(id);
-    if(!c) return;
-    getCareerTrajectory(c,(points)=>{
-      closeModal();
-      ensureLayersExist();
-      const src=map && map.getSource('route-trails');
-      if(!map || !src){ alert('No se pudo abrir el mapa de trayectoria.'); return; }
-      const coords=points.map(p=>[Number(p.lon),Number(p.lat)]);
-      if(coords.length<2){
-        src.setData({type:'FeatureCollection',features:[]});
-        alert('No hay suficientes puntos GPS guardados para mostrar la trayectoria de esta carrera.');
-        return;
-      }
-      src.setData({type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'LineString',coordinates:coords},properties:{careerId:c.id,unit:c.driver,place:c.place}}]});
-      const bounds=new maplibregl.LngLatBounds(); coords.forEach(pt=>bounds.extend(pt));
-      map.fitBounds(bounds,{padding:80,maxZoom:17,duration:700});
-      if(vehicleHistoryCard){
-        vehicleHistoryCard.style.display='block';
-        const status=document.getElementById('vh-status-info');
-        if(status) status.textContent=`🚕 ${c.driver} · ${c.place} · ${points.length} puntos GPS · ${fmtTime(c.startedAt||c.acceptedAt||c.createdAt)} → ${fmtTime(c.finishedAt||now())}`;
-      }
-    });
-  }
   function openHistory(){
     $('yc-modal-title').textContent='📋 Historial de carreras'; $('yc-form-view').style.display='none'; $('yc-history-view').style.display='block';
     const list=$('yadah-career-history-list'); const done=ycState.careers.filter(c=>c.status==='done'||c.status==='cancelled');
-    list.innerHTML=done.length?done.map(c=>`<div class="yc-history-item"><div class="yc-history-main">${c.status==='done'?'✅':'❌'} ${esc(c.place)}</div><div class="yc-history-meta">Creada ${fmtTime(c.createdAt)} · ${c.driver?esc(c.driver):'Sin asignar'} · ${c.finishedAt?'Finalizada '+fmtTime(c.finishedAt):'Cancelada'}</div>${c.status==='done'&&c.driver?`<div class="yc-history-actions"><button type="button" data-yc-action="trajectory" data-id="${c.id}">🗺️ VER TRAYECTORIA</button></div>`:''}</div>`).join(''):'<div class="yc-empty">No hay carreras finalizadas o canceladas hoy.</div>';
+    list.innerHTML=done.length?done.map(c=>`<div class="yc-history-item"><div class="yc-history-main">${c.status==='done'?'✅':'❌'} ${esc(c.place)}</div><div class="yc-history-meta">Creada ${fmtTime(c.createdAt)} · ${c.driver?esc(c.driver):'Sin asignar'} · ${c.finishedAt?'Finalizada '+fmtTime(c.finishedAt):'Cancelada'}</div></div>`).join(''):'<div class="yc-empty">No hay carreras finalizadas o canceladas hoy.</div>';
     $('yadah-career-modal').style.display='flex';
   }
   function closeModal(){ stopCareerVoice(); $('yadah-career-modal').style.display='none'; }
@@ -2841,12 +2679,11 @@
     $('yc-mic')?.addEventListener('click',startCareerVoice);
     $('yadah-career-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-career-modal')closeModal();});
     $('yadah-career-stack')?.addEventListener('click',e=>{const b=e.target.closest('[data-yc-action]');if(!b)return; const id=b.dataset.id; if(b.dataset.ycAction==='accept')acceptCareer(id); else if(b.dataset.ycAction==='finish')finishCareer(id); else if(b.dataset.ycAction==='cancel')cancelCareer(id);});
-    $('yadah-career-history-list')?.addEventListener('click',e=>{const b=e.target.closest('[data-yc-action="trajectory"]');if(!b)return;showCareerTrajectory(b.dataset.id);});
   }
   function init(){ if(ycInitialized)return; ycInitialized=true; loadLocal(); ensureDay(); bind(); render(); connect(); }
   // Esperamos a que el HTML y el código original hayan cargado. No sobrescribimos ningún handler de radio.
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init,{once:true}); else init();
-  window.YadahCareers={createCareer,acceptCareer,finishCareer,cancelCareer,render,showCareerTrajectory};
+  window.YadahCareers={createCareer,acceptCareer,finishCareer,cancelCareer,render};
 })();
 </script>
 <script>
@@ -2862,15 +2699,27 @@ function getBaseForm(){const dest=$('yb-destination'),priceSel=$('yb-price'),cus
 function addQueue(){ensureDay();const data=getBaseForm();if(!data)return;state.items.push({id:uid(),day:state.day,place:data.place,price:data.price,createdAt:now(),createdBy:unit(),status:'waiting',driver:null,assignedAt:null,acceptedAt:null,finishedAt:null});publish();closeModal()}
 function find(id){return state.items.find(i=>i.id===id)}
 function showDriverSelector(title,summary,callback){$('yb-modal-title').textContent=title;$('yb-add-view').style.display='none';$('yb-assign-view').style.display='block';$('yb-draft-summary').innerHTML=summary;const grid=$('yb-unit-grid');grid.innerHTML='';const units=typeof ALL_UNITS!=='undefined'?ALL_UNITS:[];units.filter(u=>u&&u!=='Modulador').forEach(u=>{const b=document.createElement('button');b.textContent='🚕 '+u;b.onclick=()=>callback(u);grid.appendChild(b)});$('yadah-base-modal').style.display='flex'}
-function openAssign(id){if(!mod())return;const item=find(id);if(!item||item.status!=='waiting')return;showDriverSelector('👥 Asignar cliente en cola',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b>`,u=>assign(id,u))}
+function openAssign(id){if(!mod())return;const item=find(id);if(!item||item.status!=='waiting')return;showDriverSelector('🏠 Asignar salida de base',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b>`,u=>assign(id,u))}
 function assign(id,target){const item=find(id);if(!item||item.status!=='waiting')return;item.status='assigned';item.driver=target;item.assignedAt=now();publish();if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify({targetUnit:target,lon:defaultBaseCoords[0],lat:defaultBaseCoords[1],label:item.place,price:item.price,source:'base',baseQueueId:item.id}));closeModal()}
 function directAssign(){if(!mod())return;const data=getBaseForm();if(!data)return;showDriverSelector('🚕 Asignar directamente',`Destino: <b>${esc(data.place)}</b><br>Precio: <b>$${data.price.toFixed(2)}</b>`,target=>{ensureDay();const item={id:uid(),day:state.day,place:data.place,price:data.price,createdAt:now(),createdBy:unit(),status:'assigned',driver:target,assignedAt:now(),acceptedAt:null,finishedAt:null};state.items.push(item);publish();if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify({targetUnit:target,lon:defaultBaseCoords[0],lat:defaultBaseCoords[1],label:item.place,price:item.price,source:'base_direct',baseQueueId:item.id}));closeModal()})}
 function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}
-function openAdd(){if(!mod())return;$('yb-modal-title').textContent='👥 Cliente en cola';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
-function acceptDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();publish()}pendingDestination={lon:a.lon,lat:a.lat,label:a.label};if(lblRouteStats)lblRouteStats.textContent=`📍 [BASE] ${a.label}. ¿Iniciar marcha?`;if(navRouteInfo)navRouteInfo.style.display='flex';$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
+function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
+function acceptDriver(){
+  if(!baseAssignmentBatch.length){const a=window.__yadahPendingBaseAssignment;if(a)baseAssignmentBatch=[a];}
+  if(!baseAssignmentBatch.length)return;
+  baseAssignmentBatch.forEach(a=>{const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();}});
+  try{publish()}catch(e){}
+  baseRouteStops=baseAssignmentBatch.map(a=>({label:a.label||'Destino de base',price:a.price||null,lon:null,lat:null,fromBaseLabel:true,baseQueueId:a.baseQueueId}));
+  pendingDestination=baseRouteStops[0]||null;
+  if(lblRouteStats){lblRouteStats.innerHTML=`🧭 <b>RUTA · ${baseRouteStops.length} DESTINO${baseRouteStops.length>1?'S':''}</b><br>`+baseRouteStops.map((s,i)=>`${i+1}. ${String(s.label).replace(/[&<>]/g,'')}`).join('<br>')+`<br><span style="color:#10b981">¿Iniciar ruta completa?</span>`;}
+  if(navRouteInfo)navRouteInfo.style.display='flex';
+  $('yadah-base-assignment').style.display='none';
+  window.__yadahPendingBaseAssignment=null;
+  baseAssignmentBatch=[];
+}
 function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">👥 COLA DE ESPERA <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action=i.status==='waiting'?'<button class="assign" data-yb="assign" data-id="'+i.id+'">ASIGNAR</button>':'<div class="yb-state">'+(i.status==='assigned'?'🟡 ASIGNADO A '+(i.driver||'—'):'🟢 ACEPTADO · '+(i.driver||'—'))+'</div>';action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">📍 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
+function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action=i.status==='waiting'?'<button class="assign" data-yb="assign" data-id="'+i.id+'">ASIGNAR</button>':'<div class="yb-state">'+(i.status==='assigned'?'🟡 ASIGNADO A '+(i.driver||'—'):'🟢 ACEPTADO · '+(i.driver||'—'))+'</div>';action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
 function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen));}}function bind(){if(bound)return;bound=true;$('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',addQueue);$('yb-direct-assign')?.addEventListener('click',directAssign);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yadah-base-stack')?.addEventListener('click',e=>{const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-assignment-accept')?.addEventListener('click',acceptDriver);$('yb-assignment-reject')?.addEventListener('click',rejectDriver)}
 function init(){load();ensureDay();bind();render();connect();setInterval(()=>{if(mod())render()},3000)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
