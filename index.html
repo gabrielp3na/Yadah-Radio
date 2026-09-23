@@ -1,4 +1,3 @@
-<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -2102,7 +2101,7 @@
         });
         radioLocalTrack = radioLocalStream.getAudioTracks()[0] || null;
         if (!radioLocalTrack) return false;
-        radioLocalTrack.enabled = true;
+        radioLocalTrack.enabled = false;
 
         await attachRadioTrackToPeers();
         return true;
@@ -2229,6 +2228,8 @@
         let pc = radioPeers.get(targetDevId);
 
         if (data.type === 'hello') {
+          // Preparar audio antes de la negociación para que el SDP incluya audio.
+          try { await getRadioMicrophone(); } catch (error) {}
           if (deviceId < targetDevId) {
             pc = await createRadioPeer(targetDevId, true);
             if (pc.signalingState === 'stable') {
@@ -2238,6 +2239,7 @@
             }
           }
         } else if (data.type === 'offer' || data.type === 'renegotiate-offer') {
+          try { await getRadioMicrophone(); } catch (error) {}
           if (!pc) pc = await createRadioPeer(targetDevId, false);
           if (pc.signalingState !== 'stable') return;
           await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -2267,6 +2269,15 @@
 
     async function createRadioPeer(targetDevId, isInitiator) {
       if (radioPeers.has(targetDevId)) return radioPeers.get(targetDevId);
+
+      // Importante: el peer debe negociarse con el micrófono ya conectado.
+      // La versión anterior creaba primero el peer sin pista de audio y
+      // dependía de una renegociación posterior, que podía dejar la radio muda.
+      if (!radioLocalTrack || radioLocalTrack.readyState !== 'live') {
+        try { await getRadioMicrophone(); } catch (error) {
+          console.warn('No se pudo preparar el micrófono antes de crear el peer:', error);
+        }
+      }
 
       const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
       radioPeers.set(targetDevId, pc);
@@ -2299,17 +2310,24 @@
       };
 
       pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected' && channelStatus && !radioTalking) {
+          channelStatus.className = 'channel-status';
+          channelStatus.textContent = '● CANAL DE RADIO CONECTADO';
+        }
         if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
           closeRadioPeer(targetDevId);
         }
       };
 
-      if (radioLocalTrack && radioLocalTrack.readyState === 'live') {
+      if (radioLocalTrack && radioLocalTrack.readyState === 'live' && radioLocalStream) {
         try {
           let sender = pc.getSenders().find(item => item && item.kind === 'audio');
           if (!sender) sender = pc.addTrack(radioLocalTrack, radioLocalStream);
           else if (sender.track !== radioLocalTrack) await sender.replaceTrack(radioLocalTrack);
-        } catch (error) {}
+          radioLocalTrack.enabled = false;
+        } catch (error) {
+          console.warn('No se pudo añadir la pista de radio al peer:', error);
+        }
       }
 
       return pc;
