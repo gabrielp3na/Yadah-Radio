@@ -867,9 +867,13 @@
     <div class="nav-route-info" id="nav-route-info">
       <span id="lbl-route-stats">Destino seleccionado</span>
       <div class="nav-route-actions">
-        <button class="btn-nav-action btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
+        <button class="btn-nav-action btn-nav-start" id="btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
         <button class="btn-nav-action btn-nav-cancel" onclick="cancelNavigation()">Cancelar ✕</button>
       </div>
+    </div>
+    <div id="nav-guidance-card" style="display:none; margin-top:8px; background:#07111f; border:1px solid #38bdf8; border-radius:14px; padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.28);">
+      <div id="nav-guidance-main" style="font-size:1.05rem; font-weight:900; color:#f8fafc;">Sigue la ruta</div>
+      <div id="nav-guidance-sub" style="font-size:.78rem; color:#94a3b8; margin-top:3px;">Preparando indicaciones...</div>
     </div>
   </div>
 
@@ -1419,11 +1423,16 @@
       } catch (err) {}
     }
 
-    function startNavigationMatch() {
+    async function startNavigationMatch() {
       if (!pendingDestination) { alert("Primero selecciona un destino."); return; }
+      const startBtn = document.getElementById('btn-nav-start');
+      if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.style.display = 'none';
+      }
       firstPersonMode = true;
       updateViewButtonUI();
-      requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
+      await requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
     }
 
     function updateGpsLockState(allowed) {
@@ -1673,28 +1682,164 @@
     }
 
     let destinationMarker = null;
-    async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
-      if (!myLastCoords) { alert("Esperando señal de GPS..."); return; }
+    // Navegación avanzada: instrucciones por voz, seguimiento de maniobras y recálculo automático.
+    const navigationState = {
+      active: false, rerouting: false, routeGeometry: null, steps: [], currentStep: 0,
+      destination: null, destinationLabel: '', lastVoiceKey: '', lastRerouteAt: 0, arrived: false
+    };
+
+    function navigationDistanceMeters(aLat, aLon, bLat, bLon) {
+      const R = 6371000;
+      const p1 = aLat * Math.PI / 180, p2 = bLat * Math.PI / 180;
+      const dp = (bLat - aLat) * Math.PI / 180, dl = (bLon - aLon) * Math.PI / 180;
+      const x = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+      return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+    }
+
+    function distancePointToSegmentMeters(lat, lon, a, b) {
+      const latScale = 111320, lonScale = 111320 * Math.cos(lat * Math.PI / 180);
+      const px = lon * lonScale, py = lat * latScale;
+      const ax = a[0] * lonScale, ay = a[1] * latScale;
+      const bx = b[0] * lonScale, by = b[1] * latScale;
+      const dx = bx-ax, dy = by-ay;
+      const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / ((dx*dx+dy*dy) || 1)));
+      return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+    }
+
+    function distanceToRouteMeters(lat, lon, geometry) {
+      if (!geometry?.coordinates?.length) return Infinity;
+      let best = Infinity;
+      const c = geometry.coordinates;
+      for (let i=1;i<c.length;i++) best = Math.min(best, distancePointToSegmentMeters(lat, lon, c[i-1], c[i]));
+      return best;
+    }
+
+    function speakNavigation(text, key='') {
+      if (!('speechSynthesis' in window) || !text) return;
+      if (key && navigationState.lastVoiceKey === key) return;
+      if (key) navigationState.lastVoiceKey = key;
+      try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang='es-SV'; u.rate=1.02; u.pitch=1; window.speechSynthesis.speak(u); } catch(e) {}
+    }
+
+    function formatNavDistance(m) {
+      if (m < 1000) return `${Math.max(20, Math.round(m/10)*10)} m`;
+      return `${(m/1000).toFixed(1)} km`;
+    }
+
+    function maneuverText(step) {
+      const m = step?.maneuver || {}; const mod = m.modifier || ''; const type = m.type || '';
+      const map = {
+        'turn right':'Gira a la derecha', 'turn left':'Gira a la izquierda',
+        'slight right':'Mantente a la derecha', 'slight left':'Mantente a la izquierda',
+        'sharp right':'Gira pronunciadamente a la derecha', 'sharp left':'Gira pronunciadamente a la izquierda',
+        'straight':'Continúa de frente', 'uturn':'Haz un retorno', 'roundabout':'En la rotonda',
+        'depart':'Inicia la ruta', 'arrive':'Has llegado a tu destino'
+      };
+      if (type === 'roundabout' || type === 'rotary') return `En la rotonda, toma la salida ${m.exit || ''}`.trim();
+      if (type === 'arrive') return 'Has llegado a tu destino';
+      if (type === 'depart') return 'Inicia la ruta y continúa de frente';
+      return map[`${type} ${mod}`] || map[type] || (mod ? `Continúa hacia ${mod}` : 'Continúa por la ruta');
+    }
+
+    function updateNavigationGuidance(lat, lon) {
+      if (!navigationState.active || !navigationState.steps.length) return;
+      if (navigationState.destination) {
+        const dDest = navigationDistanceMeters(lat, lon, navigationState.destination.lat, navigationState.destination.lon);
+        if (dDest <= 35 && !navigationState.arrived) {
+          navigationState.arrived = true;
+          const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
+          if(main) main.textContent='🏁 Has llegado a tu destino';
+          if(sub) sub.textContent=navigationState.destinationLabel || 'Destino';
+          speakNavigation('Has llegado a tu destino','arrived');
+          return;
+        }
+      }
+      // Avanza por las maniobras ya superadas.
+      while (navigationState.currentStep < navigationState.steps.length - 1) {
+        const step = navigationState.steps[navigationState.currentStep];
+        const loc = step?.maneuver?.location;
+        if (!loc) { navigationState.currentStep++; continue; }
+        if (navigationDistanceMeters(lat, lon, loc[1], loc[0]) < 22) navigationState.currentStep++;
+        else break;
+      }
+      const step = navigationState.steps[navigationState.currentStep];
+      if (!step) return;
+      const loc=step.maneuver?.location;
+      const dist=loc ? navigationDistanceMeters(lat, lon, loc[1], loc[0]) : 99999;
+      const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
+      let text=maneuverText(step);
+      if(main) main.textContent = `${dist < 35 ? '➡️' : '🧭'} ${text}`;
+      const road=step.name ? ` · ${step.name}` : '';
+      if(sub) sub.textContent = dist < 35 ? 'Ahora' : `En ${formatNavDistance(dist)}${road}`;
+      if(dist <= 55) speakNavigation(`${text}${step.name ? ` por ${step.name}` : ''}`, `maneuver-${navigationState.currentStep}`);
+    }
+
+    function maybeRerouteFromGps(lat, lon) {
+      if (!navigationState.active || !navigationState.routeGeometry || navigationState.rerouting || navigationState.arrived) return;
+      const off = distanceToRouteMeters(lat, lon, navigationState.routeGeometry);
+      if (off > 45 && Date.now() - navigationState.lastRerouteAt > 8000) {
+        navigationState.lastRerouteAt = Date.now();
+        navigationState.rerouting = true;
+        const main=document.getElementById('nav-guidance-main'), sub=document.getElementById('nav-guidance-sub');
+        if(main) main.textContent='🔄 Recalculando ruta';
+        if(sub) sub.textContent='Te estamos buscando una nueva ruta';
+        speakNavigation('Te has desviado de la ruta. Recalculando.', 'reroute-'+Math.floor(navigationState.lastRerouteAt/8000));
+        requestRouteToDestination(navigationState.destination.lon, navigationState.destination.lat, navigationState.destinationLabel, true).finally(()=>{ navigationState.rerouting=false; });
+      }
+    }
+
+    async function requestRouteToDestination(destLon, destLat, label = 'Destino', isReroute = false) {
+      const startBtn = document.getElementById('btn-nav-start');
+      if (!myLastCoords) {
+        if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
+        alert("Esperando señal de GPS...");
+        return false;
+      }
       if (destinationMarker) destinationMarker.remove();
       const el = document.createElement('div'); el.style.fontSize = '2.2rem'; el.innerHTML = '🏁';
       destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
       try {
         if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...'; if (navRouteInfo) navRouteInfo.style.display = 'flex';
-        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`);
+        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&steps=true&annotations=false&geometries=geojson`);
         const data = await res.json();
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0];
-          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). En marcha 🚀`;
+          navigationState.active = true;
+          navigationState.routeGeometry = route.geometry;
+          navigationState.steps = (route.legs || []).flatMap(leg => leg.steps || []).filter(step => step?.maneuver?.location);
+          navigationState.currentStep = 0;
+          navigationState.destination = { lon: destLon, lat: destLat };
+          navigationState.destinationLabel = label;
+          navigationState.arrived = false;
+          if (startBtn) { startBtn.disabled = true; startBtn.style.display = 'none'; }
+          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). ${isReroute ? 'Ruta corregida 🔄' : 'En marcha 🚀'}`;
+          const guidance=document.getElementById('nav-guidance-card'); if(guidance) guidance.style.display='block';
           ensureLayersExist();
           map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: {} }] });
           if (mqttClient && mqttClient.connected && currentUnit) {
             mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: label }));
           }
+          updateNavigationGuidance(myLastCoords.lat, myLastCoords.lon);
+          if (!isReroute) speakNavigation(`Iniciando ruta hacia ${label}`, 'navigation-start');
+        } else {
+          if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
+          if (lblRouteStats) lblRouteStats.textContent = 'No se pudo calcular el trayecto.';
+          return false;
         }
-      } catch (e) {}
+      } catch (e) {
+        if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
+        if (lblRouteStats) lblRouteStats.textContent = 'No se pudo calcular el trayecto.';
+        return false;
+      }
+      return true;
     }
 
     function cancelNavigation() {
+      const startBtn = document.getElementById('btn-nav-start');
+      if (startBtn) { startBtn.disabled = false; startBtn.style.display = ''; }
+      navigationState.active = false; navigationState.rerouting = false; navigationState.routeGeometry = null; navigationState.steps = []; navigationState.currentStep = 0; navigationState.destination = null; navigationState.destinationLabel = ''; navigationState.lastVoiceKey = ''; navigationState.arrived = false;
+      if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch(e) {} }
+      const guidance=document.getElementById('nav-guidance-card'); if(guidance) guidance.style.display='none';
       pendingDestination = null; if (destinationMarker) { destinationMarker.remove(); destinationMarker = null; }
       if (navRouteInfo) navRouteInfo.style.display = 'none';
       if (document.getElementById('input-destination')) document.getElementById('input-destination').value = '';
@@ -1979,6 +2124,13 @@
             if (myLastCoords && Math.hypot(lat - myLastCoords.lat, lon - myLastCoords.lon) > 0.00002) myHeading = Math.round(calculateBearing(myLastCoords.lat, myLastCoords.lon, lat, lon));
           } else { myHeading = Math.round(heading); }
           mySpeed = Math.round(speedKmh); myLastCoords = { lat, lon, timestamp: now };
+          if (navigationState.active) {
+            updateNavigationGuidance(lat, lon);
+            maybeRerouteFromGps(lat, lon);
+            if (firstPersonMode && map) {
+              map.easeTo({ center:[lon,lat], bearing:myHeading || 0, pitch:65, zoom:17.2, offset:[0, window.innerHeight*0.28 || 180], duration:500 });
+            }
+          }
           if (lblHeading) lblHeading.textContent = `${myHeading}°`;
           if (lblSpeed) lblSpeed.textContent = `${mySpeed} km/h`;
 
@@ -2647,6 +2799,12 @@
     req.onerror=()=>callback([]);
   }
   function showCareerTrajectory(id){
+    const passIngresada = prompt('🔐 Ingrese la contraseña de administración para ver la trayectoria GPS:');
+    if (passIngresada === null) return;
+    if (typeof currentUnit === 'undefined' || currentUnit !== 'Modulador' || passIngresada !== '2021') {
+      alert('❌ Contraseña incorrecta');
+      return;
+    }
     const c=findCareer(id);
     if(!c) return;
     getCareerTrajectory(c,(points)=>{
