@@ -91,11 +91,158 @@
       color: #dbeafe;
       font-size: 1rem;
     }
+    .btn-unit-select.cliente {
+      grid-column: span 2;
+      background: #0f766e;
+      border-color: #14b8a6;
+      color: #ccfbf1;
+      font-size: 1rem;
+    }
+
+    #cliente-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 4500;
+      background: #0b0f19;
+      color: #f8fafc;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .cliente-header {
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      padding: 18px 16px;
+      text-align: center;
+    }
+    .cliente-header h1 {
+      color: #38bdf8;
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+    }
+    .cliente-header p {
+      color: #94a3b8;
+      font-size: .8rem;
+    }
+    .cliente-queue {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+    }
+    .cliente-empty {
+      max-width: 520px;
+      margin: 50px auto;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 1rem;
+    }
+    .cliente-item {
+      max-width: 720px;
+      margin: 0 auto 10px;
+      padding: 17px 18px;
+      border-radius: 12px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .cliente-number {
+      min-width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #1e3a8a;
+      color: #dbeafe;
+      font-weight: 900;
+      font-size: 1rem;
+    }
+    .cliente-destination {
+      font-size: 1.08rem;
+      font-weight: 800;
+      word-break: break-word;
+    }
+    .cliente-footer {
+      padding: 10px 16px;
+      text-align: center;
+      color: #64748b;
+      font-size: .72rem;
+      border-top: 1px solid #1f2937;
+      background: #0f172a;
+    }
+    .cliente-logout {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 7px 10px;
+      cursor: pointer;
+      z-index: 2;
+    }
 
     .btn-unit-select:active {
       background: #38bdf8;
       color: #0b0f19;
     }
+
+    #login-password-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 6000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(2, 6, 23, .82);
+    }
+    .login-password-card {
+      width: min(360px, 100%);
+      background: #111827;
+      border: 1px solid #38bdf8;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+    .login-password-title {
+      color: #38bdf8;
+      font-weight: 900;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .login-password-name {
+      color: #e2e8f0;
+      margin-bottom: 14px;
+      font-size: .9rem;
+    }
+    .login-password-input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: #f8fafc;
+      font-size: 1rem;
+      outline: none;
+    }
+    .login-password-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .login-password-actions button {
+      flex: 1;
+      padding: 11px 8px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    #login-password-cancel { background:#1e293b; color:#cbd5e1; }
+    #login-password-submit { background:#0284c7; color:white; border-color:#38bdf8; }
 
     header {
       background-color: #111827;
@@ -798,7 +945,9 @@
 #yadah-base-stack{position:absolute;left:12px;right:auto;top:68px;z-index:2650;display:none;flex-direction:column;gap:7px;pointer-events:none;max-height:42vh;overflow:auto;width:min(360px,calc(100vw - 24px))}
 .yb-panel-title{pointer-events:auto;background:rgba(8,47,73,.97);border:1px solid #22d3ee;border-radius:11px;padding:8px 10px;color:#cffafe;font-size:.72rem;font-weight:900;box-shadow:0 5px 16px rgba(0,0,0,.45)}
 .yb-card{pointer-events:auto;background:rgba(3,7,18,.97);border:1px solid #22d3ee;border-radius:11px;padding:9px 10px;box-shadow:0 5px 16px rgba(0,0,0,.55)}.yb-card.assigned{border-color:#38bdf8}.yb-card.accepted{border-color:#10b981}.yb-line{display:flex;justify-content:space-between;gap:8px;align-items:center}.yb-place{font-size:.86rem;font-weight:900;color:#fff}.yb-price{font-size:.72rem;color:#67e8f9;font-weight:900;white-space:nowrap}.yb-state{font-size:.66rem;color:#22d3ee;font-weight:900;margin-top:4px}.yb-card button{margin-top:7px;width:100%;border:0;border-radius:7px;padding:8px;font-weight:900;cursor:pointer;background:#0284c7;color:#fff}.yb-card button.assign{background:#0891b2}.yb-card button.cancel{background:#374151;color:#e2e8f0}
-#yadah-base-modal{position:absolute;inset:0;z-index:3910;background:transparent;display:none;align-items:flex-start;justify-content:flex-start;padding:72px 12px 12px;pointer-events:none}.yb-modal-card{pointer-events:auto;width:min(390px,calc(100vw - 24px));background:rgba(3,7,18,.97);border:1px solid #22d3ee;border-radius:14px;padding:14px;max-height:70vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.58)}.yb-modal-title{display:flex;justify-content:space-between;align-items:center;color:#67e8f9;font-weight:900;font-size:.98rem;margin-bottom:10px}.yb-close{cursor:pointer;color:#94a3b8;font-size:1.2rem}.yb-label{font-size:.72rem;color:#94a3b8;margin:8px 0 5px;display:block}.yb-select,.yb-input{width:100%;padding:11px 12px;background:#030712;color:#fff;border:1px solid #334155;border-radius:8px;outline:none;font-size:.9rem;box-sizing:border-box}.yb-input{margin-top:8px}.yb-actions{display:flex;gap:8px;margin-top:12px}.yb-actions button{flex:1;padding:10px;border:0;border-radius:8px;font-weight:900;cursor:pointer}.yb-submit{background:#0891b2;color:#fff}.yb-direct{width:100%;margin-top:8px;padding:11px;border:1px solid #38bdf8;border-radius:8px;background:#0c4a6e;color:#e0f2fe;font-weight:900;cursor:pointer}.yb-floating-note{font-size:.66rem;color:#67e8f9;background:rgba(8,47,73,.65);border:1px solid #164e63;border-radius:8px;padding:7px 8px;margin-bottom:8px}.yb-draft-summary{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px;color:#e2e8f0;font-size:.78rem;margin:8px 0}.yb-draft-summary b{color:#67e8f9}.yb-secondary{background:#374151;color:#e2e8f0}.yb-unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.yb-unit-grid button{border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:9px;font-weight:800;cursor:pointer}
+#yadah-base-modal{position:absolute;inset:0;z-index:3910;background:transparent;display:none;align-items:flex-start;justify-content:flex-start;padding:72px 12px 12px;pointer-events:none}.yb-modal-card{pointer-events:auto;width:min(390px,calc(100vw - 24px));background:rgba(3,7,18,.97);border:1px solid #22d3ee;border-radius:14px;padding:14px;max-height:70vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.58)}.yb-modal-title{display:flex;justify-content:space-between;align-items:center;color:#67e8f9;font-weight:900;font-size:.98rem;margin-bottom:10px}.yb-close{cursor:pointer;color:#94a3b8;font-size:1.2rem}.yb-label{font-size:.72rem;color:#94a3b8;margin:8px 0 5px;display:block}.yb-select,.yb-passenger{min-width:42px;padding:8px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-weight:900;cursor:pointer}.yb-passenger.active{border-color:#38bdf8;box-shadow:0 0 0 1px #38bdf8 inset}.yb-passenger.full{color:#ef4444;border-color:#ef4444}.yb-passenger.full.active{box-shadow:0 0 0 1px #ef4444 inset}
+.yb-input{width:100%;padding:11px 12px;background:#030712;color:#fff;border:1px solid #334155;border-radius:8px;outline:none;font-size:.9rem;box-sizing:border-box}.yb-input{margin-top:8px}.yb-actions{display:flex;gap:8px;margin-top:12px}.yb-actions button{flex:1;padding:10px;border:0;border-radius:8px;font-weight:900;cursor:pointer}.yb-submit{background:#0891b2;color:#fff}.yb-direct{width:100%;margin-top:8px;padding:11px;border:1px solid #38bdf8;border-radius:8px;background:#0c4a6e;color:#e0f2fe;font-weight:900;cursor:pointer}.yb-floating-note{font-size:.66rem;color:#67e8f9;background:rgba(8,47,73,.65);border:1px solid #164e63;border-radius:8px;padding:7px 8px;margin-bottom:8px}.yb-draft-summary{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px;color:#e2e8f0;font-size:.78rem;margin:8px 0}.yb-draft-summary b{color:#67e8f9}.yb-secondary{background:#374151;color:#e2e8f0}.yb-unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.yb-unit-grid button{border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:9px;font-weight:800;cursor:pointer}
+.yb-assign-actions button:disabled{opacity:.45;cursor:not-allowed}.yb-section-title{font-size:.72rem;color:#67e8f9;font-weight:900;margin:10px 0 5px}.yb-card button.cancel{background:#374151;color:#e2e8f0}
 #yadah-base-assignment{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:3920;width:min(390px,calc(100vw - 24px));display:none;background:#0b1220;border:2px solid #22d3ee;border-radius:15px;padding:15px;box-shadow:0 12px 35px rgba(0,0,0,.65);color:#fff}.yb-assign-title{font-weight:900;color:#67e8f9;font-size:1rem}.yb-assign-place{font-size:1.05rem;font-weight:900;margin:10px 0}.yb-assign-meta{font-size:.72rem;color:#94a3b8}.yb-assign-actions{display:flex;gap:8px;margin-top:12px}.yb-assign-actions button{flex:1;border:0;border-radius:9px;padding:11px;font-weight:900;cursor:pointer}.yb-accept{background:#059669;color:#fff}.yb-reject{background:#374151;color:#e2e8f0}
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
 @media(max-width:799px){#yadah-base-modal{padding:62px 10px 10px;justify-content:flex-start}.yb-modal-card{width:min(380px,calc(100vw - 20px));max-height:66vh}}
@@ -890,10 +1039,14 @@
     <div class="login-header">
       <h1>📻 Yadah Radio Flota</h1>
       <p>Selecciona tu terminal de despacho (Clave requerida)</p>
+      <p style="color:#5eead4;margin-top:6px;font-weight:800;">👤 CLIENTE: solo consulta la fila de destinos</p>
     </div>
     <div class="grid-units">
       <button class="btn-unit-select modulador" onclick="solicitarAccesoPerfil('Modulador')">
         <span>🏢</span> Modulador / Base Central
+      </button>
+      <button class="btn-unit-select cliente" id="btn-perfil-cliente" type="button" onclick="selectClientProfile()" aria-label="Entrar al perfil Cliente">
+        <span>👤</span> CLIENTE — VER COLA
       </button>
       <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 01')"><span>🚘</span> Móvil 01</button>
       <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 02')"><span>🚘</span> Móvil 02</button>
@@ -909,6 +1062,30 @@
       <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 12')"><span>🚘</span> Móvil 12</button>
       <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 13')"><span>🚘</span> Móvil 13</button>
       <button class="btn-unit-select" onclick="solicitarAccesoPerfil('Móvil 14')"><span>🚘</span> Móvil 14</button>
+    </div>
+  </div>
+
+  <div id="cliente-screen" aria-label="Pantalla de fila de clientes">
+    <button class="cliente-logout" type="button" onclick="logoutClientProfile()">Salir</button>
+    <div class="cliente-header">
+      <h1>🏠 Fila de Base</h1>
+      <p>Destinos en espera</p>
+    </div>
+    <div id="cliente-queue" class="cliente-queue" aria-live="polite">
+      <div class="cliente-empty">Cargando fila...</div>
+    </div>
+    <div class="cliente-footer">Información actualizada desde la Base</div>
+  </div>
+
+  <div id="login-password-modal" aria-modal="true" role="dialog">
+    <div class="login-password-card">
+      <div class="login-password-title">🔐 Acceso al perfil</div>
+      <div class="login-password-name" id="login-password-name">—</div>
+      <input id="login-password-input" class="login-password-input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Contraseña" />
+      <div class="login-password-actions">
+        <button type="button" id="login-password-cancel">Cancelar</button>
+        <button type="button" id="login-password-submit">Entrar</button>
+      </div>
     </div>
   </div>
 
@@ -981,6 +1158,14 @@
 <div class="yb-floating-note">El mapa permanece visible mientras registras la carrera.</div>
 <label class="yb-label" for="yb-destination">Destino</label>
 <input class="yb-input" id="yb-destination" maxlength="120" placeholder="Escribe el destino" autocomplete="off">
+<label class="yb-label" style="margin-top:10px">Personas que van</label>
+<div id="yb-passengers" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+<button type="button" class="yb-passenger active" data-passengers="1">1</button>
+<button type="button" class="yb-passenger" data-passengers="2">2</button>
+<button type="button" class="yb-passenger" data-passengers="3">3</button>
+<button type="button" class="yb-passenger" data-passengers="4">4</button>
+</div>
+<div style="font-size:.72rem;color:#64748b;margin-top:4px">Solo indica cuántas personas van para facilitar los endosos.</div>
 <label class="yb-label" for="yb-price" style="margin-top:10px">Agregar precio</label>
 <select class="yb-select" id="yb-price"><option value="1.00">$1.00</option><option value="1.50">$1.50</option><option value="2.00">$2.00</option><option value="2.50">$2.50</option><option value="3.00">$3.00</option><option value="3.50">$3.50</option><option value="4.00">$4.00</option><option value="__custom__">Otra cantidad…</option></select>
 <input class="yb-input" id="yb-custom-price" type="number" min="0.01" max="999.99" step="0.01" placeholder="Escribe la cantidad, por ejemplo 4.50" style="display:none">
@@ -989,7 +1174,7 @@
 </div>
 <div id="yb-assign-view" style="display:none"><div class="yb-label">Selecciona el motorista para esta salida</div><div class="yb-draft-summary" id="yb-draft-summary">—</div><div class="yb-unit-grid" id="yb-unit-grid"></div><div class="yb-actions"><button class="yb-secondary" id="yb-assign-cancel">Volver</button></div></div>
 </div></div>
-<div id="yadah-base-assignment" aria-live="assertive"><div class="yb-assign-title">🏠 SERVICIO DE BASE</div><div class="yb-assign-place" id="yb-assignment-place">—</div><div class="yb-assign-meta" id="yb-assignment-meta">Cliente esperando en la base</div><div class="yb-assign-actions"><button class="yb-reject" id="yb-assignment-reject">RECHAZAR</button><button class="yb-accept" id="yb-assignment-accept">ACEPTAR</button></div></div>
+<div id="yadah-base-assignment" aria-live="assertive"><div class="yb-assign-title">🏠 SERVICIO DE BASE</div><div class="yb-assign-place" id="yb-assignment-place">Nueva asignación</div><div class="yb-assign-meta" id="yb-assignment-meta">Tienes un nuevo servicio.</div><div id="yb-assignment-services" style="display:none;margin-top:10px;background:#0f172a;border:1px solid #334155;border-radius:9px;padding:9px;"></div><div class="yb-assign-actions"><button class="yb-reject" id="yb-assignment-reject">RECHAZAR</button><button class="yb-accept" id="yb-assignment-accept">ACEPTAR</button><button class="yb-accept" id="yb-assignment-abordo" style="display:none;">ABORDO</button><button class="yb-accept" id="yb-assignment-finish" style="display:none;">FINALIZAR</button></div></div>
 <div class="controls-panel">
     <div class="status-bar">
       <span>Unidad: <b style="color:#38bdf8;" id="lbl-unit">--</b></span>
@@ -1096,7 +1281,8 @@
       if (!db) return;
       const tx = db.transaction([STORE_NAME], 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      store.add({ unit, lon, lat, speed, heading, timestamp: Date.now() });
+      const serviceIds = Array.isArray(window.__yadahActiveServiceIds) ? window.__yadahActiveServiceIds.slice() : [];
+      store.add({ unit, lon, lat, speed, heading, timestamp: Date.now(), serviceIds });
     }
 
     function cleanOldTelemetry() {
@@ -1136,6 +1322,16 @@
       localStorage.setItem(BLOQUEO_KEY, JSON.stringify(bloqueos));
     }
 
+    let perfilPendienteAcceso = null;
+
+    function cerrarModalAccesoPerfil() {
+      const modal = document.getElementById('login-password-modal');
+      const input = document.getElementById('login-password-input');
+      if (modal) modal.style.display = 'none';
+      if (input) input.value = '';
+      perfilPendienteAcceso = null;
+    }
+
     function solicitarAccesoPerfil(id) {
       const ahora = Date.now();
       const { intentos, bloqueos } = obtenerIntentosYBloqueos();
@@ -1146,28 +1342,52 @@
         return;
       }
 
-      const passIngresada = prompt(`🔐 Ingrese la contraseña de seguridad para [ ${id} ]:`);
-      if (passIngresada === null) return;
+      perfilPendienteAcceso = id;
+      const modal = document.getElementById('login-password-modal');
+      const name = document.getElementById('login-password-name');
+      const input = document.getElementById('login-password-input');
+      if (name) name.textContent = `Perfil seleccionado: ${id}`;
+      if (modal) modal.style.display = 'flex';
+      if (input) { input.value = ''; setTimeout(() => input.focus(), 50); }
+    }
 
-      if (passIngresada === "2021") {
+    function confirmarAccesoPerfil() {
+      const id = perfilPendienteAcceso;
+      if (!id) return;
+      const ahora = Date.now();
+      const { intentos, bloqueos } = obtenerIntentosYBloqueos();
+      const input = document.getElementById('login-password-input');
+      const passIngresada = input ? input.value : '';
+      if (passIngresada === '2021') {
         intentos[id] = 0;
         delete bloqueos[id];
         guardarIntentosYBloqueos(intentos, bloqueos);
+        cerrarModalAccesoPerfil();
         selectUnit(id);
+        return;
+      }
+      intentos[id] = (intentos[id] || 0) + 1;
+      const restantes = 3 - intentos[id];
+      if (intentos[id] >= 3) {
+        bloqueos[id] = ahora + (15 * 60 * 1000);
+        guardarIntentosYBloqueos(intentos, bloqueos);
+        cerrarModalAccesoPerfil();
+        alert(`🚨 Demasiados intentos fallidos en "${id}". Este perfil ha sido bloqueado por 15 minutos.`);
       } else {
-        intentos[id] = (intentos[id] || 0) + 1;
-        const restantes = 3 - intentos[id];
-
-        if (intentos[id] >= 3) {
-          bloqueos[id] = ahora + (15 * 60 * 1000);
-          guardarIntentosYBloqueos(intentos, bloqueos);
-          alert(`🚨 Demasiados intentos fallidos en "${id}". Este perfil ha sido bloqueado por 15 minutos.`);
-        } else {
-          guardarIntentosYBloqueos(intentos, bloqueos);
-          alert(`❌ Contraseña incorrecta. Te quedan ${restantes} intentos para este perfil.`);
-        }
+        guardarIntentosYBloqueos(intentos, bloqueos);
+        if (input) { input.value = ''; input.focus(); }
+        alert(`❌ Contraseña incorrecta. Te quedan ${restantes} intentos para este perfil.`);
       }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-password-submit')?.addEventListener('click', confirmarAccesoPerfil);
+      document.getElementById('login-password-cancel')?.addEventListener('click', cerrarModalAccesoPerfil);
+      document.getElementById('login-password-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmarAccesoPerfil();
+        if (e.key === 'Escape') cerrarModalAccesoPerfil();
+      });
+    });
 
     let contextMenuCoords = null;
     let tempContextMarker = null;
@@ -1446,6 +1666,29 @@
     }
 
     function checkAuth() {
+      if (currentUnit === 'Cliente') {
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (lblUnit) lblUnit.textContent = 'Cliente';
+        document.getElementById('cliente-screen')?.style.setProperty('display', 'flex');
+        document.querySelector('header')?.style.setProperty('display', 'none');
+        document.getElementById('map-container')?.style.setProperty('display', 'none');
+        document.getElementById('fleet-summary-bar')?.style.setProperty('display', 'none');
+        document.getElementById('yadah-base-stack')?.style.setProperty('display', 'none');
+        document.getElementById('yadah-base-fab')?.style.setProperty('display', 'none');
+        document.getElementById('yadah-career-stack')?.style.setProperty('display', 'none');
+        document.getElementById('yadah-career-fab')?.style.setProperty('display', 'none');
+        document.querySelector('.controls-panel')?.style.setProperty('display', 'none');
+        if (typeof initClienteQueue === 'function') initClienteQueue();
+        return;
+      }
+
+      document.getElementById('cliente-screen')?.style.setProperty('display', 'none');
+      document.querySelector('header')?.style.removeProperty('display');
+      document.getElementById('map-container')?.style.removeProperty('display');
+      document.querySelector('.controls-panel')?.style.removeProperty('display');
+      document.getElementById('yadah-career-stack')?.style.removeProperty('display');
+      document.getElementById('yadah-career-fab')?.style.removeProperty('display');
+
       if (currentUnit) {
         if (loginScreen) loginScreen.style.display = 'none';
         if (lblUnit) lblUnit.textContent = currentUnit;
@@ -1462,6 +1705,34 @@
       } else { if (loginScreen) loginScreen.style.display = 'flex'; }
     }
 
+    function selectClientProfile() {
+      currentUnit = 'Cliente';
+      localStorage.setItem('yadah_terminal_id', 'Cliente');
+
+      // El perfil Cliente es exclusivamente de consulta.
+      // No inicia radio, GPS, mapa, SOS ni funciones de administración.
+      if (loginScreen) loginScreen.style.display = 'none';
+      document.getElementById('cliente-screen')?.style.setProperty('display', 'flex');
+      document.querySelector('header')?.style.setProperty('display', 'none');
+      document.getElementById('map-container')?.style.setProperty('display', 'none');
+      document.getElementById('fleet-summary-bar')?.style.setProperty('display', 'none');
+      document.getElementById('yadah-base-stack')?.style.setProperty('display', 'none');
+      document.getElementById('yadah-base-fab')?.style.setProperty('display', 'none');
+      document.getElementById('yadah-career-stack')?.style.setProperty('display', 'none');
+      document.getElementById('yadah-career-fab')?.style.setProperty('display', 'none');
+      if (typeof initClienteQueue === 'function') initClienteQueue();
+    }
+
+    function logoutClientProfile() {
+      if (typeof stopClienteQueue === 'function') stopClienteQueue();
+      localStorage.removeItem('yadah_terminal_id');
+      currentUnit = null;
+      document.getElementById('cliente-screen')?.style.setProperty('display', 'none');
+      document.querySelector('header')?.style.removeProperty('display');
+      document.getElementById('map-container')?.style.removeProperty('display');
+      if (loginScreen) loginScreen.style.display = 'flex';
+    }
+
     function selectUnit(id) {
       currentUnit = id;
       deviceId = `${currentUnit}_${Math.random().toString(16).slice(2, 10)}_${Date.now().toString(16)}`;
@@ -1471,6 +1742,10 @@
     }
 
     function logoutUnit() {
+      if (currentUnit === 'Cliente') {
+        logoutClientProfile();
+        return;
+      }
       if (typeof closeAllRadioPeers === 'function') closeAllRadioPeers();
       radioInitialized = false;
       if (mqttClient && mqttClient.connected && currentUnit) {
@@ -1880,9 +2155,27 @@
                 const box = document.getElementById('yadah-base-assignment');
                 const place = document.getElementById('yb-assignment-place');
                 const meta = document.getElementById('yb-assignment-meta');
-                if (place) place.textContent = assignData.label || 'Destino de base';
-                if (meta) meta.textContent = `🏠 BASE · ${assignData.price ? '$' + Number(assignData.price).toFixed(2) : 'Tarifa registrada'}`;
+                const servicesBox = document.getElementById('yb-assignment-services');
+                const acceptBtn = document.getElementById('yb-assignment-accept');
+                const rejectBtn = document.getElementById('yb-assignment-reject');
+                const abordoBtn = document.getElementById('yb-assignment-abordo');
+                const finishBtn = document.getElementById('yb-assignment-finish');
+                const services = Array.isArray(assignData.services) ? assignData.services : [{id:assignData.baseQueueId, place:assignData.label, price:assignData.price}];
+                const accepted = !!assignData.accepted;
+                if (accepted) window.__yadahActiveServiceIds = services.map(v=>v.id).filter(Boolean);
+                if (place) place.textContent = accepted ? '🏠 SERVICIO ACEPTADO' : '🏠 NUEVA ASIGNACIÓN';
+                if (meta) meta.textContent = accepted ? `🚗 ${services.length} servicio${services.length===1?'':'s'} · GPS registrando recorrido` : `🏠 ${services.length} servicio${services.length===1?'':'s'} asignado${services.length===1?'':'s'}`;
+                if (servicesBox) {
+                  servicesBox.innerHTML = accepted ? `<div style="font-weight:900;color:#67e8f9;margin-bottom:6px;">DESTINOS</div>${services.map((v,i)=>`<div style="padding:5px 0;border-bottom:1px solid #1e293b;"><b>${i+1}. ${String(v.place||'Destino').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}</b>${Number.isFinite(Number(v.price))?` <span style="color:#94a3b8;">· $${Number(v.price).toFixed(2)}</span>`:''}</div>`).join('')}` : '';
+                  servicesBox.style.display = accepted ? 'block' : 'none';
+                }
+                if (acceptBtn) acceptBtn.style.display = accepted ? 'none' : 'block';
+                if (rejectBtn) rejectBtn.style.display = accepted ? 'none' : 'block';
+                if (abordoBtn) abordoBtn.style.display = accepted ? 'block' : 'none';
+                if (finishBtn) finishBtn.style.display = accepted ? 'block' : 'none';
                 if (box) box.style.display = 'block';
+                if (navRouteInfo) navRouteInfo.style.display = 'none';
+                if (typeof pendingDestination !== 'undefined') pendingDestination = null;
               } else {
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
                 pendingDestination = { lon: assignData.lon, lat: assignData.lat, label: assignData.label };
@@ -2590,30 +2883,128 @@
 })();
 </script>
 <script>
-/* YADAH COLA DE BASE v1: independiente del módulo 📞 CARRERAS POR LLAMADA. */
+/* YADAH COLA DE BASE v2: cola FIFO, asignación manual, endosos y servicio sin navegador. */
 (function(){'use strict';
-const TOPIC='yadah/radio/flota/base_queue/v1', STORAGE='yadah_base_queue_v1';let state={version:1,day:'',items:[]},client=null,lastRaw='',bound=false,basePanelOpen=false;
-const $=id=>document.getElementById(id),now=()=>Date.now(),dayKey=ts=>new Date(ts).toLocaleDateString('en-CA'),unit=()=>typeof currentUnit!=='undefined'&&currentUnit?currentUnit:'Sin unidad',mod=()=>unit()==='Modulador',uid=()=>window.crypto&&crypto.randomUUID?crypto.randomUUID():'yb_'+Date.now()+'_'+Math.random().toString(16).slice(2);
-function fresh(){return{version:1,day:dayKey(now()),items:[]}}function normalize(x){const b=fresh();if(!x||typeof x!=='object'||x.day!==b.day)return b;return{version:1,day:b.day,items:Array.isArray(x.items)?x.items.filter(i=>i&&i.id&&i.day===b.day):[]}}function load(){try{state=normalize(JSON.parse(localStorage.getItem(STORAGE)||'null'))}catch(e){state=fresh()}}function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e){}}
+const TOPIC='yadah/radio/flota/base_queue/v2', STORAGE='yadah_base_queue_v2';
+let state={version:2,day:'',items:[]},client=null,lastRaw='',bound=false,basePanelOpen=false;
+const $=id=>document.getElementById(id), now=()=>Date.now(), dayKey=ts=>new Date(ts).toLocaleDateString('en-CA');
+const unit=()=>typeof currentUnit!=='undefined'&&currentUnit?currentUnit:'Sin unidad', mod=()=>unit()==='Modulador';
+const uid=()=>window.crypto&&crypto.randomUUID?crypto.randomUUID():'yb_'+Date.now()+'_'+Math.random().toString(16).slice(2);
+function fresh(){return{version:2,day:dayKey(now()),items:[]}}
+function normalize(x){const b=fresh();if(!x||typeof x!=='object'||x.day!==b.day)return b;return{version:2,day:b.day,items:Array.isArray(x.items)?x.items.filter(i=>i&&i.id&&i.day===b.day):[]}}
+function load(){try{state=normalize(JSON.parse(localStorage.getItem(STORAGE)||'null'))}catch(e){state=fresh()}}
+function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e){}}
 function publish(){const raw=JSON.stringify(state);lastRaw=raw;save();if(client&&client.connected)client.publish(TOPIC,raw,{qos:0,retain:true});render()}
-function connect(){try{client=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'yadah_base_'+Math.random().toString(16).slice(2,10),clean:true});client.on('connect',()=>{client.subscribe(TOPIC,{qos:0});if(mod())publish()});client.on('message',(topic,msg)=>{if(topic!==TOPIC)return;try{const incoming=normalize(JSON.parse(msg.toString())),raw=JSON.stringify(incoming);if(raw===lastRaw)return;state=incoming;lastRaw=raw;save();render()}catch(e){console.warn('Cola base: mensaje inválido',e)}});client.on('error',e=>console.warn('Cola base MQTT:',e))}catch(e){console.warn('Cola base: no se pudo conectar',e)}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function ensureDay(){const d=dayKey(now());if(state.day!==d){state=fresh();save()}}
-function getBaseForm(){const dest=$('yb-destination'),priceSel=$('yb-price'),customPrice=$('yb-custom-price');const place=(dest?.value||'').trim();if(!place){alert('Escribe el destino.');return null}let price=priceSel&&priceSel.value==='__custom__'?Number(customPrice?.value||0):Number(priceSel?.value||0);if(!Number.isFinite(price)||price<=0){alert('Agrega un precio válido.');return null}price=Math.round(price*100)/100;return{place,price}}
-function addQueue(){ensureDay();const data=getBaseForm();if(!data)return;state.items.push({id:uid(),day:state.day,place:data.place,price:data.price,createdAt:now(),createdBy:unit(),status:'waiting',driver:null,assignedAt:null,acceptedAt:null,finishedAt:null});publish();closeModal()}
 function find(id){return state.items.find(i=>i.id===id)}
-function showDriverSelector(title,summary,callback){$('yb-modal-title').textContent=title;$('yb-add-view').style.display='none';$('yb-assign-view').style.display='block';$('yb-draft-summary').innerHTML=summary;const grid=$('yb-unit-grid');grid.innerHTML='';const units=typeof ALL_UNITS!=='undefined'?ALL_UNITS:[];units.filter(u=>u&&u!=='Modulador').forEach(u=>{const b=document.createElement('button');b.textContent='🚕 '+u;b.onclick=()=>callback(u);grid.appendChild(b)});$('yadah-base-modal').style.display='flex'}
-function openAssign(id){if(!mod())return;const item=find(id);if(!item||item.status!=='waiting')return;showDriverSelector('🏠 Asignar salida de base',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b>`,u=>assign(id,u))}
-function assign(id,target){const item=find(id);if(!item||item.status!=='waiting')return;item.status='assigned';item.driver=target;item.assignedAt=now();publish();if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify({targetUnit:target,lon:defaultBaseCoords[0],lat:defaultBaseCoords[1],label:item.place,price:item.price,source:'base',baseQueueId:item.id}));closeModal()}
-function directAssign(){if(!mod())return;const data=getBaseForm();if(!data)return;showDriverSelector('🚕 Asignar directamente',`Destino: <b>${esc(data.place)}</b><br>Precio: <b>$${data.price.toFixed(2)}</b>`,target=>{ensureDay();const item={id:uid(),day:state.day,place:data.place,price:data.price,createdAt:now(),createdBy:unit(),status:'assigned',driver:target,assignedAt:now(),acceptedAt:null,finishedAt:null};state.items.push(item);publish();if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify({targetUnit:target,lon:defaultBaseCoords[0],lat:defaultBaseCoords[1],label:item.place,price:item.price,source:'base_direct',baseQueueId:item.id}));closeModal()})}
-function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}
-function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
-function acceptDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();publish()}pendingDestination={lon:a.lon,lat:a.lat,label:a.label};if(lblRouteStats)lblRouteStats.textContent=`📍 [BASE] ${a.label}. ¿Iniciar marcha?`;if(navRouteInfo)navRouteInfo.style.display='flex';$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
-function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action=i.status==='waiting'?'<button class="assign" data-yb="assign" data-id="'+i.id+'">ASIGNAR</button>':'<div class="yb-state">'+(i.status==='assigned'?'🟡 ASIGNADO A '+(i.driver||'—'):'🟢 ACEPTADO · '+(i.driver||'—'))+'</div>';action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
-function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen));}}function bind(){if(bound)return;bound=true;$('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',addQueue);$('yb-direct-assign')?.addEventListener('click',directAssign);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yadah-base-stack')?.addEventListener('click',e=>{const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-assignment-accept')?.addEventListener('click',acceptDriver);$('yb-assignment-reject')?.addEventListener('click',rejectDriver)}
+function waitingItems(){return state.items.filter(i=>i.status==='waiting').sort((a,b)=>a.createdAt-b.createdAt)}
+function assignedItems(){return state.items.filter(i=>i.status==='assigned'||i.status==='accepted')}
+function getBatchItems(batchId){return assignedItems().filter(i=>i.assignmentBatchId===batchId).sort((a,b)=>a.createdAt-b.createdAt)}
+function getOpenBatch(driver){const list=assignedItems().filter(i=>i.driver===driver).sort((a,b)=>(b.assignedAt||0)-(a.assignedAt||0));return list[0]?.assignmentBatchId||null}
+function addQueue(){ensureDay();const dest=$('yb-destination'),priceSel=$('yb-price'),custom=$('yb-custom-price');const place=(dest?.value||'').trim();if(!place){alert('Escribe el destino.');return}let price=priceSel?.value==='__custom__'?Number(custom?.value||0):Number(priceSel?.value||0);if(!Number.isFinite(price)||price<=0){alert('Agrega un precio válido.');return}const passengerCount=Number(document.querySelector('#yb-passengers .yb-passenger.active')?.dataset.passengers||1);price=Math.round(price*100)/100;state.items.push({id:uid(),day:state.day,place,price,passengerCount,createdAt:now(),createdBy:unit(),status:'waiting',driver:null,assignedAt:null,acceptedAt:null,abordoAt:null,finishedAt:null,assignmentBatchId:null,removedAt:null,removedBy:null,removedReason:null});publish();closeModal()}
+function showDriverSelector(title,summary,callback){$('yb-modal-title').textContent=title;$('yb-add-view').style.display='none';$('yb-assign-view').style.display='block';$('yb-draft-summary').innerHTML=summary;const grid=$('yb-unit-grid');grid.innerHTML='';const units=typeof ALL_UNITS!=='undefined'?ALL_UNITS:[];units.filter(u=>u&&u!=='Modulador').forEach(u=>{const b=document.createElement('button');b.type='button';b.textContent='🚕 '+u;b.onclick=()=>callback(u);grid.appendChild(b)});$('yadah-base-modal').style.display='flex'}
+function buildAssignmentPayload(target,batchId){const services=getBatchItems(batchId);return{targetUnit:target,source:'base',assignmentBatchId:batchId,services:services.map(i=>({id:i.id,place:i.place,price:i.price,passengerCount:Number(i.passengerCount||1),createdAt:i.createdAt,accepted:i.status==='accepted'})),label:services[0]?.place||'Servicio de base',price:services[0]?.price||0,baseQueueId:services[0]?.id,accepted:services.some(i=>i.status==='accepted')}}
+function sendAssignment(target,batchId){const payload=buildAssignmentPayload(target,batchId);if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify(payload))}
+function assign(id,target){const item=find(id);if(!item||item.status!=='waiting')return;let batch=getOpenBatch(target);if(batch){const current=getBatchItems(batch);const accepted=current.some(i=>i.status==='accepted');if(accepted){alert('Ese vehículo ya aceptó su salida. Para conservar el control individual, este nuevo servicio se enviará como una nueva asignación al mismo vehículo.');batch=uid();}else if(!confirm(`¿Agregar "${item.place}" como ENDOSO a la asignación actual de ${target}?\n\n${current.length} servicio${current.length===1?'':'s'} ya asignado${current.length===1?'':'s'}.`))return}else batch=uid();item.status='assigned';item.driver=target;item.assignedAt=now();item.assignmentBatchId=batch;publish();sendAssignment(target,batch);closeModal()}
+function openAssign(id){if(!mod())return;const item=find(id);if(!item||item.status!=='waiting')return;showDriverSelector('🏠 Asignar servicio de base',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b><br><span style="color:#94a3b8">El motorista verá el destino únicamente después de aceptar.</span>`,u=>assign(id,u))}
+function directAssign(){if(!mod())return;const dest=$('yb-destination'),priceSel=$('yb-price'),custom=$('yb-custom-price');const place=(dest?.value||'').trim();if(!place){alert('Escribe el destino.');return}let price=priceSel?.value==='__custom__'?Number(custom?.value||0):Number(priceSel?.value||0);if(!Number.isFinite(price)||price<=0){alert('Agrega un precio válido.');return}const passengerCount=Number(document.querySelector('#yb-passengers .yb-passenger.active')?.dataset.passengers||1);price=Math.round(price*100)/100;ensureDay();const id=uid();const item={id,day:state.day,place,price,passengerCount,createdAt:now(),createdBy:unit(),status:'waiting',driver:null,assignedAt:null,acceptedAt:null,abordoAt:null,finishedAt:null,assignmentBatchId:null,removedAt:null,removedBy:null,removedReason:null};state.items.push(item);publish();showDriverSelector('🚕 Asignar directamente',`Destino: <b>${esc(place)}</b><br>Precio: <b>$${price.toFixed(2)}</b>`,u=>assign(id,u))}
+function removeFromBase(id){if(!mod())return;const item=find(id);if(!item||!['waiting','assigned'].includes(item.status))return;const reasons=['🚶 Se fue caminando','🚗 Se fue en otro carro','❌ Cliente desistió','🔄 Asignación incorrecta','✏️ Otro'];const reason=prompt('Motivo para retirar este servicio:\n\n1. Se fue caminando\n2. Se fue en otro carro\n3. Cliente desistió\n4. Asignación incorrecta\n5. Otro','1');const idx=Number(reason)-1;if(!Number.isInteger(idx)||idx<0||idx>=reasons.length)return;item.status='removed';item.removedAt=now();item.removedBy=unit();item.removedReason=reasons[idx];item.finishedAt=now();publish()}
+function reassign(id){if(!mod())return;const item=find(id);if(!item||item.status!=='assigned')return;showDriverSelector('🔄 Reasignar servicio',`Destino: <b>${esc(item.place)}</b><br><span style="color:#94a3b8">No se contabiliza para el motorista anterior porque todavía no ha aceptado.</span>`,u=>{const oldBatch=item.assignmentBatchId;item.driver=null;item.assignmentBatchId=null;item.assignedAt=null;item.status='waiting';publish();assign(id,u)})}
+function handleAction(a){if(!mod()||!a||!a.action||!Array.isArray(a.serviceIds))return;let changed=false;for(const id of a.serviceIds){const item=find(id);if(!item)continue;if(a.action==='accepted'&&item.status==='assigned'&&item.driver===a.driver){item.status='accepted';item.acceptedAt=a.timestamp||now();changed=true}else if(a.action==='rejected'&&item.driver===a.driver&&(item.status==='assigned')){item.status='waiting';item.driver=null;item.assignmentBatchId=null;item.assignedAt=null;changed=true}else if(a.action==='abordo'&&item.driver===a.driver&&item.status==='accepted'){item.abordoAt=a.timestamp||now();changed=true}else if(a.action==='finished'&&item.driver===a.driver&&item.status==='accepted'){item.status='done';item.finishedAt=a.timestamp||now();changed=true}}if(changed)publish()}
+function connect(){try{client=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{clientId:'yadah_base_v2_'+Math.random().toString(16).slice(2,10),clean:true});client.on('connect',()=>{client.subscribe(TOPIC,{qos:0});if(mod())publish()});client.on('message',(topic,msg)=>{if(topic!==TOPIC)return;try{const incoming=JSON.parse(msg.toString());if(incoming&&incoming.action){handleAction(incoming);return}const normalized=normalize(incoming),raw=JSON.stringify(normalized);if(raw===lastRaw)return;state=normalized;lastRaw=raw;save();render()}catch(e){console.warn('Cola base v2: mensaje inválido',e)}});client.on('error',e=>console.warn('Cola base v2:',e))}catch(e){console.warn('Cola base v2: conexión fallida',e)}}
+function acceptDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const services=Array.isArray(a.services)?a.services:[];const ids=services.map(s=>s.id).filter(Boolean);const batchId=a.assignmentBatchId;const timestamp=now();if(client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'accepted',driver:unit(),serviceIds:ids,batchId,timestamp}));window.__yadahActiveServiceIds=ids.slice();window.__yadahActiveServiceBatchId=batchId;const box=$('yadah-base-assignment'),place=$('yb-assignment-place'),meta=$('yb-assignment-meta'),servicesBox=$('yb-assignment-services'),acceptBtn=$('yb-assignment-accept'),rejectBtn=$('yb-assignment-reject'),abordoBtn=$('yb-assignment-abordo'),finishBtn=$('yb-assignment-finish');if(place)place.textContent='🏠 SERVICIO ACEPTADO';if(meta)meta.textContent=`🚗 ${ids.length} servicio${ids.length===1?'':'s'} · GPS registrando recorrido`;if(servicesBox){servicesBox.innerHTML='<div style="font-weight:900;color:#67e8f9;margin-bottom:6px;">DESTINOS</div>'+services.map((v,i)=>`<div style="padding:5px 0;border-bottom:1px solid #1e293b;"><b>${i+1}. ${esc(v.place)}</b>${Number.isFinite(Number(v.price))?` <span style="color:#94a3b8;">· $${Number(v.price).toFixed(2)}</span>`:''}</div>`).join('');servicesBox.style.display='block'}if(acceptBtn)acceptBtn.style.display='none';if(rejectBtn)rejectBtn.style.display='none';if(abordoBtn)abordoBtn.style.display='block';if(finishBtn)finishBtn.style.display='block';if(box)box.style.display='block'}
+function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const ids=(a.services||[]).map(s=>s.id).filter(Boolean);if(client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'rejected',driver:unit(),serviceIds:ids,batchId:a.assignmentBatchId,timestamp:now()}));window.__yadahActiveServiceIds=[];window.__yadahActiveServiceBatchId=null;closeAssignment()}
+function abordoDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const ids=(a.services||[]).map(s=>s.id).filter(Boolean);if(client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'abordo',driver:unit(),serviceIds:ids,batchId:a.assignmentBatchId,timestamp:now()}))}
+function finishDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const ids=(a.services||[]).map(s=>s.id).filter(Boolean);if(client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'finished',driver:unit(),serviceIds:ids,batchId:a.assignmentBatchId,timestamp:now()}));window.__yadahActiveServiceIds=[];window.__yadahActiveServiceBatchId=null;closeAssignment()}
+function closeAssignment(){const box=$('yadah-base-assignment');if(box)box.style.display='none';window.__yadahPendingBaseAssignment=null}
+function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';document.querySelectorAll('#yb-passengers .yb-passenger').forEach(b=>b.classList.toggle('active',b.dataset.passengers==='1'));$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}
+function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
+function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const waiting=waitingItems(), assigned=assignedItems();let html='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+waiting.length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!waiting.length)html+='<div class="yb-card"><div class="yb-state">No hay clientes esperando.</div></div>';else waiting.forEach((i,n)=>{html+=`<div class="yb-card waiting"><div class="yb-line"><div class="yb-place">${n+1}️⃣ ${esc(i.place)} · <span style="font-weight:900;color:${Number(i.passengerCount||1)===4?'#ef4444':'#cbd5e1'}">${Number(i.passengerCount||1)}</span></div><div class="yb-price">$${Number(i.price||0).toFixed(2)}</div></div><div class="yb-state">🔵 EN ESPERA · ${new Date(i.createdAt).toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})}</div><button class="assign" data-yb="assign" data-id="${i.id}">ASIGNAR</button><button class="cancel" data-yb="remove" data-id="${i.id}">RETIRAR / REPORTAR</button></div>`});if(assigned.length){html+='<div class="yb-section-title">🚗 ASIGNADAS</div>';const batches=[...new Set(assigned.map(i=>i.assignmentBatchId).filter(Boolean))];batches.forEach(batch=>{const items=getBatchItems(batch);if(!items.length)return;const d=items[0];html+=`<div class="yb-card ${items.some(i=>i.status==='accepted')?'accepted':'assigned'}"><div class="yb-line"><div class="yb-place">🚕 ${esc(d.driver||'—')} · ${items.length} servicio${items.length===1?'':'s'}</div><div class="yb-state">${items.some(i=>i.status==='accepted')?'🟢 ACEPTADA':'🟡 ESPERANDO ACEPTACIÓN'}</div></div>${items.map((i,j)=>`<div style="font-size:.76rem;padding:4px 0;border-bottom:1px solid #1e293b;">${j+1}. ${esc(i.place)} · <span style=\"color:${Number(i.passengerCount||1)===4?'#ef4444':'#cbd5e1'};font-weight:900\">${Number(i.passengerCount||1)}</span> · $${Number(i.price||0).toFixed(2)}</div>`).join('')}<div class="yb-actions" style="margin-top:8px"><button class="assign" data-yb="reassign" data-id="${d.id}" ${items.some(i=>i.status==='accepted')?'disabled':''}>🔄 REASIGNAR</button></div></div>`});}stack.innerHTML=html;stack.style.display=basePanelOpen?'flex':'none'}
+function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen))}}
+function bind(){if(bound)return;bound=true;$('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;const id=b.dataset.id;if(b.dataset.yb==='assign')openAssign(id);else if(b.dataset.yb==='remove')removeFromBase(id);else if(b.dataset.yb==='reassign')reassign(id)});$('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',addQueue);document.querySelectorAll('#yb-passengers .yb-passenger').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#yb-passengers .yb-passenger').forEach(x=>x.classList.remove('active'));b.classList.add('active')}));$('yb-direct-assign')?.addEventListener('click',directAssign);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yb-assignment-accept')?.addEventListener('click',acceptDriver);$('yb-assignment-reject')?.addEventListener('click',rejectDriver);$('yb-assignment-abordo')?.addEventListener('click',abordoDriver);$('yb-assignment-finish')?.addEventListener('click',finishDriver)}
 function init(){load();ensureDay();bind();render();connect();setInterval(()=>{if(mod())render()},3000)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+window.YadahBase={getState:()=>state,render,acceptDriver,finishDriver,rejectDriver};
 })();
 </script>
+
+<script>
+/* ===== YADAH PERFIL CLIENTE: SOLO VISUALIZA DESTINOS ===== */
+(function () {
+  const CLIENT_QUEUE_TOPIC = 'yadah/radio/flota/base_queue/v2';
+  let clienteMqtt = null;
+  let clienteStarted = false;
+
+  function clienteEsc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[m]));
+  }
+
+  function renderClienteQueue(data) {
+    const box = document.getElementById('cliente-queue');
+    if (!box) return;
+
+    const waiting = (Array.isArray(data?.items) ? data.items : [])
+      .filter(i => i && i.status === 'waiting' && String(i.place || '').trim())
+      .sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+
+    if (!waiting.length) {
+      box.innerHTML = '<div class="cliente-empty">No hay clientes esperando.</div>';
+      return;
+    }
+
+    box.innerHTML = waiting.map((item, index) => `
+      <div class="cliente-item">
+        <div class="cliente-number">${index + 1}</div>
+        <div class="cliente-destination">${clienteEsc(item.place)}</div>
+      </div>
+    `).join('');
+  }
+
+  function initClienteQueue() {
+    if (clienteStarted) return;
+    clienteStarted = true;
+
+    try {
+      clienteMqtt = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+        clientId: 'yadah_cliente_' + Math.random().toString(16).slice(2, 10),
+        clean: true
+      });
+
+      clienteMqtt.on('connect', () => {
+        clienteMqtt.subscribe(CLIENT_QUEUE_TOPIC, { qos: 0 });
+      });
+
+      clienteMqtt.on('message', (topic, msg) => {
+        if (topic !== CLIENT_QUEUE_TOPIC) return;
+        try {
+          renderClienteQueue(JSON.parse(msg.toString()));
+        } catch (e) {
+          console.warn('Perfil Cliente: mensaje inválido', e);
+        }
+      });
+
+      clienteMqtt.on('error', e => {
+        console.warn('Perfil Cliente: conexión fallida', e);
+      });
+    } catch (e) {
+      console.warn('Perfil Cliente: no se pudo iniciar MQTT', e);
+    }
+  }
+
+  function stopClienteQueue() {
+    if (clienteMqtt) {
+      try { clienteMqtt.end(true); } catch (e) {}
+      clienteMqtt = null;
+    }
+    clienteStarted = false;
+  }
+
+  window.initClienteQueue = initClienteQueue;
+  window.stopClienteQueue = stopClienteQueue;
+})();
+</script>
+
 </body>
 </html>
