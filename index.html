@@ -867,7 +867,7 @@
     <div class="nav-route-info" id="nav-route-info">
       <span id="lbl-route-stats">Destino seleccionado</span>
       <div class="nav-route-actions">
-        <button class="btn-nav-action btn-nav-start" id="btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
+        <button class="btn-nav-action btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
         <button class="btn-nav-action btn-nav-cancel" onclick="cancelNavigation()">Cancelar ✕</button>
       </div>
     </div>
@@ -1077,13 +1077,19 @@
     const STORE_NAME = 'gps_points';
 
     function initDatabase() {
-      const request = indexedDB.open(DB_NAME, 1);
+      const request = indexedDB.open(DB_NAME, 2);
       request.onupgradeneeded = (e) => {
         const database = e.target.result;
         if (!database.objectStoreNames.contains(STORE_NAME)) {
           const store = database.createObjectStore(STORE_NAME, { autoIncrement: true });
           store.createIndex('unit_time', ['unit', 'timestamp']);
           store.createIndex('timestamp', 'timestamp');
+        }
+        if (!database.objectStoreNames.contains('radio_messages')) {
+          const radioStore = database.createObjectStore('radio_messages', { keyPath: 'id' });
+          radioStore.createIndex('timestamp', 'timestamp');
+          radioStore.createIndex('sender', 'sender');
+          radioStore.createIndex('listened', 'listened');
         }
       };
       request.onsuccess = (e) => {
@@ -1329,11 +1335,6 @@
     let sirenInterval = null;
     let activeSosCoords = null;
     let pendingDestination = null;
-    // Estado de navegación: manual = buscador / base = ruta de varios destinos.
-    let pendingRouteMode = 'manual';
-    let baseRouteStops = [];
-    let baseAssignmentBatch = [];
-    let routeRequestInProgress = false;
     let gpsPermissionGranted = false;
     let searchTimeout = null;
     let baseUnlocked = false;
@@ -1394,11 +1395,7 @@
     function selectSuggestion(lon, lat, displayName, isLocal) {
       document.getElementById('input-destination').value = displayName.split(',')[0];
       searchSuggestions.style.display = 'none';
-      // Una selección del buscador siempre representa una navegación manual.
-      pendingRouteMode = 'manual';
-      baseRouteStops = [];
-      baseAssignmentBatch = [];
-      pendingDestination = { lon: Number(lon), lat: Number(lat), label: displayName.split(',')[0] };
+      pendingDestination = { lon, lat, label: displayName.split(',')[0] };
       lblRouteStats.textContent = `${isLocal ? '📍 [Local]' : '📍'} Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
       navRouteInfo.style.display = 'flex';
     }
@@ -1407,12 +1404,6 @@
       searchSuggestions.style.display = 'none';
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
-
-      // Buscar un destino manual cancela cualquier estado de ruta de base anterior.
-      pendingRouteMode = 'manual';
-      baseRouteStops = [];
-      baseAssignmentBatch = [];
-
       const parsedGMap = parseGoogleMapsLink(query);
       if (parsedGMap) { selectSuggestion(parsedGMap.lon, parsedGMap.lat, 'Ubicación de Google Maps', false); return; }
       const foundLocal = getCustomPOIs().find(p => p.name.toLowerCase() === query.toLowerCase());
@@ -1425,49 +1416,23 @@
           const delta = 0.5;
           searchUrl += `&viewbox=${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}&bounded=1`;
         }
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
-        let resp;
-        try {
-          resp = await fetch(searchUrl, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
-        } finally { clearTimeout(timer); }
+        const resp = await fetch(searchUrl);
         const results = await resp.json();
         if (results && results.length > 0) {
           pendingDestination = { lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat), label: results[0].display_name.split(',')[0] };
           lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
-        } else {
-          alert("Lugar no encontrado.");
-          navRouteInfo.style.display = 'none';
-        }
-      } catch (err) {
-        console.error('Error buscando destino:', err);
-        alert(err && err.name === 'AbortError' ? 'La búsqueda tardó demasiado. Intenta nuevamente.' : 'No se pudo buscar el destino.');
-        navRouteInfo.style.display = 'none';
-      }
+        } else { alert("Lugar no encontrado."); navRouteInfo.style.display = 'none'; }
+      } catch (err) {}
     }
 
     async function startNavigationMatch() {
-      if (routeRequestInProgress) return;
-
-      // Una ruta de base solo se usa cuando el estado viene explícitamente de base.
-      if (pendingRouteMode === 'base' && baseRouteStops.length > 0) {
-        firstPersonMode = true;
-        updateViewButtonUI();
-        await requestMultiStopRoute(baseRouteStops);
-        return;
-      }
-
       if (!pendingDestination) { alert("Primero selecciona un destino."); return; }
-      const destLon = Number(pendingDestination.lon);
-      const destLat = Number(pendingDestination.lat);
-      if (!Number.isFinite(destLon) || !Number.isFinite(destLat)) {
-        alert('El destino no tiene coordenadas válidas.');
-        return;
-      }
-
-      firstPersonMode = true;
-      updateViewButtonUI();
-      await requestRouteToDestination(destLon, destLat, pendingDestination.label || 'Destino');
+      const btn=document.querySelector('.btn-nav-start');
+      if(btn?.dataset.busy==='true')return;
+      if(btn){btn.dataset.busy='true';btn.disabled=true;btn.textContent='Calculando…';}
+      firstPersonMode=true; updateViewButtonUI();
+      try { await requestRouteToDestination(pendingDestination.lon,pendingDestination.lat,pendingDestination.label); }
+      finally { if(btn){btn.dataset.busy='false';btn.disabled=false;btn.textContent='¡Dar Marcha! 🚀';} }
     }
 
     function updateGpsLockState(allowed) {
@@ -1717,162 +1682,31 @@
     }
 
     let destinationMarker = null;
-    let destinationMarkers = [];
-
-    function clearDestinationMarkers() {
-      if (destinationMarker) { try { destinationMarker.remove(); } catch (_) {} destinationMarker = null; }
-      destinationMarkers.forEach(m => { try { m.remove(); } catch (_) {} });
-      destinationMarkers = [];
-    }
-
-    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        return await fetch(url, { ...options, signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-
-    async function geocodeBaseStop(stop) {
-      if (stop && stop.lon != null && stop.lat != null && !stop.fromBaseLabel) return stop;
-      const label = String((stop && stop.label) || '').trim();
-      if (!label) return null;
-      const placeQuery = `${label}, Lourdes, Colón, El Salvador`;
-      let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeQuery)}&limit=1`;
-      if (myLastCoords) {
-        const delta = 0.5;
-        url += `&viewbox=${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}&bounded=1`;
-      }
-      const response = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 10000);
-      if (!response.ok) throw new Error(`Geocodificación HTTP ${response.status}`);
-      const results = await response.json();
-      if (!results || !results.length) return null;
-      return { ...stop, lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat) };
-    }
-
-    async function requestMultiStopRoute(stops) {
-      if (routeRequestInProgress) return;
-      if (!myLastCoords) { alert('Esperando señal de GPS...'); return; }
-      if (!Array.isArray(stops) || !stops.length) { alert('No hay destinos en la ruta.'); return; }
-
-      routeRequestInProgress = true;
-      const startBtn = document.getElementById('btn-nav-start');
-      if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Calculando…'; }
-      try {
-        if (lblRouteStats) lblRouteStats.textContent = `🧭 Preparando RUTA con ${stops.length} destino${stops.length > 1 ? 's' : ''}...`;
-        if (navRouteInfo) navRouteInfo.style.display = 'flex';
-
-        const resolved = [];
-        for (const stop of stops) {
-          const item = await geocodeBaseStop(stop);
-          if (!item) throw new Error(`No pude localizar el destino: ${stop.label || 'Sin nombre'}`);
-          resolved.push(item);
-        }
-
-        clearDestinationMarkers();
-        resolved.forEach((stop, index) => {
-          const el = document.createElement('div');
-          el.style.fontSize = '1.8rem';
-          el.textContent = index === resolved.length - 1 ? '🏁' : '📍';
-          destinationMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([stop.lon, stop.lat]).addTo(map));
-        });
-
-        const coords = [[Number(myLastCoords.lon), Number(myLastCoords.lat)], ...resolved.map(s => [Number(s.lon), Number(s.lat)])];
-        const coordString = coords.map(c => `${c[0]},${c[1]}`).join(';');
-        const res = await fetchWithTimeout(`https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson&steps=true`, {}, 15000);
-        if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.routes || !data.routes.length) throw new Error('OSRM no devolvió una ruta');
-
-        const route = data.routes[0];
-        const labels = resolved.map((s, i) => `${i + 1}. ${s.label}`);
-        if (lblRouteStats) {
-          lblRouteStats.innerHTML = `🧭 <b>RUTA · ${resolved.length} DESTINO${resolved.length > 1 ? 'S' : ''}</b><br>` +
-            labels.map(x => `<div style="margin-top:3px">${x}</div>`).join('') +
-            `<div style="margin-top:5px">${(route.distance / 1000).toFixed(1)} km · ~${Math.round(route.duration / 60)} min</div><div style="margin-top:3px;color:#10b981">🚀 En marcha</div>`;
-        }
-        ensureLayersExist();
-        const source = map.getSource('nav-active-route');
-        if (!source) throw new Error('La capa de navegación no está disponible');
-        source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: { stops: labels } }] });
-        baseRouteStops = resolved;
-
-        if (mqttClient && mqttClient.connected && currentUnit) {
-          mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: labels.join(' → '), stops: resolved.map(s => ({ label: s.label, lon: s.lon, lat: s.lat })) }));
-        }
-      } catch (e) {
-        console.error('Error calculando ruta múltiple:', e);
-        clearDestinationMarkers();
-        if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo calcular la ruta.';
-        alert(e && e.name === 'AbortError' ? 'El servidor de rutas tardó demasiado. Intenta nuevamente.' : (e.message || 'No se pudo calcular la ruta completa.'));
-      } finally {
-        routeRequestInProgress = false;
-        if (startBtn) { startBtn.disabled = false; startBtn.textContent = '¡Dar Marcha! 🚀'; }
-      }
-    }
-
     async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
-      if (routeRequestInProgress) return false;
       if (!myLastCoords) { alert("Esperando señal de GPS..."); return false; }
-      if (!map) { alert('El mapa todavía no está listo.'); return false; }
-
-      const lon = Number(destLon), lat = Number(destLat);
-      if (!Number.isFinite(lon) || !Number.isFinite(lat)) { alert('El destino no tiene coordenadas válidas.'); return false; }
-
-      routeRequestInProgress = true;
-      const startBtn = document.getElementById('btn-nav-start');
-      if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Calculando…'; }
-      clearDestinationMarkers();
-
+      if (!Number.isFinite(Number(destLon)) || !Number.isFinite(Number(destLat))) { alert('Destino inválido.'); return false; }
+      if (destinationMarker) destinationMarker.remove();
+      const el=document.createElement('div'); el.style.fontSize='2.2rem'; el.innerHTML='🏁';
+      destinationMarker=new maplibregl.Marker({element:el}).setLngLat([destLon,destLat]).addTo(map);
+      let timeoutId=null;
       try {
-        const el = document.createElement('div');
-        el.style.fontSize = '2.2rem';
-        el.textContent = '🏁';
-        destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map);
-
-        if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...';
-        if (navRouteInfo) navRouteInfo.style.display = 'flex';
-
-        const startLon = Number(myLastCoords.lon), startLat = Number(myLastCoords.lat);
-        if (!Number.isFinite(startLon) || !Number.isFinite(startLat)) throw new Error('La posición GPS actual no es válida');
-
-        const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${lon},${lat}?overview=full&geometries=geojson&steps=true`;
-        const res = await fetchWithTimeout(url, {}, 15000);
-        if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.routes || !data.routes.length) throw new Error('No se encontró una ruta para ese destino');
-
-        const route = data.routes[0];
-        ensureLayersExist();
-        const source = map.getSource('nav-active-route');
-        if (!source) throw new Error('La capa de navegación no está disponible');
-        source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: {} }] });
-
-        if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). En marcha 🚀`;
-        if (mqttClient && mqttClient.connected && currentUnit) {
-          mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: label }));
-        }
+        if(lblRouteStats)lblRouteStats.textContent='Calculando trayecto...';
+        if(navRouteInfo)navRouteInfo.style.display='flex';
+        const controller=new AbortController(); timeoutId=setTimeout(()=>controller.abort(),15000);
+        const res=await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`,{signal:controller.signal});
+        if(!res.ok)throw new Error('OSRM HTTP '+res.status);
+        const data=await res.json(); if(!data.routes?.length)throw new Error('Sin ruta');
+        const route=data.routes[0];
+        if(lblRouteStats)lblRouteStats.innerHTML=`🏁 <b>${String(label).replace(/[&<>]/g,'')}</b><br>${(route.distance/1000).toFixed(1)} km (~${Math.round(route.duration/60)} min). 🚀 En marcha`;
+        ensureLayersExist(); map.getSource('nav-active-route').setData({type:'FeatureCollection',features:[{type:'Feature',geometry:route.geometry,properties:{}}]});
+        if(mqttClient&&mqttClient.connected&&currentUnit)mqttClient.publish('yadah/radio/flota/navigation',JSON.stringify({unit:currentUnit,geometry:route.geometry,label}));
         return true;
-      } catch (e) {
-        console.error('Error calculando ruta:', e);
-        clearDestinationMarkers();
-        if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo calcular el trayecto.';
-        alert(e && e.name === 'AbortError' ? 'El servidor de rutas tardó demasiado. Intenta nuevamente.' : (e.message || 'No se pudo calcular el trayecto.'));
-        return false;
-      } finally {
-        routeRequestInProgress = false;
-        if (startBtn) { startBtn.disabled = false; startBtn.textContent = '¡Dar Marcha! 🚀'; }
-      }
+      } catch(e) { console.error('Error calculando ruta:',e); if(lblRouteStats)lblRouteStats.textContent=e.name==='AbortError'?'⏱️ El servidor de rutas tardó demasiado.':'⚠️ No se pudo calcular la ruta.'; return false; }
+      finally { if(timeoutId)clearTimeout(timeoutId); }
     }
 
     function cancelNavigation() {
-      pendingDestination = null;
-      pendingRouteMode = 'manual';
-      baseRouteStops = [];
-      baseAssignmentBatch = [];
-      clearDestinationMarkers();
+      pendingDestination = null; if (destinationMarker) { destinationMarker.remove(); destinationMarker = null; }
       if (navRouteInfo) navRouteInfo.style.display = 'none';
       if (document.getElementById('input-destination')) document.getElementById('input-destination').value = '';
       if (map && map.getSource('nav-active-route')) map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [] });
@@ -2052,16 +1886,13 @@
             const assignData = JSON.parse(text);
             if (isDriver() && assignData.targetUnit === currentUnit) {
               playBeep(880, 0.1);
-              if (assignData.source === 'base' || assignData.source === 'base_direct') {
-                // Acumulamos asignaciones de base para que ACEPTAR pueda formar una ruta de 1, 2 o 3 destinos.
-                if (!Array.isArray(baseAssignmentBatch)) baseAssignmentBatch = [];
-                if (!baseAssignmentBatch.some(x => x && x.baseQueueId === assignData.baseQueueId)) baseAssignmentBatch.push(assignData);
+              if (assignData.source === 'base') {
                 window.__yadahPendingBaseAssignment = assignData;
                 const box = document.getElementById('yadah-base-assignment');
                 const place = document.getElementById('yb-assignment-place');
                 const meta = document.getElementById('yb-assignment-meta');
-                if (place) place.innerHTML = baseAssignmentBatch.map((x, i) => `${i + 1}. ${String(x.label || 'Destino de base').replace(/[&<>]/g, '')}`).join('<br>');
-                if (meta) meta.textContent = `🏠 BASE · ${baseAssignmentBatch.length} destino${baseAssignmentBatch.length > 1 ? 's' : ''}`;
+                if (place) place.textContent = assignData.label || 'Destino de base';
+                if (meta) meta.textContent = `🏠 BASE · ${assignData.price ? '$' + Number(assignData.price).toFixed(2) : 'Tarifa registrada'}`;
                 if (box) box.style.display = 'block';
               } else {
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
@@ -2105,11 +1936,14 @@
             }
           } else if (topic === TOPIC_ALERT) {
             const alertData = JSON.parse(text);
-            if (alertData.sender !== currentUnit && channelStatus) {
+            if (alertData.sender !== currentUnit) {
               if (alertData.live === true) {
-                channelStatus.className = 'channel-status receiving';
+                radioRemoteLive.set(alertData.sender, true);
+                startRemoteRadioRecording(alertData.sender);
+                if (channelStatus) { channelStatus.className = 'channel-status receiving';
                 channelStatus.textContent = `▼ TRANSMITIENDO: ${alertData.sender}`;
                 playBeep(660, 0.06);
+                }
                 clearTimeout(window.yadahRemoteTalkTimer);
                 window.yadahRemoteTalkTimer = setTimeout(() => {
                   if (channelStatus && !radioTalking) {
@@ -2118,6 +1952,8 @@
                   }
                 }, 5000);
               } else if (alertData.live === false) {
+                radioRemoteLive.set(alertData.sender, false);
+                stopRemoteRadioRecording(alertData.sender);
                 clearTimeout(window.yadahRemoteTalkTimer);
                 if (!radioTalking) {
                   channelStatus.className = 'channel-status';
@@ -2220,6 +2056,11 @@
     const radioPeers = new Map();
     const radioCandidateQueues = new Map();
     const radioAudioElements = new Map();
+    const radioPeerUnits = new Map();
+    const radioUnitPeers = new Map();
+    const radioRemoteStreams = new Map();
+    const radioRemoteRecorders = new Map();
+    const radioRemoteLive = new Map();
     let radioAudioUnlocked = false;
 
     function unlockRadioAudio() {
@@ -2407,6 +2248,8 @@
         if (!data.sender || !data.deviceId) return;
 
         const targetDevId = data.deviceId;
+        radioPeerUnits.set(targetDevId, data.sender);
+        radioUnitPeers.set(data.sender, targetDevId);
         let pc = radioPeers.get(targetDevId);
 
         if (data.type === 'hello') {
@@ -2446,6 +2289,20 @@
       }
     }
 
+    async function saveRadioMessageBlob(blob, sender, durationMs) {
+      if (!blob || !blob.size || !db) return;
+      try { const tx=db.transaction(['radio_messages'],'readwrite'); tx.objectStore('radio_messages').put({id:`radio_${Date.now()}_${Math.random().toString(16).slice(2)}`,sender:sender||'Radio',receiver:currentUnit||'',timestamp:Date.now(),duration:Math.max(0,Math.round((durationMs||0)/1000)),listened:false,blob}); } catch(e) { console.warn('No se pudo guardar mensaje de radio:',e); }
+    }
+    function startRemoteRadioRecording(sender) {
+      if(!sender||radioRemoteRecorders.has(sender))return; const peerId=radioUnitPeers.get(sender),stream=peerId?radioRemoteStreams.get(peerId):null; if(!stream||typeof MediaRecorder==='undefined')return; let recorder;
+      try { const types=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']; const type=types.find(t=>MediaRecorder.isTypeSupported?.(t))||''; recorder=type?new MediaRecorder(stream,{mimeType:type}):new MediaRecorder(stream); } catch(e){return;}
+      const started=Date.now(),chunks=[]; recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);}; recorder.onstop=()=>{radioRemoteRecorders.delete(sender);if(chunks.length)saveRadioMessageBlob(new Blob(chunks,{type:recorder.mimeType||'audio/webm'}),sender,Date.now()-started);}; recorder.onerror=()=>radioRemoteRecorders.delete(sender); radioRemoteRecorders.set(sender,recorder); try{recorder.start();}catch(e){radioRemoteRecorders.delete(sender);}
+    }
+    function stopRemoteRadioRecording(sender){const r=radioRemoteRecorders.get(sender);if(!r)return;try{if(r.state!=='inactive')r.stop();}catch(e){radioRemoteRecorders.delete(sender);}}
+    async function getRadioMessages(){if(!db||!db.objectStoreNames.contains('radio_messages'))return [];return new Promise(resolve=>{try{const req=db.transaction(['radio_messages'],'readonly').objectStore('radio_messages').index('timestamp').openCursor(null,'prev');const rows=[];req.onsuccess=()=>{const c=req.result;if(c&&rows.length<50){rows.push(c.value);c.continue();}else resolve(rows);};req.onerror=()=>resolve([]);}catch(e){resolve([]);}});}
+    async function renderHistory(){const list=document.getElementById('history-list');if(!list)return;const rows=await getRadioMessages();if(!rows.length){list.innerHTML='<p style="color:#64748b;font-size:.85rem;">No hay transmisiones registradas.</p>';return;}list.innerHTML=rows.map(m=>{const t=new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return `<div class="history-item" style="opacity:${m.listened?'.72':'1'}"><div><b>💬 ${String(m.sender||'Radio').replace(/[&<>]/g,'')}</b><div style="font-size:.68rem;color:#94a3b8">${t}${m.duration?' · '+m.duration+'s':''}${m.listened?' · Escuchado':' · <b style="color:#38bdf8">Nuevo</b>'}</div></div><button class="btn-play-audio" onclick="playAudioById('${m.id}')">▶️</button></div>`}).join('');}
+    async function playAudioById(id){if(!db)return;try{const row=await new Promise(resolve=>{const req=db.transaction(['radio_messages'],'readonly').objectStore('radio_messages').get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>resolve(null);});if(!row?.blob)return;const url=URL.createObjectURL(row.blob),audio=new Audio(url);audio.onended=()=>URL.revokeObjectURL(url);audio.play().catch(()=>{});row.listened=true;const tx=db.transaction(['radio_messages'],'readwrite');tx.objectStore('radio_messages').put(row);tx.oncomplete=()=>renderHistory();}catch(e){console.warn('No se pudo reproducir mensaje:',e);}}
+
     async function createRadioPeer(targetDevId, isInitiator) {
       if (radioPeers.has(targetDevId)) return radioPeers.get(targetDevId);
 
@@ -2463,6 +2320,9 @@
       pc.ontrack = (event) => {
         const stream = (event.streams && event.streams[0]) || (event.track ? new MediaStream([event.track]) : null);
         if (!stream) return;
+        radioRemoteStreams.set(targetDevId, stream);
+        const remoteUnit = radioPeerUnits.get(targetDevId);
+        if (remoteUnit && radioRemoteLive.get(remoteUnit)) setTimeout(() => startRemoteRadioRecording(remoteUnit), 0);
 
         // Conectamos directamente al altavoz principal #radio-speaker del DOM
         const mainSpeaker = document.getElementById('radio-speaker');
@@ -2509,6 +2369,10 @@
         radioAudioElements.delete(targetDevId);
       }
       radioCandidateQueues.delete(targetDevId);
+      const remoteUnit = radioPeerUnits.get(targetDevId);
+      if (remoteUnit) { stopRemoteRadioRecording(remoteUnit); radioRemoteLive.delete(remoteUnit); radioUnitPeers.delete(remoteUnit); }
+      radioRemoteStreams.delete(targetDevId);
+      radioPeerUnits.delete(targetDevId);
       if (channelStatus && !radioTalking) {
         channelStatus.className = 'channel-status';
         channelStatus.textContent = '● CANAL LIBRE';
@@ -2585,9 +2449,8 @@
     function toggleHistory(show) {
       const modal = document.getElementById('history-modal');
       if (modal) modal.style.display = show ? 'flex' : 'none';
+      if (show) renderHistory();
     }
-    function renderHistory() {}
-    function playAudioByIndex(index) {}
 
     bindRadioPTT();
 
@@ -2787,21 +2650,8 @@ function assign(id,target){const item=find(id);if(!item||item.status!=='waiting'
 function directAssign(){if(!mod())return;const data=getBaseForm();if(!data)return;showDriverSelector('🚕 Asignar directamente',`Destino: <b>${esc(data.place)}</b><br>Precio: <b>$${data.price.toFixed(2)}</b>`,target=>{ensureDay();const item={id:uid(),day:state.day,place:data.place,price:data.price,createdAt:now(),createdBy:unit(),status:'assigned',driver:target,assignedAt:now(),acceptedAt:null,finishedAt:null};state.items.push(item);publish();if(typeof mqttClient!=='undefined'&&mqttClient&&mqttClient.connected)mqttClient.publish('yadah/radio/flota/assignment',JSON.stringify({targetUnit:target,lon:defaultBaseCoords[0],lat:defaultBaseCoords[1],label:item.place,price:item.price,source:'base_direct',baseQueueId:item.id}));closeModal()})}
 function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}
 function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
-function acceptDriver(){
-  if(!Array.isArray(baseAssignmentBatch)||!baseAssignmentBatch.length){const a=window.__yadahPendingBaseAssignment;if(a)baseAssignmentBatch=[a];}
-  if(!baseAssignmentBatch.length)return;
-  baseAssignmentBatch.forEach(a=>{const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();}});
-  try{publish()}catch(e){}
-  pendingRouteMode='base';
-  baseRouteStops=baseAssignmentBatch.map(a=>({label:a.label||'Destino de base',price:a.price||null,lon:null,lat:null,fromBaseLabel:true,baseQueueId:a.baseQueueId}));
-  pendingDestination=null;
-  if(lblRouteStats)lblRouteStats.innerHTML=`🧭 <b>RUTA · ${baseRouteStops.length} DESTINO${baseRouteStops.length>1?'S':''}</b><br>`+baseRouteStops.map((s,i)=>`${i+1}. ${String(s.label).replace(/[&<>]/g,'')}`).join('<br>')+`<br><span style="color:#10b981">¿Iniciar ruta completa?</span>`;
-  if(navRouteInfo)navRouteInfo.style.display='flex';
-  $('yadah-base-assignment').style.display='none';
-  window.__yadahPendingBaseAssignment=null;
-  baseAssignmentBatch=[];
-}
-function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null;baseAssignmentBatch=[]}
+function acceptDriver(){const a=window.__yadahPendingBaseAssignment;if(!a)return;const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();publish()}pendingDestination={lon:a.lon,lat:a.lat,label:a.label};if(lblRouteStats)lblRouteStats.textContent=`📍 [BASE] ${a.label}. ¿Iniciar marcha?`;if(navRouteInfo)navRouteInfo.style.display='flex';$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
+function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action=i.status==='waiting'?'<button class="assign" data-yb="assign" data-id="'+i.id+'">ASIGNAR</button>':'<div class="yb-state">'+(i.status==='assigned'?'🟡 ASIGNADO A '+(i.driver||'—'):'🟢 ACEPTADO · '+(i.driver||'—'))+'</div>';action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
 function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen));}}function bind(){if(bound)return;bound=true;$('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',addQueue);$('yb-direct-assign')?.addEventListener('click',directAssign);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yadah-base-stack')?.addEventListener('click',e=>{const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-assignment-accept')?.addEventListener('click',acceptDriver);$('yb-assignment-reject')?.addEventListener('click',rejectDriver)}
