@@ -867,7 +867,7 @@
     <div class="nav-route-info" id="nav-route-info">
       <span id="lbl-route-stats">Destino seleccionado</span>
       <div class="nav-route-actions">
-        <button class="btn-nav-action btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
+        <button class="btn-nav-action btn-nav-start" id="btn-nav-start" onclick="startNavigationMatch()">¡Dar Marcha! 🚀</button>
         <button class="btn-nav-action btn-nav-cancel" onclick="cancelNavigation()">Cancelar ✕</button>
       </div>
     </div>
@@ -1329,9 +1329,11 @@
     let sirenInterval = null;
     let activeSosCoords = null;
     let pendingDestination = null;
-    // Ruta de base: acumula todos los servicios aceptados antes de iniciar la marcha.
+    // Estado de navegación: manual = buscador / base = ruta de varios destinos.
+    let pendingRouteMode = 'manual';
     let baseRouteStops = [];
     let baseAssignmentBatch = [];
+    let routeRequestInProgress = false;
     let gpsPermissionGranted = false;
     let searchTimeout = null;
     let baseUnlocked = false;
@@ -1392,7 +1394,11 @@
     function selectSuggestion(lon, lat, displayName, isLocal) {
       document.getElementById('input-destination').value = displayName.split(',')[0];
       searchSuggestions.style.display = 'none';
-      pendingDestination = { lon, lat, label: displayName.split(',')[0] };
+      // Una selección del buscador siempre representa una navegación manual.
+      pendingRouteMode = 'manual';
+      baseRouteStops = [];
+      baseAssignmentBatch = [];
+      pendingDestination = { lon: Number(lon), lat: Number(lat), label: displayName.split(',')[0] };
       lblRouteStats.textContent = `${isLocal ? '📍 [Local]' : '📍'} Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
       navRouteInfo.style.display = 'flex';
     }
@@ -1401,6 +1407,12 @@
       searchSuggestions.style.display = 'none';
       const query = document.getElementById('input-destination').value.trim();
       if (!query) return;
+
+      // Buscar un destino manual cancela cualquier estado de ruta de base anterior.
+      pendingRouteMode = 'manual';
+      baseRouteStops = [];
+      baseAssignmentBatch = [];
+
       const parsedGMap = parseGoogleMapsLink(query);
       if (parsedGMap) { selectSuggestion(parsedGMap.lon, parsedGMap.lat, 'Ubicación de Google Maps', false); return; }
       const foundLocal = getCustomPOIs().find(p => p.name.toLowerCase() === query.toLowerCase());
@@ -1413,27 +1425,49 @@
           const delta = 0.5;
           searchUrl += `&viewbox=${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}&bounded=1`;
         }
-        const resp = await fetch(searchUrl);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        let resp;
+        try {
+          resp = await fetch(searchUrl, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+        } finally { clearTimeout(timer); }
         const results = await resp.json();
         if (results && results.length > 0) {
           pendingDestination = { lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat), label: results[0].display_name.split(',')[0] };
           lblRouteStats.textContent = `📍 Destino: ${pendingDestination.label}. ¿Deseas iniciar marcha?`;
-        } else { alert("Lugar no encontrado."); navRouteInfo.style.display = 'none'; }
-      } catch (err) {}
+        } else {
+          alert("Lugar no encontrado.");
+          navRouteInfo.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error buscando destino:', err);
+        alert(err && err.name === 'AbortError' ? 'La búsqueda tardó demasiado. Intenta nuevamente.' : 'No se pudo buscar el destino.');
+        navRouteInfo.style.display = 'none';
+      }
     }
 
     async function startNavigationMatch() {
-      // Si hay servicios de base aceptados, DAR MARCHA inicia la RUTA completa.
-      if (baseRouteStops.length > 0) {
+      if (routeRequestInProgress) return;
+
+      // Una ruta de base solo se usa cuando el estado viene explícitamente de base.
+      if (pendingRouteMode === 'base' && baseRouteStops.length > 0) {
         firstPersonMode = true;
         updateViewButtonUI();
         await requestMultiStopRoute(baseRouteStops);
         return;
       }
+
       if (!pendingDestination) { alert("Primero selecciona un destino."); return; }
+      const destLon = Number(pendingDestination.lon);
+      const destLat = Number(pendingDestination.lat);
+      if (!Number.isFinite(destLon) || !Number.isFinite(destLat)) {
+        alert('El destino no tiene coordenadas válidas.');
+        return;
+      }
+
       firstPersonMode = true;
       updateViewButtonUI();
-      requestRouteToDestination(pendingDestination.lon, pendingDestination.lat, pendingDestination.label);
+      await requestRouteToDestination(destLon, destLat, pendingDestination.label || 'Destino');
     }
 
     function updateGpsLockState(allowed) {
@@ -1686,14 +1720,24 @@
     let destinationMarkers = [];
 
     function clearDestinationMarkers() {
-      if (destinationMarker) { destinationMarker.remove(); destinationMarker = null; }
+      if (destinationMarker) { try { destinationMarker.remove(); } catch (_) {} destinationMarker = null; }
       destinationMarkers.forEach(m => { try { m.remove(); } catch (_) {} });
       destinationMarkers = [];
     }
 
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     async function geocodeBaseStop(stop) {
-      if (stop.lon != null && stop.lat != null && !stop.fromBaseLabel) return stop;
-      const label = String(stop.label || '').trim();
+      if (stop && stop.lon != null && stop.lat != null && !stop.fromBaseLabel) return stop;
+      const label = String((stop && stop.label) || '').trim();
       if (!label) return null;
       const placeQuery = `${label}, Lourdes, Colón, El Salvador`;
       let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeQuery)}&limit=1`;
@@ -1701,15 +1745,21 @@
         const delta = 0.5;
         url += `&viewbox=${myLastCoords.lon - delta},${myLastCoords.lat + delta},${myLastCoords.lon + delta},${myLastCoords.lat - delta}&bounded=1`;
       }
-      const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const response = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 10000);
+      if (!response.ok) throw new Error(`Geocodificación HTTP ${response.status}`);
       const results = await response.json();
       if (!results || !results.length) return null;
       return { ...stop, lon: parseFloat(results[0].lon), lat: parseFloat(results[0].lat) };
     }
 
     async function requestMultiStopRoute(stops) {
+      if (routeRequestInProgress) return;
       if (!myLastCoords) { alert('Esperando señal de GPS...'); return; }
       if (!Array.isArray(stops) || !stops.length) { alert('No hay destinos en la ruta.'); return; }
+
+      routeRequestInProgress = true;
+      const startBtn = document.getElementById('btn-nav-start');
+      if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Calculando…'; }
       try {
         if (lblRouteStats) lblRouteStats.textContent = `🧭 Preparando RUTA con ${stops.length} destino${stops.length > 1 ? 's' : ''}...`;
         if (navRouteInfo) navRouteInfo.style.display = 'flex';
@@ -1717,29 +1767,24 @@
         const resolved = [];
         for (const stop of stops) {
           const item = await geocodeBaseStop(stop);
-          if (!item) {
-            alert(`No pude localizar el destino: ${stop.label || 'Sin nombre'}. Corrige el nombre antes de iniciar la ruta.`);
-            if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo localizar uno de los destinos.';
-            return;
-          }
+          if (!item) throw new Error(`No pude localizar el destino: ${stop.label || 'Sin nombre'}`);
           resolved.push(item);
         }
-        baseRouteStops = resolved;
 
         clearDestinationMarkers();
         resolved.forEach((stop, index) => {
           const el = document.createElement('div');
           el.style.fontSize = '1.8rem';
           el.textContent = index === resolved.length - 1 ? '🏁' : '📍';
-          const marker = new maplibregl.Marker({ element: el }).setLngLat([stop.lon, stop.lat]).addTo(map);
-          destinationMarkers.push(marker);
+          destinationMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([stop.lon, stop.lat]).addTo(map));
         });
 
-        const coords = [[myLastCoords.lon, myLastCoords.lat], ...resolved.map(s => [s.lon, s.lat])];
+        const coords = [[Number(myLastCoords.lon), Number(myLastCoords.lat)], ...resolved.map(s => [Number(s.lon), Number(s.lat)])];
         const coordString = coords.map(c => `${c[0]},${c[1]}`).join(';');
-        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson&steps=true`);
+        const res = await fetchWithTimeout(`https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson&steps=true`, {}, 15000);
+        if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
         const data = await res.json();
-        if (!data.routes || !data.routes.length) throw new Error('No route');
+        if (!data.routes || !data.routes.length) throw new Error('OSRM no devolvió una ruta');
 
         const route = data.routes[0];
         const labels = resolved.map((s, i) => `${i + 1}. ${s.label}`);
@@ -1749,43 +1794,84 @@
             `<div style="margin-top:5px">${(route.distance / 1000).toFixed(1)} km · ~${Math.round(route.duration / 60)} min</div><div style="margin-top:3px;color:#10b981">🚀 En marcha</div>`;
         }
         ensureLayersExist();
-        map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: { stops: labels } }] });
+        const source = map.getSource('nav-active-route');
+        if (!source) throw new Error('La capa de navegación no está disponible');
+        source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: { stops: labels } }] });
+        baseRouteStops = resolved;
+
         if (mqttClient && mqttClient.connected && currentUnit) {
           mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: labels.join(' → '), stops: resolved.map(s => ({ label: s.label, lon: s.lon, lat: s.lat })) }));
         }
       } catch (e) {
         console.error('Error calculando ruta múltiple:', e);
+        clearDestinationMarkers();
         if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo calcular la ruta.';
-        alert('No se pudo calcular la ruta completa. Verifica la conexión y los destinos.');
+        alert(e && e.name === 'AbortError' ? 'El servidor de rutas tardó demasiado. Intenta nuevamente.' : (e.message || 'No se pudo calcular la ruta completa.'));
+      } finally {
+        routeRequestInProgress = false;
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = '¡Dar Marcha! 🚀'; }
       }
     }
 
     async function requestRouteToDestination(destLon, destLat, label = 'Destino') {
-      if (!myLastCoords) { alert("Esperando señal de GPS..."); return; }
+      if (routeRequestInProgress) return false;
+      if (!myLastCoords) { alert("Esperando señal de GPS..."); return false; }
+      if (!map) { alert('El mapa todavía no está listo.'); return false; }
+
+      const lon = Number(destLon), lat = Number(destLat);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) { alert('El destino no tiene coordenadas válidas.'); return false; }
+
+      routeRequestInProgress = true;
+      const startBtn = document.getElementById('btn-nav-start');
+      if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Calculando…'; }
       clearDestinationMarkers();
-      const el = document.createElement('div'); el.style.fontSize = '2.2rem'; el.innerHTML = '🏁';
-      destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([destLon, destLat]).addTo(map);
+
       try {
-        if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...'; if (navRouteInfo) navRouteInfo.style.display = 'flex';
-        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${myLastCoords.lon},${myLastCoords.lat};${destLon},${destLat}?overview=full&geometries=geojson`);
+        const el = document.createElement('div');
+        el.style.fontSize = '2.2rem';
+        el.textContent = '🏁';
+        destinationMarker = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map);
+
+        if (lblRouteStats) lblRouteStats.textContent = 'Calculando trayecto...';
+        if (navRouteInfo) navRouteInfo.style.display = 'flex';
+
+        const startLon = Number(myLastCoords.lon), startLat = Number(myLastCoords.lat);
+        if (!Number.isFinite(startLon) || !Number.isFinite(startLat)) throw new Error('La posición GPS actual no es válida');
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${lon},${lat}?overview=full&geometries=geojson&steps=true`;
+        const res = await fetchWithTimeout(url, {}, 15000);
+        if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
         const data = await res.json();
-        if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). En marcha 🚀`;
-          ensureLayersExist();
-          map.getSource('nav-active-route').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: {} }] });
-          if (mqttClient && mqttClient.connected && currentUnit) {
-            mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: label }));
-          }
+        if (!data.routes || !data.routes.length) throw new Error('No se encontró una ruta para ese destino');
+
+        const route = data.routes[0];
+        ensureLayersExist();
+        const source = map.getSource('nav-active-route');
+        if (!source) throw new Error('La capa de navegación no está disponible');
+        source.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: route.geometry, properties: {} }] });
+
+        if (lblRouteStats) lblRouteStats.innerHTML = `🏁 <b>${label}</b><br>${(route.distance / 1000).toFixed(1)} km (~${Math.round(route.duration / 60)} min). En marcha 🚀`;
+        if (mqttClient && mqttClient.connected && currentUnit) {
+          mqttClient.publish('yadah/radio/flota/navigation', JSON.stringify({ unit: currentUnit, geometry: route.geometry, label: label }));
         }
-      } catch (e) { console.error(e); }
+        return true;
+      } catch (e) {
+        console.error('Error calculando ruta:', e);
+        clearDestinationMarkers();
+        if (lblRouteStats) lblRouteStats.textContent = '⚠️ No se pudo calcular el trayecto.';
+        alert(e && e.name === 'AbortError' ? 'El servidor de rutas tardó demasiado. Intenta nuevamente.' : (e.message || 'No se pudo calcular el trayecto.'));
+        return false;
+      } finally {
+        routeRequestInProgress = false;
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = '¡Dar Marcha! 🚀'; }
+      }
     }
 
     function cancelNavigation() {
       pendingDestination = null;
+      pendingRouteMode = 'manual';
       baseRouteStops = [];
       baseAssignmentBatch = [];
-      window.__yadahPendingBaseAssignment = null;
       clearDestinationMarkers();
       if (navRouteInfo) navRouteInfo.style.display = 'none';
       if (document.getElementById('input-destination')) document.getElementById('input-destination').value = '';
@@ -1967,18 +2053,15 @@
             if (isDriver() && assignData.targetUnit === currentUnit) {
               playBeep(880, 0.1);
               if (assignData.source === 'base' || assignData.source === 'base_direct') {
-                const key = assignData.baseQueueId || `${assignData.label}|${assignData.price || ''}`;
-                if (!baseAssignmentBatch.some(x => (x.baseQueueId || `${x.label}|${x.price || ''}`) === key)) {
-                  baseAssignmentBatch.push(assignData);
-                }
-                window.__yadahPendingBaseAssignment = baseAssignmentBatch[0];
+                // Acumulamos asignaciones de base para que ACEPTAR pueda formar una ruta de 1, 2 o 3 destinos.
+                if (!Array.isArray(baseAssignmentBatch)) baseAssignmentBatch = [];
+                if (!baseAssignmentBatch.some(x => x && x.baseQueueId === assignData.baseQueueId)) baseAssignmentBatch.push(assignData);
+                window.__yadahPendingBaseAssignment = assignData;
                 const box = document.getElementById('yadah-base-assignment');
                 const place = document.getElementById('yb-assignment-place');
                 const meta = document.getElementById('yb-assignment-meta');
-                if (place) {
-                  place.innerHTML = baseAssignmentBatch.map((x,i) => `${i + 1}. ${String(x.label || 'Destino de base').replace(/[&<>]/g, '')}`).join('<br>');
-                }
-                if (meta) meta.textContent = `🏠 RUTA DE BASE · ${baseAssignmentBatch.length} destino${baseAssignmentBatch.length > 1 ? 's' : ''}`;
+                if (place) place.innerHTML = baseAssignmentBatch.map((x, i) => `${i + 1}. ${String(x.label || 'Destino de base').replace(/[&<>]/g, '')}`).join('<br>');
+                if (meta) meta.textContent = `🏠 BASE · ${baseAssignmentBatch.length} destino${baseAssignmentBatch.length > 1 ? 's' : ''}`;
                 if (box) box.style.display = 'block';
               } else {
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
@@ -2705,19 +2788,20 @@ function directAssign(){if(!mod())return;const data=getBaseForm();if(!data)retur
 function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}
 function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
 function acceptDriver(){
-  if(!baseAssignmentBatch.length){const a=window.__yadahPendingBaseAssignment;if(a)baseAssignmentBatch=[a];}
+  if(!Array.isArray(baseAssignmentBatch)||!baseAssignmentBatch.length){const a=window.__yadahPendingBaseAssignment;if(a)baseAssignmentBatch=[a];}
   if(!baseAssignmentBatch.length)return;
   baseAssignmentBatch.forEach(a=>{const item=find(a.baseQueueId);if(item){item.status='accepted';item.acceptedAt=now();}});
   try{publish()}catch(e){}
+  pendingRouteMode='base';
   baseRouteStops=baseAssignmentBatch.map(a=>({label:a.label||'Destino de base',price:a.price||null,lon:null,lat:null,fromBaseLabel:true,baseQueueId:a.baseQueueId}));
-  pendingDestination=baseRouteStops[0]||null;
-  if(lblRouteStats){lblRouteStats.innerHTML=`🧭 <b>RUTA · ${baseRouteStops.length} DESTINO${baseRouteStops.length>1?'S':''}</b><br>`+baseRouteStops.map((s,i)=>`${i+1}. ${String(s.label).replace(/[&<>]/g,'')}`).join('<br>')+`<br><span style="color:#10b981">¿Iniciar ruta completa?</span>`;}
+  pendingDestination=null;
+  if(lblRouteStats)lblRouteStats.innerHTML=`🧭 <b>RUTA · ${baseRouteStops.length} DESTINO${baseRouteStops.length>1?'S':''}</b><br>`+baseRouteStops.map((s,i)=>`${i+1}. ${String(s.label).replace(/[&<>]/g,'')}`).join('<br>')+`<br><span style="color:#10b981">¿Iniciar ruta completa?</span>`;
   if(navRouteInfo)navRouteInfo.style.display='flex';
   $('yadah-base-assignment').style.display='none';
   window.__yadahPendingBaseAssignment=null;
   baseAssignmentBatch=[];
 }
-function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null}
+function rejectDriver(){const a=window.__yadahPendingBaseAssignment;if(a&&client&&client.connected)client.publish(TOPIC,JSON.stringify({action:'reject',id:a.baseQueueId,driver:unit(),timestamp:now()}));$('yadah-base-assignment').style.display='none';window.__yadahPendingBaseAssignment=null;baseAssignmentBatch=[]}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function render(){ensureDay();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action=i.status==='waiting'?'<button class="assign" data-yb="assign" data-id="'+i.id+'">ASIGNAR</button>':'<div class="yb-state">'+(i.status==='assigned'?'🟡 ASIGNADO A '+(i.driver||'—'):'🟢 ACEPTADO · '+(i.driver||'—'))+'</div>';action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
 function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen));}}function bind(){if(bound)return;bound=true;$('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',addQueue);$('yb-direct-assign')?.addEventListener('click',directAssign);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yadah-base-stack')?.addEventListener('click',e=>{const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='assign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});$('yb-assignment-accept')?.addEventListener('click',acceptDriver);$('yb-assignment-reject')?.addEventListener('click',rejectDriver)}
