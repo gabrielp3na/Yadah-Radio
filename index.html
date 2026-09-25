@@ -863,25 +863,26 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 }
 
 
-/* ===== BURBUJA BASE 15s — SOLO PRESENTACIÓN ===== */
-#yadah-base-notifications.yadah-simple-bubble-15s{
-  width:58px!important;height:58px!important;max-height:58px!important;
+/* ===== BURBUJA BASE: TODOS LOS SERVICIOS EN UNA SOLA ===== */
+#yadah-base-notifications.yadah-base-bubble{
+  width:58px!important;height:58px!important;min-height:58px!important;max-height:58px!important;
   left:auto!important;right:14px!important;top:auto!important;bottom:145px!important;
   transform:none!important;padding:0!important;margin:0!important;overflow:visible!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
 }
-#yadah-base-notifications.yadah-simple-bubble-15s .yb-notify-card{display:none!important}
-#yadah-base-notifications.yadah-simple-bubble-15s::before{
+#yadah-base-notifications.yadah-base-bubble .yb-notify-card{display:none!important}
+#yadah-base-notifications.yadah-base-bubble::before{
   content:'🚕';width:58px;height:58px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   background:#0891b2;border:3px solid #38bdf8;
-  box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:25px;cursor:pointer;
+  box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:25px;cursor:pointer;box-sizing:border-box;
 }
-#yadah-base-notifications.yadah-simple-bubble-15s::after{
+#yadah-base-notifications.yadah-base-bubble::after{
   content:attr(data-bubble-count);position:absolute;right:-4px;top:-4px;
   min-width:20px;height:20px;padding:0 4px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  background:#ef4444;color:#fff;border:2px solid #0f172a;font-size:10px;font-weight:900;
+  background:#ef4444;color:#fff;border:2px solid #0f172a;
+  font-size:10px;font-weight:900;box-sizing:border-box;
 }
 
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
@@ -2010,7 +2011,6 @@ function checkAuth(){
                 if (place) place.textContent = assignData.label || 'Destino de base';
                 if (meta) meta.textContent = `🏠 BASE · ${assignData.price ? '$' + Number(assignData.price).toFixed(2) : 'Tarifa registrada'}`;
                 if (box) box.style.display = 'block';
-  if (window.yadahStartBaseBubbleTimer) window.yadahStartBaseBubbleTimer();
               } else {
                 window.__yadahBaseNoNavigation = false;
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
@@ -2542,34 +2542,50 @@ function checkAuth(){
 
     if (!trackingUnit) checkAuth();
 
-/* ===== YADAH: BURBUJA BASE 15s — TEMPORIZADOR DIRECTO ===== */
+/* ===== YADAH: BURBUJA BASE FINAL — UNA SOLA BURBUJA ===== */
 (function(){
   var timer=null;
+  window.yadahBaseBubbleTimerStarted=false;
 
   window.yadahStartBaseBubbleTimer=function(){
     var box=document.getElementById('yadah-base-notifications');
-    if(!box) return;
+    if(!box || !box.querySelector('.yb-notify-card')) return;
+
+    window.yadahBaseBubbleTimerStarted=true;
     clearTimeout(timer);
+
     timer=setTimeout(function(){
       var b=document.getElementById('yadah-base-notifications');
       if(!b) return;
       var cards=b.querySelectorAll('.yb-notify-card');
       if(!cards.length) return;
-      b.classList.add('yadah-simple-bubble-15s');
+
       b.setAttribute('data-bubble-count',String(cards.length));
+      b.classList.add('yadah-base-bubble');
     },15000);
+  };
+
+  window.yadahBaseBubbleUpdateCount=function(n){
+    var box=document.getElementById('yadah-base-notifications');
+    if(!box) return;
+
+    box.setAttribute('data-bubble-count',String(n));
+
+    if(n===0){
+      clearTimeout(timer);
+      window.yadahBaseBubbleTimerStarted=false;
+      box.classList.remove('yadah-base-bubble');
+      box.removeAttribute('data-bubble-count');
+    }
   };
 
   document.addEventListener('click',function(e){
     var box=document.getElementById('yadah-base-notifications');
-    if(!box || !box.classList.contains('yadah-simple-bubble-15s')) return;
+    if(!box || !box.classList.contains('yadah-base-bubble')) return;
 
-    if(e.target===box || box.contains(e.target)){
-      e.preventDefault();
-      e.stopPropagation();
-      box.classList.remove('yadah-simple-bubble-15s');
-      clearTimeout(timer);
-    }
+    e.preventDefault();
+    e.stopPropagation();
+    box.classList.remove('yadah-base-bubble');
   },true);
 })();
 
@@ -2763,7 +2779,7 @@ function registerClient(){ensureDay();const data=getBaseForm();if(!data)return;c
 function showDriverSelector(title,summary,callback){$('yb-modal-title').textContent=title;$('yb-add-view').style.display='none';$('yb-assign-view').style.display='block';$('yb-draft-summary').innerHTML=summary;const grid=$('yb-unit-grid');grid.innerHTML='';const units=typeof ALL_UNITS!=='undefined'?ALL_UNITS:[];units.filter(u=>u&&u!=='Modulador').forEach(u=>{const b=document.createElement('button');b.textContent='🚕 '+u;b.onclick=()=>callback(u);grid.appendChild(b)});$('yadah-base-modal').style.display='flex'}
 function openAssign(id){if(!mod())return;const item=find(id);if(!item||!['waiting','assigned'].includes(item.status))return;showDriverSelector('🔄 Reasignar pendiente',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b>`,u=>reassign(id,u))}function reassign(id,target){const item=find(id);if(!item||!['waiting','assigned'].includes(item.status))return;item.status='assigned';item.driver=target;item.assignedAt=now();item.acceptedAt=null;publish();sendAssignment(item,target);closeModal()}
 function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Registrar cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
-function finishBaseDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='accepted')return;if(!confirm('¿Finalizar este servicio de BASE?\n\n'+item.place))return;item.status='done';item.finishedAt=now();if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBaseNotifications();alert('✅ Servicio finalizado.')}function renderBaseNotifications(){const box=$('yadah-base-notifications');if(!box)return;if(mod()||clientRole()){box.style.display='none';box.innerHTML='';return}window.__yadahPendingBaseAssignments=window.__yadahPendingBaseAssignments||{};const map=new Map();state.items.filter(i=>i&&i.driver===unit()&&['assigned','accepted'].includes(i.status)).forEach(i=>map.set(i.id,i));Object.keys(window.__yadahPendingBaseAssignments).forEach(id=>{const a=window.__yadahPendingBaseAssignments[id];if(a&&a.baseQueueId&&!map.has(a.baseQueueId))map.set(a.baseQueueId,{id:a.baseQueueId,place:a.label||'Destino de base',price:a.price||0,driver:unit(),status:'assigned',assignedAt:a.assignedAt||now()})});const items=Array.from(map.values()).sort((a,b)=>Number(a.assignedAt||a.acceptedAt||0)-Number(b.assignedAt||b.acceptedAt||0));if(!items.length){box.style.display='none';box.innerHTML='';return}box.innerHTML='';items.forEach(item=>{const card=document.createElement('div');card.className='yb-notify-card '+(item.status==='assigned'?'pending':'accepted');if(item.status==='assigned'){card.innerHTML='<div class="yb-notify-title">🏠 SERVICIO DE BASE PENDIENTE</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ESPERANDO ACEPTACIÓN</div><div class="yb-notify-actions"><button class="yb-notify-reject" data-base-action="reject" data-id="'+esc(item.id)+'">RECHAZAR</button><button class="yb-notify-accept" data-base-action="accept" data-id="'+esc(item.id)+'">ACEPTAR</button></div>'}else{card.innerHTML='<div class="yb-notify-title">🚕 SERVICIO DE BASE ACEPTADO</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ACEPTADO</div><button class="yb-notify-finish" data-base-finish="1" data-id="'+esc(item.id)+'">✅ FINALIZAR SERVICIO</button>'}box.appendChild(card)});box.style.display='flex'}function renderBasePending(){renderBaseNotifications()}function renderBaseActive(){renderBaseNotifications()}function acceptDriver(id){const a=window.__yadahPendingBaseAssignments&&window.__yadahPendingBaseAssignments[id];const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='accepted';item.acceptedAt=now();window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';try{if(destinationMarker){destinationMarker.remove();destinationMarker=null;}}catch(e){}if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBasePending();renderBaseActive();alert(`✅ Servicio aceptado.\nDestino: ${item.place||a?.label||'Destino de base'}\n\nEl servicio queda activo hasta que pulses FINALIZAR.`)}function rejectDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='waiting';item.driver=null;item.assignedAt=null;item.acceptedAt=null;if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';publish();renderBasePending()}function fmtTime(ts){return new Date(ts).toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})}function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function finishBaseDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='accepted')return;if(!confirm('¿Finalizar este servicio de BASE?\n\n'+item.place))return;item.status='done';item.finishedAt=now();if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBaseNotifications();alert('✅ Servicio finalizado.')}function renderBaseNotifications(){const box=$('yadah-base-notifications');if(!box)return;if(mod()||clientRole()){box.style.display='none';box.innerHTML='';return}window.__yadahPendingBaseAssignments=window.__yadahPendingBaseAssignments||{};const map=new Map();state.items.filter(i=>i&&i.driver===unit()&&['assigned','accepted'].includes(i.status)).forEach(i=>map.set(i.id,i));Object.keys(window.__yadahPendingBaseAssignments).forEach(id=>{const a=window.__yadahPendingBaseAssignments[id];if(a&&a.baseQueueId&&!map.has(a.baseQueueId))map.set(a.baseQueueId,{id:a.baseQueueId,place:a.label||'Destino de base',price:a.price||0,driver:unit(),status:'assigned',assignedAt:a.assignedAt||now()})});const items=Array.from(map.values()).sort((a,b)=>Number(a.assignedAt||a.acceptedAt||0)-Number(b.assignedAt||b.acceptedAt||0));if(!items.length){box.style.display='none';box.innerHTML='';if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(0);return}box.innerHTML='';items.forEach(item=>{const card=document.createElement('div');card.className='yb-notify-card '+(item.status==='assigned'?'pending':'accepted');if(item.status==='assigned'){card.innerHTML='<div class="yb-notify-title">🏠 SERVICIO DE BASE PENDIENTE</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ESPERANDO ACEPTACIÓN</div><div class="yb-notify-actions"><button class="yb-notify-reject" data-base-action="reject" data-id="'+esc(item.id)+'">RECHAZAR</button><button class="yb-notify-accept" data-base-action="accept" data-id="'+esc(item.id)+'">ACEPTAR</button></div>'}else{card.innerHTML='<div class="yb-notify-title">🚕 SERVICIO DE BASE ACEPTADO</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ACEPTADO</div><button class="yb-notify-finish" data-base-finish="1" data-id="'+esc(item.id)+'">✅ FINALIZAR SERVICIO</button>'}box.appendChild(card)});if(window.yadahStartBaseBubbleTimer&&!window.yadahBaseBubbleTimerStarted)window.yadahStartBaseBubbleTimer();if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(items.length);box.style.display='flex'}function renderBasePending(){renderBaseNotifications()}function renderBaseActive(){renderBaseNotifications()}function acceptDriver(id){const a=window.__yadahPendingBaseAssignments&&window.__yadahPendingBaseAssignments[id];const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='accepted';item.acceptedAt=now();window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';try{if(destinationMarker){destinationMarker.remove();destinationMarker=null;}}catch(e){}if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBasePending();renderBaseActive();alert(`✅ Servicio aceptado.\nDestino: ${item.place||a?.label||'Destino de base'}\n\nEl servicio queda activo hasta que pulses FINALIZAR.`)}function rejectDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='waiting';item.driver=null;item.assignedAt=null;item.acceptedAt=null;if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';publish();renderBasePending()}function fmtTime(ts){return new Date(ts).toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})}function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function renderClientQueue(){const box=$('client-queue-list');if(!box)return;const visible=state.items.filter(i=>['waiting','assigned'].includes(i.status)).sort((a,b)=>Number(a.createdAt)-Number(b.createdAt));box.innerHTML='';if(!visible.length){box.innerHTML='<div class="cq-empty">No hay clientes esperando en la sala.</div>';return}visible.forEach(i=>{const card=document.createElement('div');card.className='cq-card';const assigned=i.status==='assigned'&&i.driver?` · ASIGNADO A ${esc(i.driver)}`:'';card.innerHTML=`<div class="cq-row"><div class="cq-dest">🏠 ${esc(i.place)}</div><div class="cq-time">${fmtTime(i.createdAt)}</div></div><div class="cq-status ${i.status==='assigned'?'assigned':''}">🟡 PENDIENTE${assigned}</div>`;box.appendChild(card)})}
 function render(){ensureDay();renderBasePending();renderBaseActive();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(clientRole()){if(stack)stack.style.display='none';if(fab)fab.style.display='none';renderClientQueue();return}if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action='';if(i.status==='waiting'){action='<button class="assign" data-yb="reassign" data-id="'+i.id+'">ASIGNAR</button>'}else if(i.status==='assigned'){action='<button class="assign" data-yb="reassign" data-id="'+i.id+'">REASIGNAR PENDIENTE</button>'}action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 PENDIENTE · ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+(i.driver?' · '+esc(i.driver):'')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
 function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen))}}
