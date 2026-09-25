@@ -863,26 +863,42 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 }
 
 
-/* ===== BURBUJA BASE: TODOS LOS SERVICIOS EN UNA SOLA ===== */
+/* ===== BURBUJA BASE: UNA SOLA + MOVIBLE ===== */
 #yadah-base-notifications.yadah-base-bubble{
-  width:58px!important;height:58px!important;min-height:58px!important;max-height:58px!important;
-  left:auto!important;right:14px!important;top:auto!important;bottom:145px!important;
-  transform:none!important;padding:0!important;margin:0!important;overflow:visible!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;
+  width:58px!important;height:58px!important;
+  min-width:58px!important;max-width:58px!important;
+  min-height:58px!important;max-height:58px!important;
+  left:auto;right:14px;top:auto;bottom:145px;
+  transform:none!important;
+  padding:0!important;margin:0!important;
+  overflow:visible!important;
+  display:flex!important;
+  align-items:center!important;justify-content:center!important;
+  flex-direction:column!important;
+  cursor:grab!important;
+  touch-action:none!important;
+  user-select:none!important;
 }
-#yadah-base-notifications.yadah-base-bubble .yb-notify-card{display:none!important}
+#yadah-base-notifications.yadah-base-bubble:active{cursor:grabbing!important}
+#yadah-base-notifications.yadah-base-bubble .yb-notify-card{
+  display:none!important;
+}
 #yadah-base-notifications.yadah-base-bubble::before{
-  content:'🚕';width:58px;height:58px;border-radius:50%;
+  content:'🚕';
+  width:58px;height:58px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   background:#0891b2;border:3px solid #38bdf8;
-  box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:25px;cursor:pointer;box-sizing:border-box;
+  box-shadow:0 4px 14px rgba(0,0,0,.45);
+  font-size:25px;cursor:grab;box-sizing:border-box;
 }
 #yadah-base-notifications.yadah-base-bubble::after{
-  content:attr(data-bubble-count);position:absolute;right:-4px;top:-4px;
+  content:attr(data-bubble-count);
+  position:absolute;right:-4px;top:-4px;
   min-width:20px;height:20px;padding:0 4px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
   background:#ef4444;color:#fff;border:2px solid #0f172a;
   font-size:10px;font-weight:900;box-sizing:border-box;
+  pointer-events:none;
 }
 
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
@@ -2541,52 +2557,154 @@ function checkAuth(){
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
-
-/* ===== YADAH: BURBUJA BASE FINAL — UNA SOLA BURBUJA ===== */
+/* ===== YADAH: BURBUJA BASE — NUEVA CARRERA + AUTO CIERRE 15s ===== */
 (function(){
-  var timer=null;
+  var timer=null, dragging=false, moved=false;
+  var sx=0,sy=0,sl=0,st=0;
+  var lastBaseCount=0;
+
   window.yadahBaseBubbleTimerStarted=false;
 
-  window.yadahStartBaseBubbleTimer=function(){
-    var box=document.getElementById('yadah-base-notifications');
-    if(!box || !box.querySelector('.yb-notify-card')) return;
+  function box(){ return document.getElementById('yadah-base-notifications'); }
+  function count(){
+    var b=box();
+    return b ? b.querySelectorAll('.yb-notify-card').length : 0;
+  }
 
-    window.yadahBaseBubbleTimerStarted=true;
+  function startCloseTimer(){
+    var b=box();
+    if(!b || !count()) return;
     clearTimeout(timer);
+    window.yadahBaseBubbleTimerStarted=true;
 
     timer=setTimeout(function(){
-      var b=document.getElementById('yadah-base-notifications');
-      if(!b) return;
-      var cards=b.querySelectorAll('.yb-notify-card');
-      if(!cards.length) return;
-
-      b.setAttribute('data-bubble-count',String(cards.length));
-      b.classList.add('yadah-base-bubble');
+      var el=box();
+      var n=count();
+      if(!el || !n) return;
+      el.setAttribute('data-bubble-count',String(n));
+      el.classList.add('yadah-base-bubble');
     },15000);
+  }
+
+  window.yadahStartBaseBubbleTimer=function(){
+    var b=box();
+    var n=count();
+    if(!b || !n) return;
+
+    /* Primera asignación. */
+    if(lastBaseCount===0){
+      lastBaseCount=n;
+      b.classList.remove('yadah-base-bubble');
+      startCloseTimer();
+      return;
+    }
+
+    /* Nueva asignación: abrir y dar 15 segundos completos. */
+    if(n>lastBaseCount){
+      lastBaseCount=n;
+      b.classList.remove('yadah-base-bubble');
+      b.setAttribute('data-bubble-count',String(n));
+      startCloseTimer();
+      return;
+    }
+
+    /* Sin nueva asignación: no reiniciar por cada render. */
   };
 
   window.yadahBaseBubbleUpdateCount=function(n){
-    var box=document.getElementById('yadah-base-notifications');
-    if(!box) return;
+    var b=box();
+    if(!b) return;
 
-    box.setAttribute('data-bubble-count',String(n));
+    b.setAttribute('data-bubble-count',String(n));
 
     if(n===0){
       clearTimeout(timer);
       window.yadahBaseBubbleTimerStarted=false;
-      box.classList.remove('yadah-base-bubble');
-      box.removeAttribute('data-bubble-count');
+      lastBaseCount=0;
+      b.classList.remove('yadah-base-bubble');
+      b.style.left=''; b.style.top=''; b.style.right=''; b.style.bottom='';
+      b.removeAttribute('data-bubble-count');
+      return;
     }
+
+    /* Si se finaliza una de varias, conserva la burbuja si estaba cerrada. */
+    if(n<lastBaseCount) lastBaseCount=n;
   };
 
-  document.addEventListener('click',function(e){
-    var box=document.getElementById('yadah-base-notifications');
-    if(!box || !box.classList.contains('yadah-base-bubble')) return;
+  function openBubble(){
+    var b=box();
+    var n=count();
+    if(!b || !n) return;
 
+    /* Abrir para poder finalizar. */
+    b.classList.remove('yadah-base-bubble');
+
+    /* Al abrir, empieza nuevamente un ciclo de 15 segundos. */
+    clearTimeout(timer);
+    window.yadahBaseBubbleTimerStarted=true;
+
+    timer=setTimeout(function(){
+      var el=box();
+      var active=count();
+      if(!el || !active) return;
+      el.setAttribute('data-bubble-count',String(active));
+      el.classList.add('yadah-base-bubble');
+    },15000);
+  }
+
+  function pointerDown(e){
+    var b=box();
+    if(!b || !b.classList.contains('yadah-base-bubble')) return;
+
+    dragging=true; moved=false;
+    sx=e.clientX; sy=e.clientY;
+
+    var r=b.getBoundingClientRect();
+    sl=r.left; st=r.top;
+
+    b.style.right='auto'; b.style.bottom='auto';
+    b.style.left=sl+'px'; b.style.top=st+'px';
+
+    try{b.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
-    e.stopPropagation();
-    box.classList.remove('yadah-base-bubble');
-  },true);
+  }
+
+  function pointerMove(e){
+    if(!dragging) return;
+
+    var dx=e.clientX-sx, dy=e.clientY-sy;
+    if(Math.abs(dx)>5 || Math.abs(dy)>5) moved=true;
+
+    if(moved){
+      var b=box();
+      if(!b) return;
+
+      var maxX=Math.max(4,window.innerWidth-b.offsetWidth-4);
+      var maxY=Math.max(4,window.innerHeight-b.offsetHeight-4);
+
+      b.style.left=Math.min(maxX,Math.max(4,sl+dx))+'px';
+      b.style.top=Math.min(maxY,Math.max(4,st+dy))+'px';
+    }
+    e.preventDefault();
+  }
+
+  function pointerUp(e){
+    if(!dragging) return;
+    dragging=false;
+
+    var b=box();
+    if(!b) return;
+
+    if(!moved) openBubble();
+
+    try{b.releasePointerCapture(e.pointerId)}catch(_){}
+    e.preventDefault();
+  }
+
+  document.addEventListener('pointerdown',pointerDown,true);
+  document.addEventListener('pointermove',pointerMove,true);
+  document.addEventListener('pointerup',pointerUp,true);
+  document.addEventListener('pointercancel',function(){dragging=false;},true);
 })();
 
   </script>
@@ -2779,7 +2897,7 @@ function registerClient(){ensureDay();const data=getBaseForm();if(!data)return;c
 function showDriverSelector(title,summary,callback){$('yb-modal-title').textContent=title;$('yb-add-view').style.display='none';$('yb-assign-view').style.display='block';$('yb-draft-summary').innerHTML=summary;const grid=$('yb-unit-grid');grid.innerHTML='';const units=typeof ALL_UNITS!=='undefined'?ALL_UNITS:[];units.filter(u=>u&&u!=='Modulador').forEach(u=>{const b=document.createElement('button');b.textContent='🚕 '+u;b.onclick=()=>callback(u);grid.appendChild(b)});$('yadah-base-modal').style.display='flex'}
 function openAssign(id){if(!mod())return;const item=find(id);if(!item||!['waiting','assigned'].includes(item.status))return;showDriverSelector('🔄 Reasignar pendiente',`Destino: <b>${esc(item.place)}</b><br>Precio: <b>$${Number(item.price).toFixed(2)}</b>`,u=>reassign(id,u))}function reassign(id,target){const item=find(id);if(!item||!['waiting','assigned'].includes(item.status))return;item.status='assigned';item.driver=target;item.assignedAt=now();item.acceptedAt=null;publish();sendAssignment(item,target);closeModal()}
 function cancel(id){const item=find(id);if(!item||!mod())return;if(!confirm('¿Quitar este cliente de la cola de base?\n\n'+item.place))return;item.status='cancelled';item.finishedAt=now();publish()}function openAdd(){if(!mod())return;$('yb-modal-title').textContent='🏠 Registrar cliente de base';$('yb-add-view').style.display='block';$('yb-assign-view').style.display='none';$('yb-destination').value='';$('yb-price').value='1.00';$('yb-custom-price').style.display='none';$('yb-custom-price').value='';$('yadah-base-modal').style.display='flex'}function closeModal(){if($('yadah-base-modal'))$('yadah-base-modal').style.display='none'}
-function finishBaseDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='accepted')return;if(!confirm('¿Finalizar este servicio de BASE?\n\n'+item.place))return;item.status='done';item.finishedAt=now();if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBaseNotifications();alert('✅ Servicio finalizado.')}function renderBaseNotifications(){const box=$('yadah-base-notifications');if(!box)return;if(mod()||clientRole()){box.style.display='none';box.innerHTML='';return}window.__yadahPendingBaseAssignments=window.__yadahPendingBaseAssignments||{};const map=new Map();state.items.filter(i=>i&&i.driver===unit()&&['assigned','accepted'].includes(i.status)).forEach(i=>map.set(i.id,i));Object.keys(window.__yadahPendingBaseAssignments).forEach(id=>{const a=window.__yadahPendingBaseAssignments[id];if(a&&a.baseQueueId&&!map.has(a.baseQueueId))map.set(a.baseQueueId,{id:a.baseQueueId,place:a.label||'Destino de base',price:a.price||0,driver:unit(),status:'assigned',assignedAt:a.assignedAt||now()})});const items=Array.from(map.values()).sort((a,b)=>Number(a.assignedAt||a.acceptedAt||0)-Number(b.assignedAt||b.acceptedAt||0));if(!items.length){box.style.display='none';box.innerHTML='';if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(0);return}box.innerHTML='';items.forEach(item=>{const card=document.createElement('div');card.className='yb-notify-card '+(item.status==='assigned'?'pending':'accepted');if(item.status==='assigned'){card.innerHTML='<div class="yb-notify-title">🏠 SERVICIO DE BASE PENDIENTE</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ESPERANDO ACEPTACIÓN</div><div class="yb-notify-actions"><button class="yb-notify-reject" data-base-action="reject" data-id="'+esc(item.id)+'">RECHAZAR</button><button class="yb-notify-accept" data-base-action="accept" data-id="'+esc(item.id)+'">ACEPTAR</button></div>'}else{card.innerHTML='<div class="yb-notify-title">🚕 SERVICIO DE BASE ACEPTADO</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ACEPTADO</div><button class="yb-notify-finish" data-base-finish="1" data-id="'+esc(item.id)+'">✅ FINALIZAR SERVICIO</button>'}box.appendChild(card)});if(window.yadahStartBaseBubbleTimer&&!window.yadahBaseBubbleTimerStarted)window.yadahStartBaseBubbleTimer();if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(items.length);box.style.display='flex'}function renderBasePending(){renderBaseNotifications()}function renderBaseActive(){renderBaseNotifications()}function acceptDriver(id){const a=window.__yadahPendingBaseAssignments&&window.__yadahPendingBaseAssignments[id];const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='accepted';item.acceptedAt=now();window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';try{if(destinationMarker){destinationMarker.remove();destinationMarker=null;}}catch(e){}if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBasePending();renderBaseActive();alert(`✅ Servicio aceptado.\nDestino: ${item.place||a?.label||'Destino de base'}\n\nEl servicio queda activo hasta que pulses FINALIZAR.`)}function rejectDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='waiting';item.driver=null;item.assignedAt=null;item.acceptedAt=null;if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';publish();renderBasePending()}function fmtTime(ts){return new Date(ts).toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})}function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function finishBaseDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='accepted')return;if(!confirm('¿Finalizar este servicio de BASE?\n\n'+item.place))return;item.status='done';item.finishedAt=now();if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBaseNotifications();alert('✅ Servicio finalizado.')}function renderBaseNotifications(){const box=$('yadah-base-notifications');if(!box)return;if(mod()||clientRole()){box.style.display='none';box.innerHTML='';return}window.__yadahPendingBaseAssignments=window.__yadahPendingBaseAssignments||{};const map=new Map();state.items.filter(i=>i&&i.driver===unit()&&['assigned','accepted'].includes(i.status)).forEach(i=>map.set(i.id,i));Object.keys(window.__yadahPendingBaseAssignments).forEach(id=>{const a=window.__yadahPendingBaseAssignments[id];if(a&&a.baseQueueId&&!map.has(a.baseQueueId))map.set(a.baseQueueId,{id:a.baseQueueId,place:a.label||'Destino de base',price:a.price||0,driver:unit(),status:'assigned',assignedAt:a.assignedAt||now()})});const items=Array.from(map.values()).sort((a,b)=>Number(a.assignedAt||a.acceptedAt||0)-Number(b.assignedAt||b.acceptedAt||0));if(!items.length){box.style.display='none';box.innerHTML='';if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(0);return}box.innerHTML='';items.forEach(item=>{const card=document.createElement('div');card.className='yb-notify-card '+(item.status==='assigned'?'pending':'accepted');if(item.status==='assigned'){card.innerHTML='<div class="yb-notify-title">🏠 SERVICIO DE BASE PENDIENTE</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ESPERANDO ACEPTACIÓN</div><div class="yb-notify-actions"><button class="yb-notify-reject" data-base-action="reject" data-id="'+esc(item.id)+'">RECHAZAR</button><button class="yb-notify-accept" data-base-action="accept" data-id="'+esc(item.id)+'">ACEPTAR</button></div>'}else{card.innerHTML='<div class="yb-notify-title">🚕 SERVICIO DE BASE ACEPTADO</div><div class="yb-notify-place">'+esc(item.place||'Destino de base')+'</div><div class="yb-notify-meta">🏠 BASE · '+(item.price?'$'+Number(item.price).toFixed(2):'Tarifa registrada')+' · ACEPTADO</div><button class="yb-notify-finish" data-base-finish="1" data-id="'+esc(item.id)+'">✅ FINALIZAR SERVICIO</button>'}box.appendChild(card)});if(window.yadahBaseBubbleUpdateCount)window.yadahBaseBubbleUpdateCount(items.length);if(window.yadahStartBaseBubbleTimer)window.yadahStartBaseBubbleTimer();box.style.display='flex'}function renderBasePending(){renderBaseNotifications()}function renderBaseActive(){renderBaseNotifications()}function acceptDriver(id){const a=window.__yadahPendingBaseAssignments&&window.__yadahPendingBaseAssignments[id];const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='accepted';item.acceptedAt=now();window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';try{if(destinationMarker){destinationMarker.remove();destinationMarker=null;}}catch(e){}if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];publish();renderBasePending();renderBaseActive();alert(`✅ Servicio aceptado.\nDestino: ${item.place||a?.label||'Destino de base'}\n\nEl servicio queda activo hasta que pulses FINALIZAR.`)}function rejectDriver(id){const item=find(id);if(!item||item.driver!==unit()||item.status!=='assigned')return;item.status='waiting';item.driver=null;item.assignedAt=null;item.acceptedAt=null;if(window.__yadahPendingBaseAssignments)delete window.__yadahPendingBaseAssignments[id];window.__yadahBaseNoNavigation=true;pendingDestination=null;if(navRouteInfo)navRouteInfo.style.display='none';if(lblRouteStats)lblRouteStats.textContent='Destino seleccionado';publish();renderBasePending()}function fmtTime(ts){return new Date(ts).toLocaleTimeString('es-SV',{hour:'2-digit',minute:'2-digit'})}function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function renderClientQueue(){const box=$('client-queue-list');if(!box)return;const visible=state.items.filter(i=>['waiting','assigned'].includes(i.status)).sort((a,b)=>Number(a.createdAt)-Number(b.createdAt));box.innerHTML='';if(!visible.length){box.innerHTML='<div class="cq-empty">No hay clientes esperando en la sala.</div>';return}visible.forEach(i=>{const card=document.createElement('div');card.className='cq-card';const assigned=i.status==='assigned'&&i.driver?` · ASIGNADO A ${esc(i.driver)}`:'';card.innerHTML=`<div class="cq-row"><div class="cq-dest">🏠 ${esc(i.place)}</div><div class="cq-time">${fmtTime(i.createdAt)}</div></div><div class="cq-status ${i.status==='assigned'?'assigned':''}">🟡 PENDIENTE${assigned}</div>`;box.appendChild(card)})}
 function render(){ensureDay();renderBasePending();renderBaseActive();const stack=$('yadah-base-stack'),fab=$('yadah-base-fab');if(clientRole()){if(stack)stack.style.display='none';if(fab)fab.style.display='none';renderClientQueue();return}if(fab)fab.style.display=mod()?'flex':'none';if(!stack)return;if(!mod()){stack.style.display='none';return}const visible=state.items.filter(i=>['waiting','assigned','accepted'].includes(i.status));stack.innerHTML='<div class="yb-panel-title">🏠 COLA DE BASE <span style="float:right">'+visible.filter(i=>i.status==='waiting').length+' esperando</span><button type="button" class="yb-add-client" id="yb-add-client">＋ AGREGAR</button></div>';if(!visible.length){stack.innerHTML+='<div class="yb-card"><div class="yb-state">No hay clientes en espera.</div></div>';stack.style.display=basePanelOpen?'flex':'none';return}visible.forEach(i=>{const card=document.createElement('div');card.className='yb-card '+i.status;let action='';if(i.status==='waiting'){action='<button class="assign" data-yb="reassign" data-id="'+i.id+'">ASIGNAR</button>'}else if(i.status==='assigned'){action='<button class="assign" data-yb="reassign" data-id="'+i.id+'">REASIGNAR PENDIENTE</button>'}action+='<button class="cancel" data-yb="cancel" data-id="'+i.id+'">QUITAR DE COLA</button>';card.innerHTML='<div class="yb-line"><div class="yb-place">🏠 '+esc(i.place)+'</div><div class="yb-price">$'+Number(i.price||0).toFixed(2)+'</div></div><div class="yb-state">'+(i.status==='waiting'?'🔵 EN COLA':i.status==='assigned'?'🟡 PENDIENTE · ESPERANDO ACEPTACIÓN':'🟢 ACEPTADA')+(i.driver?' · '+esc(i.driver):'')+'</div>'+action;stack.appendChild(card)});stack.style.display=basePanelOpen?'flex':'none'}
 function toggleBasePanel(){if(!mod())return;const stack=$('yadah-base-stack'),btn=$('yb-open-btn');if(!stack)return;basePanelOpen=!basePanelOpen;stack.style.display=basePanelOpen?'flex':'none';if(btn){btn.classList.toggle('active',basePanelOpen);btn.setAttribute('aria-expanded',String(basePanelOpen))}}
