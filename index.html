@@ -862,6 +862,28 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 .yb-notify-finish{padding:5px;font-size:.66rem;min-height:28px}
 }
 
+
+/* ===== BURBUJA BASE 15s — SOLO PRESENTACIÓN ===== */
+#yadah-base-notifications.yadah-simple-bubble-15s{
+  width:58px!important;height:58px!important;max-height:58px!important;
+  left:auto!important;right:14px!important;top:auto!important;bottom:145px!important;
+  transform:none!important;padding:0!important;margin:0!important;overflow:visible!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+#yadah-base-notifications.yadah-simple-bubble-15s .yb-notify-card{display:none!important}
+#yadah-base-notifications.yadah-simple-bubble-15s::before{
+  content:'🚕';width:58px;height:58px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#0891b2;border:3px solid #38bdf8;
+  box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:25px;cursor:pointer;
+}
+#yadah-base-notifications.yadah-simple-bubble-15s::after{
+  content:attr(data-bubble-count);position:absolute;right:-4px;top:-4px;
+  min-width:20px;height:20px;padding:0 4px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  background:#ef4444;color:#fff;border:2px solid #0f172a;font-size:10px;font-weight:900;
+}
+
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
 @media(max-width:799px){#yadah-base-modal{padding:62px 10px 10px;justify-content:flex-start}.yb-modal-card{width:min(380px,calc(100vw - 20px));max-height:66vh}}
 /* ===== YADAH: MODULO DE CARRERAS AISLADO DE LA RADIO ===== */
@@ -1988,6 +2010,7 @@ function checkAuth(){
                 if (place) place.textContent = assignData.label || 'Destino de base';
                 if (meta) meta.textContent = `🏠 BASE · ${assignData.price ? '$' + Number(assignData.price).toFixed(2) : 'Tarifa registrada'}`;
                 if (box) box.style.display = 'block';
+  if (window.yadahStartBaseBubbleTimer) window.yadahStartBaseBubbleTimer();
               } else {
                 window.__yadahBaseNoNavigation = false;
                 alert(`🎯 ¡Misión asignada: ${assignData.label}!`);
@@ -2518,6 +2541,38 @@ function checkAuth(){
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
+
+/* ===== YADAH: BURBUJA BASE 15s — TEMPORIZADOR DIRECTO ===== */
+(function(){
+  var timer=null;
+
+  window.yadahStartBaseBubbleTimer=function(){
+    var box=document.getElementById('yadah-base-notifications');
+    if(!box) return;
+    clearTimeout(timer);
+    timer=setTimeout(function(){
+      var b=document.getElementById('yadah-base-notifications');
+      if(!b) return;
+      var cards=b.querySelectorAll('.yb-notify-card');
+      if(!cards.length) return;
+      b.classList.add('yadah-simple-bubble-15s');
+      b.setAttribute('data-bubble-count',String(cards.length));
+    },15000);
+  };
+
+  document.addEventListener('click',function(e){
+    var box=document.getElementById('yadah-base-notifications');
+    if(!box || !box.classList.contains('yadah-simple-bubble-15s')) return;
+
+    if(e.target===box || box.contains(e.target)){
+      e.preventDefault();
+      e.stopPropagation();
+      box.classList.remove('yadah-simple-bubble-15s');
+      clearTimeout(timer);
+    }
+  },true);
+})();
+
   </script>
 
 <script>
