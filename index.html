@@ -862,13 +862,6 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 .yb-notify-finish{padding:5px;font-size:.66rem;min-height:28px}
 }
 
-/* ===== YADAH: BURBUJA FLOTANTE BASE ===== */
-#yadah-base-notifications.yadah-bubble-collapsed{width:58px!important;height:58px!important;max-height:none!important;left:auto!important;right:16px!important;top:auto!important;bottom:150px!important;transform:none!important;overflow:visible!important;padding:0!important;gap:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
-#yadah-base-notifications.yadah-bubble-collapsed .yb-notify-card{display:none!important}
-#yadah-base-notifications.yadah-bubble-collapsed::before{content:'🚕';width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0891b2;color:#fff;border:3px solid #38bdf8;box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:25px;font-weight:900;cursor:pointer}
-#yadah-base-notifications.yadah-bubble-collapsed::after{content:attr(data-count);position:absolute;right:-3px;top:-4px;min-width:21px;height:21px;padding:0 5px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;border:2px solid #0f172a;font-size:11px;font-weight:900;box-sizing:border-box}
-@media(max-width:799px){#yadah-base-notifications.yadah-bubble-collapsed{right:12px!important;bottom:145px!important}}
-
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
 @media(max-width:799px){#yadah-base-modal{padding:62px 10px 10px;justify-content:flex-start}.yb-modal-card{width:min(380px,calc(100vw - 20px));max-height:66vh}}
 /* ===== YADAH: MODULO DE CARRERAS AISLADO DE LA RADIO ===== */
@@ -2525,75 +2518,6 @@ function checkAuth(){
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
-/* ===== YADAH: CONTROL BURBUJA BASE (20s) ===== */
-(function(){
-  const BOX_ID='yadah-base-notifications';
-  let collapseTimer=null;
-  let collapsed=false;
-
-  function box(){ return document.getElementById(BOX_ID); }
-  function countCards(b){ return b ? b.querySelectorAll('.yb-notify-card').length : 0; }
-  function setCount(b){ if(b) b.setAttribute('data-count',String(countCards(b))); }
-
-  function collapse(){
-    const b=box();
-    if(!b || countCards(b)===0) return;
-    collapsed=true;
-    setCount(b);
-    b.classList.add('yadah-bubble-collapsed');
-  }
-
-  function expand(){
-    const b=box();
-    if(!b) return;
-    collapsed=false;
-    b.classList.remove('yadah-bubble-collapsed');
-    setCount(b);
-    schedule();
-  }
-
-  function schedule(){
-    clearTimeout(collapseTimer);
-    const b=box();
-    if(!b || collapsed || countCards(b)===0) return;
-    collapseTimer=setTimeout(collapse,20000);
-  }
-
-  function attach(){
-    const b=box();
-    if(!b || b.dataset.yadahBubbleReady==='1') return;
-    b.dataset.yadahBubbleReady='1';
-
-    b.addEventListener('click',function(ev){
-      if(b.classList.contains('yadah-bubble-collapsed')){
-        ev.preventDefault();
-        ev.stopPropagation();
-        expand();
-      } else {
-        schedule();
-      }
-    },true);
-
-    const observer=new MutationObserver(function(){
-      setCount(b);
-      if(countCards(b)===0){
-        clearTimeout(collapseTimer);
-        collapsed=false;
-        b.classList.remove('yadah-bubble-collapsed');
-      }else if(!collapsed){
-        schedule();
-      }
-    });
-    observer.observe(b,{childList:true,subtree:true,attributes:true});
-    setCount(b);
-    schedule();
-  }
-
-  const boot=setInterval(function(){
-    if(box()){ clearInterval(boot); attach(); }
-  },500);
-  setTimeout(function(){clearInterval(boot)},15000);
-})();
   </script>
 
 <script>
@@ -2798,4 +2722,3 @@ function init(){load();ensureDay();bind();render();connect();setInterval(()=>{re
 </script>
 </body>
 </html>
-PRUEBA VISUAL — NOTIFICACIONES BASE ULTRA COMPACTAS. Se redujo únicamente el tamaño, espaciado y altura máxima de las tarjetas de notificación. La lógica de asignación, aceptación y finalización permanece sin cambios.
