@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -2525,6 +2525,75 @@ function checkAuth(){
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
+/* ===== YADAH: CONTROL BURBUJA BASE (20s) ===== */
+(function(){
+  const BOX_ID='yadah-base-notifications';
+  let collapseTimer=null;
+  let collapsed=false;
+
+  function box(){ return document.getElementById(BOX_ID); }
+  function countCards(b){ return b ? b.querySelectorAll('.yb-notify-card').length : 0; }
+  function setCount(b){ if(b) b.setAttribute('data-count',String(countCards(b))); }
+
+  function collapse(){
+    const b=box();
+    if(!b || countCards(b)===0) return;
+    collapsed=true;
+    setCount(b);
+    b.classList.add('yadah-bubble-collapsed');
+  }
+
+  function expand(){
+    const b=box();
+    if(!b) return;
+    collapsed=false;
+    b.classList.remove('yadah-bubble-collapsed');
+    setCount(b);
+    schedule();
+  }
+
+  function schedule(){
+    clearTimeout(collapseTimer);
+    const b=box();
+    if(!b || collapsed || countCards(b)===0) return;
+    collapseTimer=setTimeout(collapse,20000);
+  }
+
+  function attach(){
+    const b=box();
+    if(!b || b.dataset.yadahBubbleReady==='1') return;
+    b.dataset.yadahBubbleReady='1';
+
+    b.addEventListener('click',function(ev){
+      if(b.classList.contains('yadah-bubble-collapsed')){
+        ev.preventDefault();
+        ev.stopPropagation();
+        expand();
+      } else {
+        schedule();
+      }
+    },true);
+
+    const observer=new MutationObserver(function(){
+      setCount(b);
+      if(countCards(b)===0){
+        clearTimeout(collapseTimer);
+        collapsed=false;
+        b.classList.remove('yadah-bubble-collapsed');
+      }else if(!collapsed){
+        schedule();
+      }
+    });
+    observer.observe(b,{childList:true,subtree:true,attributes:true});
+    setCount(b);
+    schedule();
+  }
+
+  const boot=setInterval(function(){
+    if(box()){ clearInterval(boot); attach(); }
+  },500);
+  setTimeout(function(){clearInterval(boot)},15000);
+})();
   </script>
 
 <script>
@@ -2730,8 +2799,3 @@ function init(){load();ensureDay();bind();render();connect();setInterval(()=>{re
 </body>
 </html>
 PRUEBA VISUAL — NOTIFICACIONES BASE ULTRA COMPACTAS. Se redujo únicamente el tamaño, espaciado y altura máxima de las tarjetas de notificación. La lógica de asignación, aceptación y finalización permanece sin cambios.
-
-/* ===== YADAH: CONTROL BURBUJA BASE (20s) ===== */
-(function(){const BOX_ID='yadah-base-notifications';let collapseTimer=null,collapsed=false;function box(){return document.getElementById(BOX_ID)}function countCards(b){return b?b.querySelectorAll('.yb-notify-card').length:0}function setCount(b){if(b)b.setAttribute('data-count',String(countCards(b)))}function collapse(){const b=box();if(!b||countCards(b)===0)return;collapsed=true;setCount(b);b.classList.add('yadah-bubble-collapsed')}function expand(){const b=box();if(!b)return;collapsed=false;b.classList.remove('yadah-bubble-collapsed');setCount(b);schedule()}function schedule(){clearTimeout(collapseTimer);const b=box();if(!b||collapsed||countCards(b)===0)return;collapseTimer=setTimeout(collapse,20000)}function attach(){const b=box();if(!b||b.dataset.yadahBubbleReady==='1')return;b.dataset.yadahBubbleReady='1';b.addEventListener('click',function(ev){if(b.classList.contains('yadah-bubble-collapsed')){ev.preventDefault();ev.stopPropagation();expand()}else schedule()},true);const observer=new MutationObserver(function(){setCount(b);if(countCards(b)===0){clearTimeout(collapseTimer);collapsed=false;b.classList.remove('yadah-bubble-collapsed')}else if(!collapsed)schedule()});observer.observe(b,{childList:true,subtree:true,attributes:true});setCount(b);schedule()}const boot=setInterval(function(){if(box()){clearInterval(boot);attach()}},500);setTimeout(function(){clearInterval(boot)},15000)})();
-
-PRUEBA — BURBUJA FLOTANTE BASE: las notificaciones BASE se muestran completas durante 20 segundos y luego se minimizan a una burbuja flotante. Tocar la burbuja vuelve a abrir la lista. La lógica de asignación, aceptación, rechazo y finalización no se modifica.
