@@ -149,119 +149,6 @@
       z-index: 2200;
     }
 
-    #map-context-menu {
-      position: absolute;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #111827;
-      border: 2px solid #38bdf8;
-      border-radius: 12px;
-      padding: 12px;
-      display: none;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 3200;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.8);
-      width: 270px;
-      text-align: center;
-    }
-
-    .menu-title {
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #38bdf8;
-      margin-bottom: 2px;
-    }
-
-    .btn-ctx {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      font-weight: 800;
-      font-size: 0.78rem;
-      cursor: pointer;
-    }
-
-    .btn-ctx-nav { background: #10b981; color: #ffffff; }
-    .btn-ctx-save { background: #38bdf8; color: #0b0f19; }
-    .btn-ctx-assign { background: #3b82f6; color: #ffffff; }
-    .btn-ctx-cancel { background: #374151; color: #cbd5e1; }
-
-    #fleet-summary-bar {
-      background: #0f172a;
-      border-bottom: 1px solid #334155;
-      padding: 6px 12px;
-      display: none;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.75rem;
-      cursor: pointer;
-      z-index: 999;
-    }
-
-    .badge-stat {
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-    .badge-stat.online { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-    .badge-stat.stopped { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-    .badge-stat.offline { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
-    .badge-stat.at-base { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-
-    #fleet-list-drawer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 320px;
-      height: 100vh;
-      height: 100dvh;
-      background: #111827;
-      border-right: 2px solid #38bdf8;
-      z-index: 3500;
-      display: none;
-      flex-direction: column;
-      box-shadow: 4px 0 20px rgba(0,0,0,0.8);
-    }
-
-    .drawer-header {
-      padding: 14px;
-      background: #030712;
-      border-bottom: 1px solid #1f2937;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: #38bdf8;
-      font-weight: 800;
-      font-size: 0.95rem;
-    }
-
-    .fleet-items-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .unit-card-row {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .unit-card-row:active { background: #334155; }
-
-    .unit-card-info b { font-size: 0.85rem; color: #f8fafc; }
-    .unit-card-info div { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
-
     #map-container {
       flex: 1;
       width: 100%;
@@ -667,16 +554,6 @@
       border: 1px solid #334155;
     }
 
-    .btn-play-audio {
-      background: #38bdf8;
-      border: none;
-      color: #111827;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
     .car-marker-container {
       display: flex;
       flex-direction: column;
@@ -797,9 +674,6 @@
     .yb-panel-title{pointer-events:auto;background:rgba(8,47,73,.97);border:1px solid #22d3ee;border-radius:11px;padding:8px 10px;color:#cffafe;font-size:.72rem;font-weight:900;box-shadow:0 5px 16px rgba(0,0,0,.45)}
     .yb-card{pointer-events:auto;background:rgba(3,7,18,.97);border:1px solid #22d3ee;border-radius:11px;padding:9px 10px;box-shadow:0 5px 16px rgba(0,0,0,.55)}.yb-card.assigned{border-color:#38bdf8}.yb-card.accepted{border-color:#10b981}.yb-line{display:flex;justify-content:space-between;gap:8px;align-items:center}.yb-place{font-size:.86rem;font-weight:900;color:#fff}.yb-price{font-size:.72rem;color:#67e8f9;font-weight:900;white-space:nowrap}.yb-state{font-size:.66rem;color:#22d3ee;font-weight:900;margin-top:4px}.yb-card button{margin-top:7px;width:100%;border:0;border-radius:7px;padding:8px;font-weight:900;cursor:pointer;background:#0284c7;color:#fff}.yb-card button.assign{background:#0891b2}.yb-card button.cancel{background:#374151;color:#e2e8f0}
     #yadah-base-modal{position:absolute;inset:0;z-index:3910;background:transparent;display:none;align-items:flex-start;justify-content:flex-start;padding:72px 12px 12px;pointer-events:none}.yb-modal-card{pointer-events:auto;width:min(390px,calc(100vw - 24px));background:rgba(3,7,18,.97);border:1px solid #22d3ee;border-radius:14px;padding:14px;max-height:70vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.58)}.yb-modal-title{display:flex;justify-content:space-between;align-items:center;color:#67e8f9;font-weight:900;font-size:.98rem;margin-bottom:10px}.yb-close{cursor:pointer;color:#94a3b8;font-size:1.2rem}.yb-label{font-size:.72rem;color:#94a3b8;margin:8px 0 5px;display:block}.yb-select,.yb-input{width:100%;padding:11px 12px;background:#030712;color:#fff;border:1px solid #334155;border-radius:8px;outline:none;font-size:.9rem;box-sizing:border-box}.yb-input{margin-top:8px}.yb-actions{display:flex;gap:8px;margin-top:12px}.yb-actions button{flex:1;padding:10px;border:0;border-radius:8px;font-weight:900;cursor:pointer}.yb-submit{background:#0891b2;color:#fff}.yb-direct{width:100%;margin-top:8px;padding:11px;border:1px solid #38bdf8;border-radius:8px;background:#0c4a6e;color:#e0f2fe;font-weight:900;cursor:pointer}.yb-floating-note{font-size:.66rem;color:#67e8f9;background:rgba(8,47,73,.65);border:1px solid #164e63;border-radius:8px;padding:7px 8px;margin-bottom:8px}.yb-draft-summary{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:9px;color:#e2e8f0;font-size:.78rem;margin:8px 0}.yb-draft-summary b{color:#67e8f9}.yb-secondary{background:#374151;color:#e2e8f0}.yb-unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.yb-unit-grid button{border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:9px;font-weight:800;cursor:pointer}
-    #yadah-base-assignment{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:3920;width:min(390px,calc(100vw - 24px));display:none;background:#0b1220;border:2px solid #22d3ee;border-radius:15px;padding:15px;box-shadow:0 12px 35px rgba(0,0,0,.65);color:#fff}.yb-assign-title{font-weight:900;color:#67e8f9;font-size:1rem}.yb-assign-place{font-size:1.05rem;font-weight:900;margin:10px 0}.yb-assign-meta{font-size:.72rem;color:#94a3b8}.yb-assign-actions{display:flex;gap:8px;margin-top:12px}.yb-assign-actions button{flex:1;border:0;border-radius:9px;padding:11px;font-weight:900;cursor:pointer}.yb-accept{background:#059669;color:#fff}.yb-reject{background:#374151;color:#e2e8f0}
-    #yadah-base-active{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:3919;width:min(390px,calc(100vw - 24px));display:none;background:#071a13;border:2px solid #10b981;border-radius:15px;padding:15px;box-shadow:0 12px 35px rgba(0,0,0,.65);color:#fff}
-    .yb-active-title{font-weight:900;color:#34d399;font-size:1rem}.yb-active-place{font-size:1.12rem;font-weight:900;margin:10px 0}.yb-active-meta{font-size:.72rem;color:#a7f3d0}.yb-active-finish{width:100%;margin-top:12px;border:0;border-radius:9px;padding:12px;background:#059669;color:#fff;font-weight:900;font-size:1rem;cursor:pointer}.yb-assignment-list,.yb-active-list{display:flex;flex-direction:column;gap:10px;max-height:70vh;overflow:auto}.yb-assignment-card{background:#0b1220;border:1px solid #22d3ee;border-radius:12px;padding:12px}.yb-assignment-card .yb-assign-title{font-weight:900;color:#67e8f9;font-size:.95rem}.yb-assignment-card .yb-assign-place{font-size:1.05rem;font-weight:900;margin:8px 0}.yb-assignment-card .yb-assign-meta{font-size:.72rem;color:#94a3b8}.yb-active-card{background:#071a13;border:1px solid #10b981;border-radius:12px;padding:12px}.yb-active-card .yb-active-title{font-weight:900;color:#34d399;font-size:1rem}.yb-active-card .yb-active-place{font-size:1.1rem;font-weight:900;margin:8px 0}.yb-active-card .yb-active-meta{font-size:.72rem;color:#a7f3d0}.yb-active-card .yb-active-finish{width:100%;margin-top:10px;border:0;border-radius:9px;padding:12px;background:#059669;color:#fff;font-weight:900;font-size:1rem;cursor:pointer}
     #client-queue-screen{position:fixed;inset:0;z-index:6000;background:#08111f;color:#fff;display:none;flex-direction:column;overflow:hidden}
     .cq-header{padding:18px 16px;background:#0f1b2d;border-bottom:2px solid #38bdf8;text-align:center}
     .cq-brand{font-size:1.2rem;font-weight:900;color:#38bdf8}.cq-subtitle{font-size:.78rem;color:#94a3b8;margin-top:4px}
@@ -824,7 +698,6 @@
     .yb-notify-card.pending{border-color:#22d3ee}
     .yb-notify-card.accepted{border-color:#10b981;background:rgba(7, 26, 19, 0.90)}
     
-    /* Estado contraído por defecto (Compacto/Discreto) */
     .yb-notify-card .yb-notify-body {
       display: flex;
       justify-content: space-between;
@@ -843,12 +716,11 @@
       color: #34d399;
     }
     .yb-notify-card .yb-notify-details {
-      display: none; /* Oculto hasta que se haga Tap */
+      display: none;
       margin-top: 6px;
       border-top: 1px solid rgba(255,255,255,0.1);
       padding-top: 6px;
     }
-    /* Estado expandido cuando tiene la clase .expanded */
     .yb-notify-card.expanded .yb-notify-details {
       display: block;
     }
@@ -2125,7 +1997,7 @@
       button.addEventListener('click', () => setTimeout(closeMapOptions, 0));
     });
 
-    if (!trackingUnit && document.getElementById('btn-recenter')) document.getElementById('btn-recenter'].addEventListener('click', applyCameraPerspective);
+    if (!trackingUnit && document.getElementById('btn-recenter')) document.getElementById('btn-recenter').addEventListener('click', applyCameraPerspective);
 
     // ==========================================
     // MÓDULO DE RADIO WEBRTC EN TIEMPO REAL
@@ -2738,9 +2610,7 @@
         </div>
       `;
 
-      // Evento de Tap para Expandir / Contraer la tarjeta limpiamente
       card.addEventListener('click', (e) => {
-        // Si se hace clic en un botón de acción, dejamos que el botón procese su evento
         if(e.target.tagName === 'BUTTON') return;
         card.classList.toggle('expanded');
       });
@@ -2823,11 +2693,9 @@
   function bind(){
     if(bound)return;bound=true;
     $('yb-open-btn')?.addEventListener('click',toggleBasePanel);$('yadah-base-stack')?.addEventListener('click',e=>{if(e.target.closest('#yb-add-client')){openAdd();return}const b=e.target.closest('[data-yb]');if(!b)return;if(b.dataset.yb==='reassign')openAssign(b.dataset.id);else if(b.dataset.yb==='cancel')cancel(b.dataset.id)});
-    $('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);$('yb-add-queue')?.addEventListener('click',registerClient);
-    $('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});$('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});
-    
-    // Evento delegado unificado para las notificaciones flotantes (Aceptar, Rechazar, Finalizar)
-    $('yadah-base-notifications')?.addEventListener('click',e=>{
+    $('yb-close')?.addEventListener('click',closeModal);$('yb-cancel')?.addEventListener('click',closeModal);$('yb-assign-cancel')?.addEventListener('click',closeModal);
+    $('yb-add-queue')?.addEventListener('click',registerClient);$('yb-price')?.addEventListener('change',e=>{$('yb-custom-price').style.display=e.target.value==='__custom__'?'block':'none';if(e.target.value!=='__custom__')$('yb-custom-price').value=''});
+    $('yadah-base-modal')?.addEventListener('click',e=>{if(e.target.id==='yadah-base-modal')closeModal()});$('yadah-base-notifications')?.addEventListener('click',e=>{
       const b=e.target.closest('[data-base-action],[data-base-finish]');
       if(!b)return;
       const id=b.dataset.id;
