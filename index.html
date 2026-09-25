@@ -811,14 +811,56 @@
 .cq-status{margin-top:7px;font-size:.72rem;font-weight:900;color:#fbbf24}.cq-status.assigned{color:#38bdf8}
 .cq-empty{text-align:center;color:#64748b;padding:40px 20px}.cq-logout{margin:10px 12px 18px;padding:12px;border:0;border-radius:10px;background:#374151;color:#fff;font-weight:900}
 
-/* ===== YADAH: NOTIFICACIONES BASE MULTIPLES EN COLUMNA ===== */
-#yadah-base-notifications{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:3925;width:min(390px,calc(100vw - 24px));display:none;flex-direction:column;gap:10px;max-height:68vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:0 2px 8px}
-.yb-notify-card{width:100%;box-sizing:border-box;background:#0b1220;border:2px solid #22d3ee;border-radius:15px;padding:15px;box-shadow:0 12px 35px rgba(0,0,0,.65);color:#fff;flex:0 0 auto}
-.yb-notify-card.pending{border-color:#22d3ee}.yb-notify-card.accepted{border-color:#10b981;background:#071a13}
-.yb-notify-title{font-weight:900;color:#67e8f9;font-size:1rem}.yb-notify-card.accepted .yb-notify-title{color:#34d399}
-.yb-notify-place{font-size:1.12rem;font-weight:900;margin:10px 0;overflow-wrap:anywhere}.yb-notify-meta{font-size:.72rem;color:#94a3b8}.yb-notify-card.accepted .yb-notify-meta{color:#a7f3d0}
-.yb-notify-actions{display:flex;gap:8px;margin-top:12px}.yb-notify-actions button{flex:1;border:0;border-radius:9px;padding:11px;font-weight:900;cursor:pointer}.yb-notify-reject{background:#374151;color:#e2e8f0}.yb-notify-accept{background:#059669;color:#fff}.yb-notify-finish{width:100%;margin-top:12px;border:0;border-radius:9px;padding:12px;background:#059669;color:#fff;font-weight:900;font-size:1rem;cursor:pointer}
-@media(max-width:799px){#yadah-base-notifications{top:18%;width:calc(100vw - 24px);max-height:65vh}}
+/* ===== YADAH: NOTIFICACIONES BASE ULTRA COMPACTAS ===== */
+#yadah-base-notifications{
+position:fixed;left:50%;top:7%;transform:translateX(-50%);z-index:3925;
+width:min(330px,calc(100vw - 20px));display:none;flex-direction:column;gap:4px;
+max-height:30vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:0 1px 3px;
+}
+.yb-notify-card{
+width:100%;box-sizing:border-box;background:#0b1220;border:1px solid #22d3ee;
+border-radius:8px;padding:5px 7px;box-shadow:0 4px 12px rgba(0,0,0,.45);
+color:#fff;flex:0 0 auto;
+}
+.yb-notify-card.pending{border-color:#22d3ee}
+.yb-notify-card.accepted{border-color:#10b981;background:#071a13}
+.yb-notify-title{
+font-weight:900;color:#67e8f9;font-size:.66rem;line-height:1;
+}
+.yb-notify-card.accepted .yb-notify-title{color:#34d399}
+.yb-notify-place{
+font-size:.78rem;font-weight:900;margin:3px 0;line-height:1.05;
+overflow-wrap:anywhere;
+}
+.yb-notify-meta{
+font-size:.54rem;color:#94a3b8;line-height:1;
+}
+.yb-notify-card.accepted .yb-notify-meta{color:#a7f3d0}
+.yb-notify-actions{
+display:flex;gap:4px;margin-top:4px;
+}
+.yb-notify-actions button{
+flex:1;border:0;border-radius:5px;padding:4px;font-size:.61rem;
+font-weight:900;cursor:pointer;min-height:28px;
+}
+.yb-notify-reject{background:#374151;color:#e2e8f0}
+.yb-notify-accept{background:#059669;color:#fff}
+.yb-notify-finish{
+width:100%;margin-top:4px;border:0;border-radius:5px;padding:5px;
+background:#059669;color:#fff;font-weight:900;font-size:.68rem;
+min-height:29px;cursor:pointer;
+}
+@media(max-width:799px){
+#yadah-base-notifications{
+top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
+}
+.yb-notify-card{padding:5px 7px}
+.yb-notify-title{font-size:.64rem}
+.yb-notify-place{font-size:.76rem}
+.yb-notify-meta{font-size:.52rem}
+.yb-notify-actions button{padding:4px;font-size:.59rem;min-height:27px}
+.yb-notify-finish{padding:5px;font-size:.66rem;min-height:28px}
+}
 
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
 @media(max-width:799px){#yadah-base-modal{padding:62px 10px 10px;justify-content:flex-start}.yb-modal-card{width:min(380px,calc(100vw - 20px));max-height:66vh}}
@@ -2680,3 +2722,4 @@ function init(){load();ensureDay();bind();render();connect();setInterval(()=>{re
 </script>
 </body>
 </html>
+PRUEBA VISUAL — NOTIFICACIONES BASE ULTRA COMPACTAS. Se redujo únicamente el tamaño, espaciado y altura máxima de las tarjetas de notificación. La lógica de asignación, aceptación y finalización permanece sin cambios.
