@@ -863,26 +863,41 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 }
 
 
-/* ===== BURBUJA BASE: UNA SOLA + MOVIBLE ===== */
+/* ===== BURBUJA BASE: ANIMADA + MOVIBLE ===== */
+/* ===== BURBUJA BASE: MOVIBLE SOLO CUANDO ESTA CERRADA ===== */
+#yadah-base-notifications{
+  will-change:width,height,left,top,transform,opacity;
+}
+
 #yadah-base-notifications.yadah-base-bubble{
   width:58px!important;height:58px!important;
   min-width:58px!important;max-width:58px!important;
   min-height:58px!important;max-height:58px!important;
-  left:auto;right:14px;top:auto;bottom:145px;
+  left:var(--bubble-left)!important;
+  top:var(--bubble-top)!important;
+  right:auto!important;bottom:auto!important;
   transform:none!important;
   padding:0!important;margin:0!important;
   overflow:visible!important;
-  display:flex!important;
-  align-items:center!important;justify-content:center!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
   flex-direction:column!important;
-  cursor:grab!important;
-  touch-action:none!important;
-  user-select:none!important;
+  cursor:grab!important;touch-action:none!important;user-select:none!important;
+  transition:left .45s ease,top .45s ease,width .45s ease,height .45s ease,
+             min-width .45s ease,max-width .45s ease,min-height .45s ease,
+             max-height .45s ease,padding .35s ease,opacity .35s ease;
 }
-#yadah-base-notifications.yadah-base-bubble:active{cursor:grabbing!important}
+
 #yadah-base-notifications.yadah-base-bubble .yb-notify-card{
-  display:none!important;
+  opacity:0!important;
+  transform:scale(.70)!important;
+  max-height:0!important;
+  padding-top:0!important;padding-bottom:0!important;
+  margin-top:0!important;margin-bottom:0!important;
+  overflow:hidden!important;
+  transition:opacity .30s ease,transform .45s ease,max-height .45s ease,
+             padding .45s ease,margin .45s ease;
 }
+
 #yadah-base-notifications.yadah-base-bubble::before{
   content:'🚕';
   width:58px;height:58px;border-radius:50%;
@@ -890,15 +905,33 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
   background:#0891b2;border:3px solid #38bdf8;
   box-shadow:0 4px 14px rgba(0,0,0,.45);
   font-size:25px;cursor:grab;box-sizing:border-box;
+  opacity:0;transform:scale(.55);
+  transition:opacity .25s ease .12s,transform .40s cubic-bezier(.2,.8,.2,1) .12s;
 }
+
 #yadah-base-notifications.yadah-base-bubble::after{
   content:attr(data-bubble-count);
   position:absolute;right:-4px;top:-4px;
   min-width:20px;height:20px;padding:0 4px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
   background:#ef4444;color:#fff;border:2px solid #0f172a;
-  font-size:10px;font-weight:900;box-sizing:border-box;
-  pointer-events:none;
+  font-size:10px;font-weight:900;box-sizing:border-box;pointer-events:none;
+  opacity:0;transform:scale(.5);
+  transition:opacity .20s ease .22s,transform .20s ease .22s;
+}
+
+#yadah-base-notifications.yadah-base-bubble::before,
+#yadah-base-notifications.yadah-base-bubble::after{
+  animation:yadahBubbleIn .40s ease forwards;
+}
+
+@keyframes yadahBubbleIn{
+  from{opacity:0;transform:scale(.5)}
+  to{opacity:1;transform:scale(1)}
+}
+
+#yadah-base-notifications.yadah-base-bubble:active{
+  cursor:grabbing!important;
 }
 
 @media(min-width:800px){#yadah-base-stack{left:16px;right:auto;width:360px;max-height:55vh}#yadah-base-fab{left:18px;right:auto;bottom:180px}}
@@ -2557,63 +2590,134 @@ function checkAuth(){
     bindRadioPTT();
 
     if (!trackingUnit) checkAuth();
-/* ===== YADAH: BURBUJA BASE — NUEVA CARRERA + AUTO CIERRE 15s ===== */
+/* ===== YADAH: BURBUJA BASE — POSICION SEPARADA DE LAS NOTIFICACIONES ===== */
 (function(){
-  var timer=null, dragging=false, moved=false;
+  var timer=null,dragging=false,moved=false;
   var sx=0,sy=0,sl=0,st=0;
   var lastBaseCount=0;
 
-  window.yadahBaseBubbleTimerStarted=false;
-
-  function box(){ return document.getElementById('yadah-base-notifications'); }
+  function box(){return document.getElementById('yadah-base-notifications')}
   function count(){
     var b=box();
-    return b ? b.querySelectorAll('.yb-notify-card').length : 0;
+    return b?b.querySelectorAll('.yb-notify-card').length:0
+  }
+
+  function defaultBubblePosition(){
+    return {
+      left: Math.max(8, window.innerWidth-72),
+      top: Math.max(80, window.innerHeight-170)
+    };
+  }
+
+  function setExpandedPosition(b){
+    if(!b)return;
+
+    /*
+      MUY IMPORTANTE:
+      la posición de la burbuja NO se usa para las tarjetas.
+      Al abrir, el contenedor vuelve a una posición fija,
+      centrada y completamente dentro de la pantalla.
+    */
+    b.style.transition='none';
+    b.style.left='50%';
+    b.style.top='6%';
+    b.style.right='auto';
+    b.style.bottom='auto';
+    b.style.transform='translateX(-50%)';
+
+    /* Forzamos el ancho normal de las notificaciones. */
+    b.style.width='calc(100vw - 20px)';
+    b.style.maxWidth='330px';
+    b.style.minWidth='';
+    b.style.height='';
+    b.style.maxHeight='29vh';
+    b.style.minHeight='';
+    b.style.padding='0 1px 3px';
+    b.style.margin='';
+    b.style.overflowY='auto';
+    b.style.overflowX='hidden';
+  }
+
+  function setBubblePosition(b,left,top){
+    if(!b)return;
+
+    var size=58;
+    var maxX=Math.max(4,window.innerWidth-size-4);
+    var maxY=Math.max(4,window.innerHeight-size-4);
+
+    left=Math.min(maxX,Math.max(4,Number(left)||0));
+    top=Math.min(maxY,Math.max(4,Number(top)||0));
+
+    b.style.setProperty('--bubble-left',left+'px');
+    b.style.setProperty('--bubble-top',top+'px');
   }
 
   function startCloseTimer(){
     var b=box();
-    if(!b || !count()) return;
+    if(!b||!count())return;
     clearTimeout(timer);
     window.yadahBaseBubbleTimerStarted=true;
-
-    timer=setTimeout(function(){
-      var el=box();
-      var n=count();
-      if(!el || !n) return;
-      el.setAttribute('data-bubble-count',String(n));
-      el.classList.add('yadah-base-bubble');
-    },15000);
+    timer=setTimeout(collapseBubble,15000);
   }
 
-  window.yadahStartBaseBubbleTimer=function(){
-    var b=box();
-    var n=count();
-    if(!b || !n) return;
+  function collapseBubble(){
+    var b=box(),n=count();
+    if(!b||!n)return;
 
-    /* Primera asignación. */
+    /*
+      Guardamos la posición REAL de la burbuja.
+      Las tarjetas parten desde su posición normal centrada.
+    */
+    var currentLeft=b.dataset.bubbleMoved==='1'
+      ? parseFloat(b.dataset.bubbleLeft||'')
+      : NaN;
+    var currentTop=b.dataset.bubbleMoved==='1'
+      ? parseFloat(b.dataset.bubbleTop||'')
+      : NaN;
+
+    if(!Number.isFinite(currentLeft)||!Number.isFinite(currentTop)){
+      var d=defaultBubblePosition();
+      currentLeft=d.left;
+      currentTop=d.top;
+    }
+
+    setBubblePosition(b,currentLeft,currentTop);
+
+    /*
+      El navegador hace la transición de la tarjeta expandida
+      hacia la burbuja. No cambiamos la posición de las tarjetas
+      a la posición arrastrada por el motorista.
+    */
+    b.setAttribute('data-bubble-count',String(n));
+    b.classList.add('yadah-base-bubble');
+  }
+
+  window.yadahBaseBubbleTimerStarted=false;
+
+  window.yadahStartBaseBubbleTimer=function(){
+    var b=box(),n=count();
+    if(!b||!n)return;
+
     if(lastBaseCount===0){
       lastBaseCount=n;
       b.classList.remove('yadah-base-bubble');
+      setExpandedPosition(b);
+      b.dataset.bubbleMoved=b.dataset.bubbleMoved||'0';
       startCloseTimer();
       return;
     }
 
-    /* Nueva asignación: abrir y dar 15 segundos completos. */
     if(n>lastBaseCount){
       lastBaseCount=n;
       b.classList.remove('yadah-base-bubble');
-      b.setAttribute('data-bubble-count',String(n));
+      setExpandedPosition(b);
       startCloseTimer();
-      return;
     }
-
-    /* Sin nueva asignación: no reiniciar por cada render. */
   };
 
   window.yadahBaseBubbleUpdateCount=function(n){
     var b=box();
-    if(!b) return;
+    if(!b)return;
 
     b.setAttribute('data-bubble-count',String(n));
 
@@ -2622,80 +2726,99 @@ function checkAuth(){
       window.yadahBaseBubbleTimerStarted=false;
       lastBaseCount=0;
       b.classList.remove('yadah-base-bubble');
-      b.style.left=''; b.style.top=''; b.style.right=''; b.style.bottom='';
+      b.dataset.bubbleMoved='0';
+      b.dataset.bubbleLeft='';
+      b.dataset.bubbleTop='';
+      setExpandedPosition(b);
       b.removeAttribute('data-bubble-count');
       return;
     }
 
-    /* Si se finaliza una de varias, conserva la burbuja si estaba cerrada. */
-    if(n<lastBaseCount) lastBaseCount=n;
+    if(n<lastBaseCount)lastBaseCount=n;
   };
 
   function openBubble(){
-    var b=box();
-    var n=count();
-    if(!b || !n) return;
+    var b=box(),n=count();
+    if(!b||!n)return;
 
-    /* Abrir para poder finalizar. */
-    b.classList.remove('yadah-base-bubble');
-
-    /* Al abrir, empieza nuevamente un ciclo de 15 segundos. */
     clearTimeout(timer);
     window.yadahBaseBubbleTimerStarted=true;
 
-    timer=setTimeout(function(){
-      var el=box();
-      var active=count();
-      if(!el || !active) return;
-      el.setAttribute('data-bubble-count',String(active));
-      el.classList.add('yadah-base-bubble');
-    },15000);
+    /*
+      Primero quitamos la clase de burbuja y, de inmediato,
+      colocamos las notificaciones en el centro.
+      La posición guardada solo pertenece a la burbuja.
+    */
+    b.classList.remove('yadah-base-bubble');
+    setExpandedPosition(b);
+
+    /* Reinicia el ciclo de 15 s desde que el motorista la abre. */
+    timer=setTimeout(collapseBubble,15000);
   }
 
   function pointerDown(e){
     var b=box();
-    if(!b || !b.classList.contains('yadah-base-bubble')) return;
+    if(!b||!b.classList.contains('yadah-base-bubble'))return;
 
-    dragging=true; moved=false;
-    sx=e.clientX; sy=e.clientY;
+    dragging=true;
+    moved=false;
+    sx=e.clientX;
+    sy=e.clientY;
 
     var r=b.getBoundingClientRect();
-    sl=r.left; st=r.top;
+    sl=r.left;
+    st=r.top;
 
-    b.style.right='auto'; b.style.bottom='auto';
-    b.style.left=sl+'px'; b.style.top=st+'px';
+    b.style.left=sl+'px';
+    b.style.top=st+'px';
+    b.style.right='auto';
+    b.style.bottom='auto';
+    b.style.transform='none';
 
     try{b.setPointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
   }
 
   function pointerMove(e){
-    if(!dragging) return;
+    if(!dragging)return;
 
-    var dx=e.clientX-sx, dy=e.clientY-sy;
-    if(Math.abs(dx)>5 || Math.abs(dy)>5) moved=true;
+    var dx=e.clientX-sx;
+    var dy=e.clientY-sy;
+
+    if(Math.abs(dx)>5||Math.abs(dy)>5)moved=true;
 
     if(moved){
       var b=box();
-      if(!b) return;
+      if(!b)return;
 
       var maxX=Math.max(4,window.innerWidth-b.offsetWidth-4);
       var maxY=Math.max(4,window.innerHeight-b.offsetHeight-4);
 
-      b.style.left=Math.min(maxX,Math.max(4,sl+dx))+'px';
-      b.style.top=Math.min(maxY,Math.max(4,st+dy))+'px';
+      var nx=Math.min(maxX,Math.max(4,sl+dx));
+      var ny=Math.min(maxY,Math.max(4,st+dy));
+
+      b.style.left=nx+'px';
+      b.style.top=ny+'px';
+      b.style.setProperty('--bubble-left',nx+'px');
+      b.style.setProperty('--bubble-top',ny+'px');
+      b.dataset.bubbleMoved='1';
+      b.dataset.bubbleLeft=String(nx);
+      b.dataset.bubbleTop=String(ny);
     }
+
     e.preventDefault();
   }
 
   function pointerUp(e){
-    if(!dragging) return;
+    if(!dragging)return;
     dragging=false;
 
     var b=box();
-    if(!b) return;
+    if(!b)return;
 
-    if(!moved) openBubble();
+    if(!moved){
+      openBubble();
+    }
 
     try{b.releasePointerCapture(e.pointerId)}catch(_){}
     e.preventDefault();
@@ -2704,7 +2827,7 @@ function checkAuth(){
   document.addEventListener('pointerdown',pointerDown,true);
   document.addEventListener('pointermove',pointerMove,true);
   document.addEventListener('pointerup',pointerUp,true);
-  document.addEventListener('pointercancel',function(){dragging=false;},true);
+  document.addEventListener('pointercancel',function(){dragging=false},true);
 })();
 
   </script>
