@@ -2857,6 +2857,16 @@ function checkAuth(){
       try{b.releasePointerCapture(e.pointerId)}catch(_){}
     });
 
+    /* Apertura EXCLUSIVA al tocar la propia burbuja.
+       No usamos document/window para abrirla.
+       Se mantiene separada de los eventos del mapa y de la interfaz. */
+    b.addEventListener('touchend',function(e){
+      if(!b.classList.contains('yadah-base-bubble'))return;
+      e.stopPropagation();
+      if(suppressClick){ suppressClick=false; return; }
+      openBubble();
+    },{passive:false});
+
     b.addEventListener('click',function(e){
       if(!b.classList.contains('yadah-base-bubble'))return;
       e.preventDefault();
