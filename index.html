@@ -2825,6 +2825,50 @@ function checkAuth(){
   }
 
   /*
+    CONTROL DIRECTO DE LA BURBUJA:
+    Solo la propia burbuja recibe estos eventos.
+    El mapa, los botones y el resto de la pantalla NO pueden abrirla ni moverla.
+  */
+  function bindBubble(){
+    var b=box();
+    if(!b || b.dataset.yadahBubbleBound==='1')return;
+    b.dataset.yadahBubbleBound='1';
+
+    b.addEventListener('pointerdown',function(e){
+      if(!b.classList.contains('yadah-base-bubble'))return;
+      pointerDown(e);
+    });
+
+    b.addEventListener('pointermove',function(e){
+      if(!dragging)return;
+      pointerMove(e);
+    });
+
+    b.addEventListener('pointerup',function(e){
+      if(!dragging)return;
+      pointerUp(e);
+    });
+
+    b.addEventListener('pointercancel',function(e){
+      if(!dragging)return;
+      dragging=false;
+      try{b.releasePointerCapture(e.pointerId)}catch(_){}
+    });
+
+    b.addEventListener('click',function(e){
+      if(!b.classList.contains('yadah-base-bubble'))return;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bindBubble,{once:true});
+  }else{
+    bindBubble();
+  }
+
+  /*
     DESACTIVADO:
     Este controlador global podía interpretar cualquier toque de la pantalla
     como un toque sobre la burbuja porque escuchaba en fase de captura.
