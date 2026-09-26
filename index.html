@@ -888,6 +888,7 @@ top:6%;width:calc(100vw - 20px);max-height:29vh;gap:4px;
 }
 
 #yadah-base-notifications.yadah-base-bubble .yb-notify-card{
+  pointer-events:none!important;
   opacity:0!important;
   transform:scale(.70)!important;
   max-height:0!important;
@@ -2592,7 +2593,7 @@ function checkAuth(){
     if (!trackingUnit) checkAuth();
 /* ===== YADAH: BURBUJA BASE — POSICION SEPARADA DE LAS NOTIFICACIONES ===== */
 (function(){
-  var timer=null,dragging=false,moved=false;
+  var timer=null,dragging=false,moved=false,suppressClick=false;
   var sx=0,sy=0,sl=0,st=0;
   var lastBaseCount=0;
 
@@ -2812,6 +2813,7 @@ function checkAuth(){
   function pointerUp(e){
     if(!dragging)return;
     dragging=false;
+    suppressClick=moved;
 
     var b=box();
     if(!b)return;
@@ -2859,6 +2861,8 @@ function checkAuth(){
       if(!b.classList.contains('yadah-base-bubble'))return;
       e.preventDefault();
       e.stopPropagation();
+      if(suppressClick){ suppressClick=false; return; }
+      openBubble();
     });
   }
 
